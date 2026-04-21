@@ -1,10 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const { getTenant, getConversation, upsertConversation } = require('../db');
+const { Pool } = require('pg');
+const { getConversation, upsertConversation } = require('../db');
 const { getAIResponse } = require('../ai');
 const { sendMessage } = require('../whatsapp');
 
-// Meta webhook verification
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL?.includes('railway') ? { rejectUnauthorized: false } : false
+});
+
 router.get('/', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
@@ -17,55 +22,33 @@ router.get('/', (req, res) => {
   }
 });
 
-// Incoming WhatsApp messages
 router.post('/', async (req, res) => {
-  res.sendStatus(200); // Always respond fast to Meta
-
+  res.sendStatus(200);
   try {
     const body = req.body;
     if (body.object !== 'whatsapp_business_account') return;
-
-    const entry = body.entry?.[0];
-    const changes = entry?.changes?.[0];
-    const message = changes?.value?.messages?.[0];
-    const metadata = changes?.value?.metadata;
-
+    const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+    const metadata = body.entry?.[0]?.changes?.[0]?.value?.metadata;
     if (!message || message.type !== 'text') return;
 
     const from = message.from;
     const text = message.text.body;
     const phoneNumberId = metadata?.phone_number_id;
-
     console.log(`📩 [${phoneNumberId}] Message from ${from}: ${text}`);
 
-    // Find tenant by phone number ID
-    // For now use a default tenant lookup - will improve with phone mapping
-    const tenants = await require('../db').pool?.query('SELECT * FROM tenants LIMIT 1');
-    const tenant = tenants?.rows?.[0];
-    if (!tenant) {
-      console.log('⚠️ No tenant found for this number');
-      return;
-    }
+    const result = await pool.query('SELECT * FROM tenants LIMIT 1');
+    const tenant = result.rows[0];
+    if (!tenant) { console.log('⚠️ No tenant found'); return; }
 
-    // Get or create conversation
     const conv = await getConversation(tenant.id, from);
     const history = conv?.messages || [];
-
-    // Get AI response
     const aiReply = await getAIResponse(tenant, from, text, history);
-
-    // Update conversation history
-    const updatedHistory = [
-      ...history,
-      { role: 'user', content: text },
-      { role: 'assistant', content: aiReply }
-    ];
+    const updatedHistory = [...history, { role: 'user', content: text }, { role: 'assistant', content: aiReply }];
     await upsertConversation(tenant.id, from, updatedHistory, conv?.cart || {});
 
-    // Send reply
     const token = tenant.whatsapp_token || process.env.WHATSAPP_TOKEN;
     await sendMessage(from, aiReply, token, phoneNumberId);
-
+    console.log(`🤖 AI replied to ${from}: ${aiReply.substring(0, 50)}...`);
   } catch (err) {
     console.error('❌ Webhook error:', err.message);
   }
