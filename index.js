@@ -10,6 +10,7 @@ app.use(express.static("public"));
 
 app.use('/shopify', require('./routes/install'));
 app.use('/webhook', require('./routes/webhook'));
+app.use('/gdpr', require('./routes/gdpr'));
 app.use('/dashboard', require('./routes/dashboard'));
 
 app.get('/', (req, res) => {
