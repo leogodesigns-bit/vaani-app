@@ -25,6 +25,7 @@ async function initDB() {
       messages JSONB DEFAULT '[]',
       cart JSONB DEFAULT '{}',
       last_active TIMESTAMP DEFAULT NOW(),
+      followup_sent BOOLEAN DEFAULT false,
       UNIQUE(tenant_id, customer_phone)
     );
 
