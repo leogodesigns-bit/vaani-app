@@ -24,7 +24,8 @@ async function initDB() {
       customer_phone VARCHAR(50),
       messages JSONB DEFAULT '[]',
       cart JSONB DEFAULT '{}',
-      last_active TIMESTAMP DEFAULT NOW()
+      last_active TIMESTAMP DEFAULT NOW(),
+      UNIQUE(tenant_id, customer_phone)
     );
 
     CREATE TABLE IF NOT EXISTS analytics (
@@ -64,7 +65,7 @@ async function upsertConversation(tenantId, customerPhone, messages, cart) {
   const res = await pool.query(
     `INSERT INTO conversations (tenant_id, customer_phone, messages, cart, last_active)
      VALUES ($1, $2, $3, $4, NOW())
-     ON CONFLICT (tenant_id, customer_phone) 
+     ON CONFLICT (tenant_id, customer_phone)
      DO UPDATE SET messages = $3, cart = $4, last_active = NOW()
      RETURNING *`,
     [tenantId, customerPhone, JSON.stringify(messages), JSON.stringify(cart)]
