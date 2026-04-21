@@ -42,7 +42,10 @@ router.post('/', async (req, res) => {
 
     const conv = await getConversation(tenant.id, from);
     const history = conv?.messages || [];
-    const aiReply = await getAIResponse(tenant, from, text, history);
+    const { detectLanguage } = require("../ai");
+    const lang = detectLanguage(text);
+    const langInstruction = lang !== "english" ? `Respond in ${lang}.` : "";
+    const aiReply = await getAIResponse(tenant, from, langInstruction ? langInstruction + " " + text : text, history);
     const updatedHistory = [...history, { role: 'user', content: text }, { role: 'assistant', content: aiReply }];
     await upsertConversation(tenant.id, from, updatedHistory, conv?.cart || {});
 
