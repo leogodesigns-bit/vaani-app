@@ -45,4 +45,25 @@ You can help with: product info, order status, cart building, payment links.${pr
   return response.content[0].text;
 }
 
-module.exports = { getAIResponse };
+function detectLanguage(text) {
+  const hindiPattern = /[\u0900-\u097F]/;
+  const hinglishWords = ["kya","hai","nahi","mujhe","aap","karo"];
+  if (hindiPattern.test(text)) return "hindi";
+  if (hinglishWords.some(w => text.toLowerCase().includes(w))) return "hinglish";
+  return "english";
+}
+
+module.exports = { getAIResponse, detectLanguage };
+
+function detectLanguage(text) {
+  const hindiPattern = /[\u0900-\u097F]/;
+  const marathiWords = ['आहे', 'नाही', 'काय', 'मला', 'तुम्ही', 'आपण'];
+  const hinglishWords = ['kya', 'hai', 'nahi', 'mujhe', 'aap', 'karo', 'bhai', 'yaar'];
+  
+  if (hindiPattern.test(text)) return 'hindi';
+  if (marathiWords.some(w => text.includes(w))) return 'marathi';
+  if (hinglishWords.some(w => text.toLowerCase().includes(w))) return 'hinglish';
+  return 'english';
+}
+
+module.exports = { getAIResponse, detectLanguage };
