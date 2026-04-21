@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const { initDB } = require('./db');
 const app = express();
 
 app.use(express.json());
@@ -16,6 +17,7 @@ app.get('/', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Vaani server running on port ${PORT}`);
+  await initDB();
 });
