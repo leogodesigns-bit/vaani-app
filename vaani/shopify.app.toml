@@ -1,0 +1,16 @@
+client_id = "f40e5ed15a3ba63053ea79cada376603"
+name = "Vaani"
+application_url = "https://vaani-app-production-6407.up.railway.app"
+embedded = false
+
+[build]
+automatically_update_urls_on_dev = true
+
+[webhooks]
+api_version = "2026-07"
+
+[access_scopes]
+scopes = "read_products,read_orders,write_orders,read_customers"
+
+[auth]
+redirect_urls = [ "https://vaani-app-production-6407.up.railway.app/shopify/callback" ]
