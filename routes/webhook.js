@@ -64,7 +64,25 @@ router.post('/', async (req, res) => {
     const browseKeywords = ['show', 'product', 'browse', 'catalogue', 'catalog', 'what do you have', 'collection', 'more product', 'see product', 'view product'];
     const categoryKeywords = ['earring', 'jhumki', 'ring', 'saree pin', 'necklace', 'chain', 'pendant'];
     const isBrowsing = browseKeywords.some(k => text.toLowerCase().includes(k));
+    const isMoreCategories = text.toLowerCase().includes('more categor');
     const isCategory = categoryKeywords.some(k => text.toLowerCase().includes(k));
+
+    if (isMoreCategories && tenant.shopify_token && tenant.shopify_token !== 'test_token') {
+      const products = await getProducts(tenant.shop_domain, tenant.shopify_token);
+      let aiCategories = tenant.categories;
+      if (!aiCategories || aiCategories.length === 0) {
+        aiCategories = await generateCategories(products);
+        await pool.query('UPDATE tenants SET categories = $1 WHERE id = $2', [JSON.stringify(aiCategories), tenant.id]);
+      }
+      const catNames = Object.keys(categorizeProducts(products, aiCategories));
+      const sections = [{
+        title: 'Our Collections',
+        rows: catNames.map((c, i) => ({ id: `cat_${i}`, title: c.substring(0, 24), description: 'Tap to browse' }))
+      }];
+      await sendList(from, '✨ Here are all our collections:', sections, waToken, phoneNumberId);
+      await upsertConversation(tenant.id, from, [...history, { role: 'user', content: text }, { role: 'assistant', content: '[showed all categories]' }], conv?.cart || {});
+      return;
+    }
 
     if ((isBrowsing || isCategory || isGreeting) && tenant.shopify_token && tenant.shopify_token !== 'test_token') {
       const products = await getProducts(tenant.shop_domain, tenant.shopify_token);
