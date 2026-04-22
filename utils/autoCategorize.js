@@ -10,7 +10,7 @@ async function generateCategories(products) {
     messages: [{
       role: 'user',
       content: `Look at these product titles from a store and group them into 3-5 categories.
-Return ONLY a JSON array like this:
+Identify ALL distinct product types present. Return ONLY a JSON array like this:
 [
   { "name": "Earrings", "keywords": ["earring", "jhumki", "stud", "hoop"] },
   { "name": "Rings", "keywords": ["ring"] }
