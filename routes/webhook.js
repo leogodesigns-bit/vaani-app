@@ -140,26 +140,42 @@ router.post('/', async (req, res) => {
         await pool.query('UPDATE tenants SET categories = $1 WHERE id = $2', [JSON.stringify(aiCategories), tenant.id]);
       }
       const categorized = categorizeProducts(inStock, aiCategories);
-      const catProducts = (cart.current_category ? categorized[cart.current_category] : null) || inStock;
+      let catProducts = null;
+      if (cart.current_category) {
+        catProducts = categorized[cart.current_category];
+        if (!catProducts) {
+          const key = Object.keys(categorized).find(k =>
+            k.toLowerCase().replace(/[^a-z0-9]/g, '') ===
+            cart.current_category.toLowerCase().replace(/[^a-z0-9]/g, '')
+          );
+          if (key) catProducts = categorized[key];
+        }
+      }
+      catProducts = catProducts || inStock;
 
-      const newOffset = (cart.product_offset || 0) + 3;
+      const currentOffset = cart.product_offset || 0;
+      const newOffset = currentOffset + 3;
 
-      if (newOffset >= catProducts.length) {
-        await sendMessage(from, "That's all our " + cart.current_category + " for now! 💛", waToken, phoneNumberId);
+      if (currentOffset >= catProducts.length) {
+        // Already showed everything
+        await sendMessage(from, "That's all our " + (cart.current_category || 'products') + "! 💛", waToken, phoneNumberId);
         await sendButtons(from, 'What would you like to do?', ['Back to categories', 'View shortlist 💛'], waToken, phoneNumberId);
         await upsertConversation(tenant.id, from,
           [...history, { role: 'user', content: text }, { role: 'assistant', content: '[end of category]' }],
-          { ...cart, product_offset: newOffset }
+          { ...cart }
         );
       } else {
-        const sent = await sendProductPage(from, catProducts, newOffset, waToken, phoneNumberId);
+        // Show next page (may be partial - e.g. only 2 products left)
+        const sent = await sendProductPage(from, catProducts, currentOffset, waToken, phoneNumberId);
+        const savedOffset = currentOffset + sent; // exact count shown, not always +3
+        const hasMore = savedOffset < catProducts.length;
         const buttons = ['Add to shortlist 💛'];
-        if (newOffset + sent < catProducts.length) buttons.push('See more products');
+        if (hasMore) buttons.push('See more products');
         buttons.push('Back to categories');
         await sendButtons(from, 'See something you like? 💛', buttons, waToken, phoneNumberId);
         await upsertConversation(tenant.id, from,
           [...history, { role: 'user', content: text }, { role: 'assistant', content: '[showed more products]' }],
-          { ...cart, product_offset: newOffset }
+          { ...cart, product_offset: savedOffset }
         );
       }
       return;
@@ -179,7 +195,21 @@ router.post('/', async (req, res) => {
         aiCategories = await generateCategories(inStock);
       }
       const categorized = categorizeProducts(inStock, aiCategories);
-      const catProducts = (cart.current_category ? categorized[cart.current_category] : null) || inStock;
+      // Find category with case-insensitive / partial match as fallback
+      let catProducts = null;
+      if (cart.current_category) {
+        catProducts = categorized[cart.current_category];
+        if (!catProducts) {
+          // Try case-insensitive match
+          const key = Object.keys(categorized).find(k =>
+            k.toLowerCase().replace(/[^a-z0-9]/g, '') ===
+            cart.current_category.toLowerCase().replace(/[^a-z0-9]/g, '')
+          );
+          if (key) catProducts = categorized[key];
+        }
+      }
+      console.log('🛍️ Shortlist: current_category=', cart.current_category, 'catKeys=', Object.keys(categorized), 'found=', !!catProducts, 'offset=', cart.product_offset);
+      catProducts = catProducts || inStock;
 
       // Show ALL products seen so far (from start up to current offset), max 10 (WhatsApp list limit)
       const seenUpTo = cart.product_offset || 3;
@@ -370,17 +400,17 @@ router.post('/', async (req, res) => {
           const catProducts = finalCat ? categorized[finalCat] : inStock;
 
           await sendMessage(from, 'Here are our ' + (finalCat || 'products') + ' ✨', waToken, phoneNumberId);
-          await sendProductPage(from, catProducts, 0, waToken, phoneNumberId);
+          const firstSent = await sendProductPage(from, catProducts, 0, waToken, phoneNumberId);
 
           const buttons = ['Add to shortlist 💛'];
-          if (catProducts.length > 3) buttons.push('See more products');
+          if (catProducts.length > firstSent) buttons.push('See more products');
           buttons.push('Back to categories');
           await sendButtons(from, 'See something you like? 💛', buttons.slice(0, 3), waToken, phoneNumberId);
 
-          // ✅ Save state: current category + offset
+          console.log('💾 Saving current_category:', finalCat, 'offset:', firstSent, 'total:', catProducts.length);
           await upsertConversation(tenant.id, from,
             [...history, { role: 'user', content: text }, { role: 'assistant', content: '[showed catalogue]' }],
-            { ...cart, current_category: finalCat, product_offset: 3 }
+            { ...cart, current_category: finalCat, product_offset: firstSent }
           );
 
         } else {
@@ -418,16 +448,16 @@ router.post('/', async (req, res) => {
       const catProducts = finalCat ? categorized[finalCat] : inStock;
 
       await sendMessage(from, 'Here are our ' + (finalCat || 'products') + ' ✨', waToken, phoneNumberId);
-      await sendProductPage(from, catProducts, 0, waToken, phoneNumberId);
+      const firstSentList = await sendProductPage(from, catProducts, 0, waToken, phoneNumberId);
 
       const buttons = ['Add to shortlist 💛'];
-      if (catProducts.length > 3) buttons.push('See more products');
+      if (catProducts.length > firstSentList) buttons.push('See more products');
       buttons.push('Back to categories');
       await sendButtons(from, 'See something you like? 💛', buttons.slice(0, 3), waToken, phoneNumberId);
 
       await upsertConversation(tenant.id, from,
         [...history, { role: 'user', content: text }, { role: 'assistant', content: '[showed category from list]' }],
-        { ...cart, current_category: finalCat, product_offset: 3 }
+        { ...cart, current_category: finalCat, product_offset: firstSentList }
       );
       return;
     }
