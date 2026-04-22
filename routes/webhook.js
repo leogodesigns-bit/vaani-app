@@ -46,6 +46,61 @@ async function sendProductPage(from, products, offset, waToken, phoneNumberId) {
   return page.length;
 }
 
+// Weighted shuffle: higher score = more likely to appear early, but still random
+function weightedShuffle(products, scores) {
+  return products
+    .map(p => ({
+      product: p,
+      // weight = score + 1 (so unscored items still have chance), multiplied by random
+      weight: (scores[String(p.id)] || 0) + 1
+    }))
+    .sort((a, b) => {
+      // Mix of weight and randomness: higher weight = higher chance but not guaranteed
+      const aScore = a.weight * (0.3 + Math.random() * 0.7);
+      const bScore = b.weight * (0.3 + Math.random() * 0.7);
+      return bScore - aScore;
+    })
+    .map(x => x.product);
+}
+
+async function getProductScores(tenantId) {
+  try {
+    const res = await pool.query(
+      'SELECT product_id, score FROM product_scores WHERE tenant_id = $1',
+      [tenantId]
+    );
+    const scores = {};
+    res.rows.forEach(r => { scores[r.product_id] = r.score; });
+    return scores;
+  } catch (err) {
+    // Table might not exist yet - create it
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS product_scores (
+          tenant_id INTEGER,
+          product_id TEXT,
+          score INTEGER DEFAULT 0,
+          PRIMARY KEY (tenant_id, product_id)
+        )
+      `);
+    } catch (e) {}
+    return {};
+  }
+}
+
+async function incrementProductScore(tenantId, productId) {
+  try {
+    await pool.query(`
+      INSERT INTO product_scores (tenant_id, product_id, score)
+      VALUES ($1, $2, 1)
+      ON CONFLICT (tenant_id, product_id)
+      DO UPDATE SET score = product_scores.score + 1
+    `, [tenantId, productId]);
+  } catch (err) {
+    console.error('Score update error:', err.message);
+  }
+}
+
 router.post('/', async (req, res) => {
   res.sendStatus(200);
   try {
@@ -154,6 +209,18 @@ router.post('/', async (req, res) => {
       }
       catProducts = catProducts || inStock;
 
+      // Restore session order if saved, otherwise re-shuffle
+      if (cart.session_product_ids && cart.session_product_ids.length > 0) {
+        const idOrder = cart.session_product_ids;
+        catProducts = idOrder
+          .map(id => catProducts.find(p => p.id === id))
+          .filter(Boolean);
+        // Add any new products not in saved order at the end
+        const known = new Set(idOrder.map(String));
+        const newProds = (catProducts || inStock).filter(p => !known.has(String(p.id)));
+        catProducts = [...catProducts, ...newProds];
+      }
+
       const currentOffset = cart.product_offset || 0;
       const newOffset = currentOffset + 3;
 
@@ -254,6 +321,9 @@ router.post('/', async (req, res) => {
 
       if (!alreadyIn) {
         shortlist.push({ id: productId, title: productTitle, price: productPrice });
+        // Learn: increment score so this product surfaces earlier for future customers
+        await incrementProductScore(tenant.id, productId);
+        console.log('📈 Score incremented for product:', productId, productTitle);
       }
 
       await upsertConversation(tenant.id, from,
@@ -402,18 +472,24 @@ router.post('/', async (req, res) => {
           const finalCat = matchedCat || (listCatIndex >= 0 ? catNames[listCatIndex] : null);
           const catProducts = finalCat ? categorized[finalCat] : inStock;
 
+          // Weighted shuffle: popular (shortlisted) products surface first, with randomness
+          const scores = await getProductScores(tenant.id);
+          const shuffledProducts = weightedShuffle(catProducts, scores);
+
           await sendMessage(from, 'Here are our ' + (finalCat || 'products') + ' ✨', waToken, phoneNumberId);
-          const firstSent = await sendProductPage(from, catProducts, 0, waToken, phoneNumberId);
+          const firstSent = await sendProductPage(from, shuffledProducts, 0, waToken, phoneNumberId);
 
           const buttons = ['Add to shortlist 💛'];
           if (catProducts.length > firstSent) buttons.push('See more products');
           buttons.push('Back to categories');
           await sendButtons(from, 'See something you like? 💛', buttons.slice(0, 3), waToken, phoneNumberId);
 
-          console.log('💾 Saving current_category:', finalCat, 'offset:', firstSent, 'total:', catProducts.length);
+          console.log('💾 Saving current_category:', finalCat, 'offset:', firstSent, 'total:', shuffledProducts.length);
+          // Save shuffled product IDs so See More uses same order this session
+          const shuffledIds = shuffledProducts.map(p => p.id);
           await upsertConversation(tenant.id, from,
             [...history, { role: 'user', content: text }, { role: 'assistant', content: '[showed catalogue]' }],
-            { ...cart, current_category: finalCat, product_offset: firstSent }
+            { ...cart, current_category: finalCat, product_offset: firstSent, session_product_ids: shuffledIds }
           );
 
         } else {
@@ -450,17 +526,21 @@ router.post('/', async (req, res) => {
       const finalCat = catNames[catIndex];
       const catProducts = finalCat ? categorized[finalCat] : inStock;
 
+      const scoresFromList = await getProductScores(tenant.id);
+      const shuffledFromList = weightedShuffle(catProducts, scoresFromList);
+
       await sendMessage(from, 'Here are our ' + (finalCat || 'products') + ' ✨', waToken, phoneNumberId);
-      const firstSentList = await sendProductPage(from, catProducts, 0, waToken, phoneNumberId);
+      const firstSentList = await sendProductPage(from, shuffledFromList, 0, waToken, phoneNumberId);
 
       const buttons = ['Add to shortlist 💛'];
-      if (catProducts.length > firstSentList) buttons.push('See more products');
+      if (shuffledFromList.length > firstSentList) buttons.push('See more products');
       buttons.push('Back to categories');
       await sendButtons(from, 'See something you like? 💛', buttons.slice(0, 3), waToken, phoneNumberId);
 
+      const shuffledIdsFromList = shuffledFromList.map(p => p.id);
       await upsertConversation(tenant.id, from,
         [...history, { role: 'user', content: text }, { role: 'assistant', content: '[showed category from list]' }],
-        { ...cart, current_category: finalCat, product_offset: firstSentList }
+        { ...cart, current_category: finalCat, product_offset: firstSentList, session_product_ids: shuffledIdsFromList }
       );
       return;
     }
