@@ -44,7 +44,7 @@ ul{text-align:left;margin:16px 0 24px;padding-left:18px;color:#444;font-size:14p
   <div class="plan">
     <h2>Free</h2>
     <div class="price">₹0<span>/mo</span></div>
-    <ul><li>Product browsing</li><li>Basic Q&A</li><li>Unlimited messages</li></ul>
+    <ul><li>Product browsing</li><li>Basic Q&A</li><li>70 messages/month</li></ul>
     <button class="btn outline" onclick="go('free')">Get Started</button>
   </div>
   <div class="plan popular">

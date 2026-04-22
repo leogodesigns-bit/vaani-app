@@ -63,6 +63,37 @@ router.post('/', async (req, res) => {
 
     console.log(`📩 [${phoneNumberId}] Message from ${from}: ${text}`);
 
+    // Enforce free tier message cap (70/month)
+    if (tenant.tier === 'free' || !tenant.tier) {
+      const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+      const convCheck = await pool.query(
+        'SELECT monthly_messages, message_month FROM conversations WHERE tenant_id = $1 AND customer_phone = $2',
+        [tenant.id, from]
+      );
+      const conv = convCheck.rows[0];
+      const msgCount = (conv?.message_month === currentMonth) ? (conv?.monthly_messages || 0) : 0;
+      
+      if (msgCount >= 70) {
+        await sendMessage(from,
+          'You have reached the free plan limit of 70 messages this month.\n\nUpgrade to Standard for unlimited messages + cart building + more!\n\n👉 ' + process.env.APP_URL + '/pricing?shop=' + tenant.shop_domain,
+          tenant.whatsapp_token || process.env.WHATSAPP_TOKEN,
+          phoneNumberId
+        );
+        return;
+      }
+      
+      // Increment message count
+      await pool.query(
+        `INSERT INTO conversations (tenant_id, customer_phone, monthly_messages, message_month, messages, cart)
+         VALUES ($1, $2, 1, $3, '[]', '{}')
+         ON CONFLICT (tenant_id, customer_phone)
+         DO UPDATE SET 
+           monthly_messages = CASE WHEN conversations.message_month = $3 THEN conversations.monthly_messages + 1 ELSE 1 END,
+           message_month = $3`,
+        [tenant.id, from, currentMonth]
+      );
+    }
+
     const conv = await getConversation(tenant.id, from);
     const history = conv?.messages || [];
 
