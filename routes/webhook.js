@@ -152,7 +152,7 @@ router.post('/', async (req, res) => {
           const catProducts = matchedCat ? categorized[matchedCat] : products;
           const top3 = catProducts.slice(0, 3);
           await sendMessage(from, 'Here are our ' + (matchedCat || 'products') + ' ✨', waToken, phoneNumberId);
-          const emojis = ['1️⃣','2️⃣','3️⃣'];
+          const emojis = ['1.','2.','3.'];
           for (let i = 0; i < top3.length; i++) {
             const p = top3[i];
             const imageUrl = p.images?.[0]?.src;
