@@ -303,7 +303,7 @@ router.post('/', async (req, res) => {
       // Send as list — use cumulative numbers matching what user saw
       const rows = windowProducts.map((p, i) => ({
         id: 'shortlist_' + p.id,
-        title: (windowStart + i + 1) + '. ' + p.title.substring(0, 24),
+        title: (windowStart + i + 1) + '. ' + p.title.substring(0, 23),
         description: '₹' + (p.variants?.[0]?.price || 'N/A')
       }));
 
