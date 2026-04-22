@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Vaani — Pricing</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
 <style>
   :root {
     --cream: #FAF7F2;
@@ -27,6 +27,24 @@
     min-height: 100vh;
     overflow-x: hidden;
   }
+
+  /* NAV */
+  nav{padding:1.8rem 4rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(250,247,242,.92);backdrop-filter:blur(12px);z-index:100}
+  .logo{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;letter-spacing:-.01em;color:var(--ink);text-decoration:none}
+  .logo span{color:var(--warm)}
+  .nav-links{display:flex;align-items:center;gap:2.5rem;list-style:none}
+  .nav-links a{font-size:.82rem;letter-spacing:.04em;color:var(--muted);text-decoration:none;transition:color .2s;font-weight:400}
+  .nav-links a:hover,.nav-links a.active{color:var(--ink)}
+  .nav-cta{background:var(--ink)!important;color:var(--cream)!important;padding:.55rem 1.3rem!important;border-radius:100px!important;font-size:.78rem!important;text-transform:uppercase;font-weight:500!important}
+  .nav-cta:hover{background:var(--warm)!important}
+
+  /* FOOTER */
+  footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-items:center;justify-content:space-between;margin-top:2rem}
+  .footer-left .logo{font-size:1.2rem}.footer-tagline{font-size:.75rem;color:var(--muted);margin-top:.3rem}
+  .footer-links-f{display:flex;gap:2rem;list-style:none}.footer-links-f a{font-size:.78rem;color:var(--muted);text-decoration:none;transition:color .2s}.footer-links-f a:hover{color:var(--ink)}
+  .footer-right{font-size:.72rem;color:var(--muted);text-align:right}
+
+  @media(max-width:768px){nav{padding:1.2rem 1.5rem}.nav-links{display:none}footer{flex-direction:column;gap:2rem;text-align:center;padding:2rem 1.5rem}.footer-right{text-align:center}}
 
   /* Grain overlay */
   body::before {
@@ -438,10 +456,16 @@
 </head>
 <body>
 
-<header>
-  <div class="logo">vaani<span>.</span></div>
-  <div class="tagline-header">WhatsApp AI Sales Bot for Shopify</div>
-</header>
+<nav>
+  <a href="index.html" class="logo">vaani<span>.</span></a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="features.html">Features</a></li>
+    <li><a href="pricing.html" class="active">Pricing</a></li>
+    <li><a href="about.html">About</a></li>
+    <li><a href="contact.html" class="nav-cta">Join Waitlist</a></li>
+  </ul>
+</nav>
 
 <section class="hero">
   <div class="hero-label">Simple, transparent pricing</div>
@@ -602,11 +626,21 @@
   </div>
 </div>
 
-<div class="footnote">
-  All plans include Shopify integration, WhatsApp Business API setup guidance, and onboarding support.<br>
-  WhatsApp conversation charges (Meta) apply beyond 1,000 free conversations/month.<br>
-  <a href="#">Talk to us →</a>
-</div>
+<footer>
+  <div class="footer-left">
+    <a href="index.html" class="logo">vaani<span>.</span></a>
+    <p class="footer-tagline">A Leogo Designs product</p>
+  </div>
+  <ul class="footer-links-f">
+    <li><a href="features.html">Features</a></li>
+    <li><a href="pricing.html">Pricing</a></li>
+    <li><a href="about.html">About</a></li>
+    <li><a href="contact.html">Contact</a></li>
+    <li><a href="privacy.html">Privacy</a></li>
+    <li><a href="terms.html">Terms</a></li>
+  </ul>
+  <div class="footer-right">© 2026 Vaani by Leogo Designs<br>Made with ♥ in Pune</div>
+</footer>
 
 </body>
 </html>
