@@ -27,7 +27,7 @@ async function sendButtons(to, bodyText, buttons, token, phoneNumberId) {
           action: {
             buttons: buttons.map((b, i) => ({
               type: 'reply',
-              reply: { id: `btn_${i}`, title: b }
+              reply: { id: `btn_${i}`, title: b.substring(0, 20) }
             }))
           }
         }
