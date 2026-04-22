@@ -6,6 +6,7 @@ const { getAIResponse, detectLanguage } = require('../ai');
 const { sendMessage, sendButtons, sendList } = require('../whatsapp');
 const { getProducts } = require('../shopify');
 const { categorizeProducts } = require('../utils/categorize');
+const { generateCategories } = require('../utils/autoCategorize');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -67,7 +68,14 @@ router.post('/', async (req, res) => {
       const products = await getProducts(tenant.shop_domain, tenant.shopify_token);
 
       if (products.length > 0) {
-        const categorized = categorizeProducts(products);
+        let aiCategories = tenant.categories;
+        if (!aiCategories || aiCategories.length === 0) {
+          console.log('Generating AI categories for', tenant.shop_domain);
+          aiCategories = await generateCategories(products);
+          await pool.query('UPDATE tenants SET categories = $1 WHERE id = $2', [JSON.stringify(aiCategories), tenant.id]);
+          console.log('Categories saved:', aiCategories.map(c => c.name).join(', '));
+        }
+        const categorized = categorizeProducts(products, aiCategories);
         const catNames = Object.keys(categorized);
 
         if (isCategory) {
