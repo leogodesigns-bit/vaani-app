@@ -278,13 +278,22 @@ router.post('/', async (req, res) => {
           if (key) catProducts = categorized[key];
         }
       }
-      console.log('🛍️ Shortlist: current_category=', cart.current_category, 'catKeys=', Object.keys(categorized), 'found=', !!catProducts, 'offset=', cart.product_offset);
       catProducts = catProducts || inStock;
 
-      // Show ALL products seen so far (from start up to current offset), max 10 (WhatsApp list limit)
+      // Restore session order (same shuffled order the customer actually saw)
+      let orderedProducts = catProducts;
+      if (cart.session_product_ids && cart.session_product_ids.length > 0) {
+        const idMap = {};
+        catProducts.forEach(p => { idMap[String(p.id)] = p; });
+        orderedProducts = cart.session_product_ids
+          .map(id => idMap[String(id)])
+          .filter(Boolean);
+      }
+
       const seenUpTo = cart.product_offset || 3;
-      const windowStart = Math.max(0, seenUpTo - 10); // show last 10 seen
-      const windowProducts = catProducts.slice(windowStart, seenUpTo);
+      const windowStart = Math.max(0, seenUpTo - 10);
+      const windowProducts = orderedProducts.slice(windowStart, seenUpTo);
+      console.log('🛍️ Shortlist: category=', cart.current_category, 'seenUpTo=', seenUpTo, 'windowProducts=', windowProducts.length, 'hasSessionIds=', !!(cart.session_product_ids));
 
       if (windowProducts.length === 0) {
         await sendMessage(from, "Hmm, I couldn't find the products. Try browsing again! 😊", waToken, phoneNumberId);
