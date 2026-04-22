@@ -2,13 +2,26 @@ const axios = require('axios');
 
 async function getProducts(shopDomain, accessToken) {
   try {
-    const res = await axios.get(
-      // Added inventory_quantity and inventory_management to fields
-      `https://${shopDomain}/admin/api/2024-01/products.json?limit=50&fields=id,title,variants,images,body_html`,
-      { headers: { 'X-Shopify-Access-Token': accessToken } }
-    );
-    // Shopify variants include inventory_quantity by default in this endpoint
-    return res.data.products;
+    let allProducts = [];
+    let url = `https://${shopDomain}/admin/api/2024-01/products.json?limit=250&fields=id,title,variants,images,body_html`;
+
+    // Paginate through all products using Shopify cursor-based pagination
+    while (url) {
+      const res = await axios.get(url, {
+        headers: { 'X-Shopify-Access-Token': accessToken }
+      });
+
+      allProducts = allProducts.concat(res.data.products);
+      console.log(`📦 Fetched ${allProducts.length} products so far...`);
+
+      // Check Link header for next page
+      const linkHeader = res.headers['link'] || '';
+      const nextMatch = linkHeader.match(/<([^>]+)>;\s*rel="next"/);
+      url = nextMatch ? nextMatch[1] : null;
+    }
+
+    console.log(`✅ Total products fetched: ${allProducts.length}`);
+    return allProducts;
   } catch (err) {
     console.error('❌ getProducts error:', err.message);
     return [];
@@ -30,7 +43,6 @@ async function getOrders(shopDomain, accessToken, customerId) {
 
 async function createDraftOrder(shopDomain, accessToken, lineItems, customerPhone) {
   try {
-    // Build proper line items — use variant_id if available, else title+price
     const formattedItems = lineItems.map(item => {
       if (item.variant_id) {
         return { variant_id: item.variant_id, quantity: item.quantity || 1 };
