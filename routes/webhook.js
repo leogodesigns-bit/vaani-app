@@ -72,7 +72,7 @@ router.post('/', async (req, res) => {
 
         if (isCategory) {
           // Find matching category and show its products as list
-          const matchedCat = catNames.find(c => categoryKeywords.some(k => text.toLowerCase().includes(k) && c.toLowerCase().includes(k.split(' ')[0])));
+          const matchedCat = catNames.find(c => text.toLowerCase().split(" ").some(word => c.toLowerCase().includes(word) && word.length > 3));
           const catProducts = matchedCat ? categorized[matchedCat] : products;
 
           const sections = [{
