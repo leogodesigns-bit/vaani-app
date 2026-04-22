@@ -59,12 +59,14 @@ router.post('/', async (req, res) => {
     const history = conv?.messages || [];
 
     // Browse/catalogue intent
+    const greetKeywords = ['hi', 'hello', 'hey', 'hii', 'helo', 'namaste', 'namaskar', 'start', 'help'];
+    const isGreeting = greetKeywords.some(k => text.toLowerCase().trim() === k || text.toLowerCase().trim() === k + '!');
     const browseKeywords = ['show', 'product', 'browse', 'catalogue', 'catalog', 'what do you have', 'collection', 'more product', 'see product', 'view product'];
     const categoryKeywords = ['earring', 'jhumki', 'ring', 'saree pin', 'necklace', 'chain', 'pendant'];
     const isBrowsing = browseKeywords.some(k => text.toLowerCase().includes(k));
     const isCategory = categoryKeywords.some(k => text.toLowerCase().includes(k));
 
-    if ((isBrowsing || isCategory) && tenant.shopify_token && tenant.shopify_token !== 'test_token') {
+    if ((isBrowsing || isCategory || isGreeting) && tenant.shopify_token && tenant.shopify_token !== 'test_token') {
       const products = await getProducts(tenant.shop_domain, tenant.shopify_token);
 
       if (products.length > 0) {
