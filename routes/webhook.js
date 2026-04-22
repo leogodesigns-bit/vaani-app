@@ -130,9 +130,10 @@ router.post('/', async (req, res) => {
     if (isSeeMore && tenant.shopify_token && tenant.shopify_token !== 'test_token') {
       const products = await getProducts(tenant.shop_domain, tenant.shopify_token);
       // Filter: in stock only
-      const inStock = products.filter(p =>
-        p.variants?.some(v => v.inventory_management === null || v.inventory_quantity > 0)
-      );
+      // Sort by ID for stable ordering across fetches
+      const inStock = products
+        .filter(p => p.variants?.some(v => v.inventory_management === null || v.inventory_quantity > 0))
+        .sort((a, b) => a.id - b.id);
 
       let aiCategories = tenant.categories;
       if (!aiCategories || aiCategories.length === 0) {
@@ -182,13 +183,15 @@ router.post('/', async (req, res) => {
     }
 
     // ─── ADD TO SHORTLIST ─────────────────────────────────────────────────────
-    const isAddToShortlist = text.toLowerCase().includes('add to shortlist') || text.toLowerCase().includes('shortlist');
+    // Strip emojis before matching button text
+    const textClean = text.replace(/[^\w\s]/gi, '').toLowerCase().trim();
+    const isAddToShortlist = textClean.includes('add to shortlist') || textClean === 'shortlist' || text.toLowerCase().includes('shortlist');
 
     if (isAddToShortlist && tenant.shopify_token && tenant.shopify_token !== 'test_token') {
       const products = await getProducts(tenant.shop_domain, tenant.shopify_token);
       const inStock = products.filter(p =>
         p.variants?.some(v => v.inventory_management === null || v.inventory_quantity > 0)
-      );
+      ).sort((a, b) => a.id - b.id);
 
       let aiCategories = tenant.categories;
       if (!aiCategories || aiCategories.length === 0) {
@@ -314,7 +317,7 @@ router.post('/', async (req, res) => {
       const products = await getProducts(tenant.shop_domain, tenant.shopify_token);
       const inStock = products.filter(p =>
         p.variants?.some(v => v.inventory_management === null || v.inventory_quantity > 0)
-      );
+      ).sort((a, b) => a.id - b.id);
       let aiCategories = tenant.categories;
       if (!aiCategories || aiCategories.length === 0) {
         aiCategories = await generateCategories(inStock);
@@ -346,7 +349,7 @@ router.post('/', async (req, res) => {
       const products = await getProducts(tenant.shop_domain, tenant.shopify_token);
       const inStock = products.filter(p =>
         p.variants?.some(v => v.inventory_management === null || v.inventory_quantity > 0)
-      );
+      ).sort((a, b) => a.id - b.id);
       let aiCategories = tenant.categories;
       if (!aiCategories || aiCategories.length === 0) {
         aiCategories = await generateCategories(inStock);
@@ -372,7 +375,7 @@ router.post('/', async (req, res) => {
       // ✅ Filter out-of-stock: keep products where at least one variant is available
       const inStock = products.filter(p =>
         p.variants?.some(v => v.inventory_management === null || v.inventory_quantity > 0)
-      );
+      ).sort((a, b) => a.id - b.id);
 
       if (inStock.length > 0) {
         let aiCategories = tenant.categories;
@@ -436,7 +439,7 @@ router.post('/', async (req, res) => {
       const products = await getProducts(tenant.shop_domain, tenant.shopify_token);
       const inStock = products.filter(p =>
         p.variants?.some(v => v.inventory_management === null || v.inventory_quantity > 0)
-      );
+      ).sort((a, b) => a.id - b.id);
       let aiCategories = tenant.categories;
       if (!aiCategories || aiCategories.length === 0) {
         aiCategories = await generateCategories(inStock);
