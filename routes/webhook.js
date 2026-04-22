@@ -127,7 +127,7 @@ router.post('/', async (req, res) => {
     // ─── SEE MORE ─────────────────────────────────────────────────────────────
     const isSeeMore = text.toLowerCase().includes('see more');
 
-    if (isSeeMore && cart.current_category && tenant.shopify_token && tenant.shopify_token !== 'test_token') {
+    if (isSeeMore && tenant.shopify_token && tenant.shopify_token !== 'test_token') {
       const products = await getProducts(tenant.shop_domain, tenant.shopify_token);
       // Filter: in stock only
       const inStock = products.filter(p =>
@@ -140,7 +140,7 @@ router.post('/', async (req, res) => {
         await pool.query('UPDATE tenants SET categories = $1 WHERE id = $2', [JSON.stringify(aiCategories), tenant.id]);
       }
       const categorized = categorizeProducts(inStock, aiCategories);
-      const catProducts = categorized[cart.current_category] || inStock;
+      const catProducts = (cart.current_category ? categorized[cart.current_category] : null) || inStock;
 
       const newOffset = (cart.product_offset || 0) + 3;
 
@@ -168,7 +168,7 @@ router.post('/', async (req, res) => {
     // ─── ADD TO SHORTLIST ─────────────────────────────────────────────────────
     const isAddToShortlist = text.toLowerCase().includes('add to shortlist') || text.toLowerCase().includes('shortlist');
 
-    if (isAddToShortlist && cart.current_category && tenant.shopify_token && tenant.shopify_token !== 'test_token') {
+    if (isAddToShortlist && tenant.shopify_token && tenant.shopify_token !== 'test_token') {
       const products = await getProducts(tenant.shop_domain, tenant.shopify_token);
       const inStock = products.filter(p =>
         p.variants?.some(v => v.inventory_management === null || v.inventory_quantity > 0)
@@ -179,11 +179,12 @@ router.post('/', async (req, res) => {
         aiCategories = await generateCategories(inStock);
       }
       const categorized = categorizeProducts(inStock, aiCategories);
-      const catProducts = categorized[cart.current_category] || inStock;
+      const catProducts = (cart.current_category ? categorized[cart.current_category] : null) || inStock;
 
-      // windowStart = last shown page start (product_offset points to NEXT page)
-      const windowStart = Math.max(0, (cart.product_offset || 3) - 3);
-      const windowProducts = catProducts.slice(windowStart, windowStart + 3);
+      // Show ALL products seen so far (from start up to current offset), max 10 (WhatsApp list limit)
+      const seenUpTo = cart.product_offset || 3;
+      const windowStart = Math.max(0, seenUpTo - 10); // show last 10 seen
+      const windowProducts = catProducts.slice(windowStart, seenUpTo);
 
       if (windowProducts.length === 0) {
         await sendMessage(from, "Hmm, I couldn't find the products. Try browsing again! 😊", waToken, phoneNumberId);
