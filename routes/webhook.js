@@ -97,8 +97,11 @@ router.post('/', async (req, res) => {
 
         } else {
           // Show category buttons (max 3)
-          const topCats = catNames.slice(0, 3).map(c => c.replace(/[💛💍📌✨🛍️]/gu, '').trim());
-          await sendButtons(from, `✨ Welcome to Ikaa Jewellery!\n\nWe have ${products.length} pieces. What are you looking for?`, topCats, waToken, phoneNumberId);
+          const cleanCats = catNames.map(c => c.replace(/[💛💍📌✨🛍️]/gu, '').trim());
+          const topCats = cleanCats.length > 3 
+            ? [...cleanCats.slice(0, 2), 'More Categories']
+            : cleanCats.slice(0, 3);
+          await sendButtons(from, `✨ Welcome to Ikaa Jewellery!\n\nWhat are you looking for today?`, topCats, waToken, phoneNumberId);
         }
 
         await upsertConversation(tenant.id, from, [...history, { role: 'user', content: text }, { role: 'assistant', content: '[showed catalogue]' }], conv?.cart || {});
