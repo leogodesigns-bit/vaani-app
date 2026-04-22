@@ -72,7 +72,7 @@ router.post('/', async (req, res) => {
 
         if (isCategory) {
           // Find matching category and show its products as list
-          const matchedCat = catNames.find(c => text.toLowerCase().split(" ").some(word => c.toLowerCase().includes(word) && word.length > 3));
+          const textWords = text.toLowerCase().split(" "); const matchedCat = catNames.find(c => { const cName = c.toLowerCase().replace(/[💛💍📌✨🛍️]/gu,"").trim(); return textWords.some(word => word.length > 3 && (cName.startsWith(word) || word === cName.split(" ")[0])); });
           const catProducts = matchedCat ? categorized[matchedCat] : products;
 
           const sections = [{
