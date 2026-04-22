@@ -26,7 +26,7 @@ webhook = webhook.replace(
       
       await sendButtons(from,
         '✨ *' + productTitle + '*\\n' + productDesc + '\\n\\nWould you like to order this?',
-        ['Yes, order this!', 'See more products'],
+        ['Add to shortlist 💛', 'See more products'],
         waToken, phoneNumberId
       );
       return;
