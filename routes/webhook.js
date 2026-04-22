@@ -7,6 +7,7 @@ const { sendMessage, sendButtons, sendList } = require('../whatsapp');
 const { getProducts } = require('../shopify');
 const { categorizeProducts } = require('../utils/categorize');
 const { generateCategories } = require('../utils/autoCategorize');
+const { refreshAllCategories } = require('../scheduler');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -65,7 +66,16 @@ router.post('/', async (req, res) => {
     const categoryKeywords = ['earring', 'jhumki', 'ring', 'saree pin', 'necklace', 'chain', 'pendant'];
     const isBrowsing = browseKeywords.some(k => text.toLowerCase().includes(k));
     const isMoreCategories = text.toLowerCase().includes('more categor');
+    const isRefreshCmd = text.toLowerCase().trim() === 'refresh categories' || text.toLowerCase().trim() === '/refresh';
     const isCategory = categoryKeywords.some(k => text.toLowerCase().includes(k));
+
+    if (isRefreshCmd) {
+      const products = await getProducts(tenant.shop_domain, tenant.shopify_token);
+      const newCats = await generateCategories(products);
+      await pool.query('UPDATE tenants SET categories = $1 WHERE id = $2', [JSON.stringify(newCats), tenant.id]);
+      await sendMessage(from, '✅ Categories refreshed! New categories: ' + newCats.map(c => c.name).join(', '), waToken, phoneNumberId);
+      return;
+    }
 
     if (isMoreCategories && tenant.shopify_token && tenant.shopify_token !== 'test_token') {
       const products = await getProducts(tenant.shop_domain, tenant.shopify_token);
