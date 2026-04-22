@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Features — Vaani</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--cream:#FAF7F2;--ink:#1A1714;--warm:#C4783A;--warm-light:#F0E0CC;--warm-dark:#9E5E28;--muted:#8A7E74;--border:#E5DDD4;--green:#2D6A4F;--green-light:#D8EDE4;--card-bg:#F4EFE8}
+*{margin:0;padding:0;box-sizing:border-box}html{scroll-behavior:smooth}
+body{background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;font-weight:300;min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");pointer-events:none;z-index:1000;opacity:.4}
+nav{padding:1.8rem 4rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(250,247,242,.92);backdrop-filter:blur(12px);z-index:100}
+.logo{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;letter-spacing:-.01em;color:var(--ink);text-decoration:none}.logo span{color:var(--warm)}
+.nav-links{display:flex;align-items:center;gap:2.5rem;list-style:none}
+.nav-links a{font-size:.82rem;letter-spacing:.04em;color:var(--muted);text-decoration:none;transition:color .2s;font-weight:400}
+.nav-links a:hover,.nav-links a.active{color:var(--ink)}
+.nav-cta{background:var(--ink)!important;color:var(--cream)!important;padding:.55rem 1.3rem!important;border-radius:100px!important;font-size:.78rem!important;text-transform:uppercase;font-weight:500!important}
+.nav-cta:hover{background:var(--warm)!important}
+.btn-primary{display:inline-block;background:var(--warm);color:white;padding:.85rem 2rem;border-radius:100px;font-size:.82rem;letter-spacing:.08em;text-transform:uppercase;font-weight:500;text-decoration:none;transition:background .2s,transform .2s;border:none;cursor:pointer;font-family:'DM Sans',sans-serif}
+.btn-primary:hover{background:var(--warm-dark);transform:translateY(-1px)}
+footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-items:center;justify-content:space-between;margin-top:6rem}
+.footer-left .logo{font-size:1.2rem}.footer-tagline{font-size:.75rem;color:var(--muted);margin-top:.3rem}
+.footer-links{display:flex;gap:2rem;list-style:none}.footer-links a{font-size:.78rem;color:var(--muted);text-decoration:none;transition:color .2s}.footer-links a:hover{color:var(--ink)}
+.footer-right{font-size:.72rem;color:var(--muted);text-align:right}
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{opacity:0;animation:fadeUp .7s ease forwards}
+.delay-1{animation-delay:.1s}.delay-2{animation-delay:.2s}.delay-3{animation-delay:.3s}
+.section-label{display:inline-block;font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;color:var(--warm);margin-bottom:1.2rem;font-weight:500}
+.container{max-width:1100px;margin:0 auto;padding:0 2rem}
+
+.page-hero{padding:6rem 0 4rem;max-width:680px}
+.page-hero h1{font-family:'Playfair Display',serif;font-size:clamp(2.5rem,5vw,4rem);font-weight:400;letter-spacing:-.02em;line-height:1.1;margin-bottom:1.2rem}
+.page-hero h1 em{font-style:italic;color:var(--warm)}
+.page-hero p{font-size:1rem;color:var(--muted);line-height:1.75;max-width:480px}
+
+.feature-block{display:grid;grid-template-columns:1fr 1fr;gap:5rem;align-items:center;padding:5rem 0;border-top:1px solid var(--border)}
+.feature-block.reverse{direction:rtl}.feature-block.reverse>*{direction:ltr}
+.feature-text h2{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,3vw,2.4rem);font-weight:400;letter-spacing:-.02em;margin-bottom:1rem;line-height:1.2}
+.feature-text h2 em{font-style:italic;color:var(--warm)}
+.feature-text p{font-size:.9rem;color:var(--muted);line-height:1.8;margin-bottom:1.5rem}
+.feature-list{list-style:none;display:flex;flex-direction:column;gap:.7rem}
+.feature-list li{display:flex;align-items:flex-start;gap:.7rem;font-size:.85rem;color:var(--ink);line-height:1.5}
+.feature-list li::before{content:'→';color:var(--warm);font-size:.8rem;margin-top:1px;flex-shrink:0}
+
+.feature-visual{background:var(--card-bg);border-radius:20px;padding:2.5rem;min-height:300px;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden}
+.feature-visual::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(196,120,58,.12) 0%,transparent 70%)}
+.visual-stat{font-family:'Playfair Display',serif;font-size:3.5rem;font-weight:700;color:var(--ink);letter-spacing:-.03em;line-height:1;margin-bottom:.5rem}
+.visual-stat-label{font-size:.8rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:2rem}
+.visual-tags{display:flex;flex-wrap:wrap;gap:.5rem}
+.visual-tag{background:white;border:1px solid var(--border);border-radius:100px;padding:.3rem .8rem;font-size:.72rem;color:var(--ink)}
+.visual-flow{display:flex;flex-direction:column;gap:.6rem}
+.flow-item{background:white;border-radius:10px;padding:.7rem 1rem;display:flex;align-items:center;gap:.8rem;font-size:.8rem}
+.flow-dot{width:8px;height:8px;border-radius:50%;background:var(--warm);flex-shrink:0}
+.flow-dot.green{background:#25D366}.flow-dot.blue{background:#4A90D9}
+.lang-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.lang-item{background:white;border-radius:10px;padding:.8rem 1rem;font-size:.82rem;font-weight:500}
+.lang-script{font-size:1.1rem;display:block;margin-bottom:.2rem}
+
+.bottom-cta{background:var(--ink);border-radius:20px;padding:4rem;text-align:center;margin:5rem 0}
+.bottom-cta h2{font-family:'Playfair Display',serif;font-size:clamp(1.8rem,3.5vw,2.8rem);color:var(--cream);font-weight:400;letter-spacing:-.02em;margin-bottom:1rem}
+.bottom-cta h2 em{font-style:italic;color:var(--warm)}
+.bottom-cta p{font-size:.9rem;color:#7A7068;margin-bottom:2rem}
+
+@media(max-width:768px){nav{padding:1.2rem 1.5rem}.nav-links{display:none}.feature-block{grid-template-columns:1fr;gap:2.5rem}.feature-block.reverse{direction:ltr}.page-hero{padding:4rem 0 2rem}.bottom-cta{padding:2.5rem 1.5rem}footer{flex-direction:column;gap:2rem;text-align:center;padding:2rem 1.5rem}.footer-right{text-align:center}}
+</style>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="logo">vaani<span>.</span></a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="features.html" class="active">Features</a></li>
+    <li><a href="pricing.html">Pricing</a></li>
+    <li><a href="about.html">About</a></li>
+    <li><a href="contact.html" class="nav-cta">Join Waitlist</a></li>
+  </ul>
+</nav>
+
+<div class="container">
+  <div class="page-hero">
+    <div class="section-label fade-up">What Vaani does</div>
+    <h1 class="fade-up delay-1">Everything your<br>sales team does —<br><em>automated.</em></h1>
+    <p class="fade-up delay-2">From product discovery to payment confirmation, Vaani handles the full sales conversation inside WhatsApp — in your brand's voice.</p>
+  </div>
+
+  <div class="feature-block fade-up">
+    <div class="feature-text">
+      <div class="section-label">Shopify Integration</div>
+      <h2>Your live catalog,<br><em>always in sync.</em></h2>
+      <p>Vaani connects directly to your Shopify store. Products, prices, inventory — all pulled in real time. No manual updates, no mismatches.</p>
+      <ul class="feature-list">
+        <li>Live product catalog with images and prices</li>
+        <li>Draft orders created automatically in Shopify</li>
+        <li>Payment links sent inside the chat</li>
+        <li>Order confirmation synced back to your store</li>
+      </ul>
+    </div>
+    <div class="feature-visual">
+      <div class="visual-stat">100%</div>
+      <div class="visual-stat-label">Shopify Native</div>
+      <div class="visual-flow">
+        <div class="flow-item"><span class="flow-dot green"></span>Customer browses on WhatsApp</div>
+        <div class="flow-item"><span class="flow-dot"></span>Draft order created in Shopify</div>
+        <div class="flow-item"><span class="flow-dot blue"></span>Payment link sent instantly</div>
+        <div class="flow-item"><span class="flow-dot green"></span>Order confirmed & synced</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="feature-block reverse fade-up">
+    <div class="feature-text">
+      <div class="section-label">Multilingual</div>
+      <h2>Sell in the language<br><em>they think in.</em></h2>
+      <p>Jhilmil — Ikaa's Vaani bot — switches naturally between Hindi, English, and Marathi based on how the customer writes. No setup needed.</p>
+      <ul class="feature-list">
+        <li>Automatic language detection</li>
+        <li>Hindi, Marathi, English, Hinglish support</li>
+        <li>Regional tier-2 city friendly</li>
+        <li>Brand voice maintained across all languages</li>
+      </ul>
+    </div>
+    <div class="feature-visual">
+      <div class="visual-stat-label" style="margin-bottom:1.2rem">Speaks your customer's language</div>
+      <div class="lang-grid">
+        <div class="lang-item"><span class="lang-script">नमस्ते</span>Hindi</div>
+        <div class="lang-item"><span class="lang-script">नमस्कार</span>Marathi</div>
+        <div class="lang-item"><span class="lang-script">Hello</span>English</div>
+        <div class="lang-item"><span class="lang-script">Kya scene hai</span>Hinglish</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="feature-block fade-up">
+    <div class="feature-text">
+      <div class="section-label">Custom Chat Flow</div>
+      <h2>Built around<br><em>your brand.</em></h2>
+      <p>Ikaa's Jhilmil bot has a flow built entirely around their nail and jewellery catalog — category navigation, product display, DIY builder, and WhatsApp order handoff. Every brand gets this level of customisation.</p>
+      <ul class="feature-list">
+        <li>Category-based navigation</li>
+        <li>Show more / paginate through products</li>
+        <li>Cross-sell and upsell prompts</li>
+        <li>Handoff to human or designer when needed</li>
+      </ul>
+    </div>
+    <div class="feature-visual">
+      <div class="visual-stat-label" style="margin-bottom:1.2rem">Ikaa · Jhilmil flow example</div>
+      <div class="visual-flow">
+        <div class="flow-item"><span class="flow-dot"></span>A. Nail Extensions</div>
+        <div class="flow-item"><span class="flow-dot"></span>B. Nail Art Designs</div>
+        <div class="flow-item"><span class="flow-dot"></span>C. DIY Nail Kits</div>
+        <div class="flow-item"><span class="flow-dot"></span>D. Jewellery</div>
+        <div class="flow-item"><span class="flow-dot green"></span>"Complete the ritual →"</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="feature-block reverse fade-up">
+    <div class="feature-text">
+      <div class="section-label">Zero-effort Setup</div>
+      <h2>We build it.<br><em>You just sell.</em></h2>
+      <p>No coding. No WhatsApp API headaches. We handle the entire setup — from Meta Business verification to Shopify connection to your custom flow. Live in under a week.</p>
+      <ul class="feature-list">
+        <li>Full onboarding handled by our team</li>
+        <li>Meta Business API setup included</li>
+        <li>Shopify connection guided</li>
+        <li>Custom flow designed with you</li>
+      </ul>
+    </div>
+    <div class="feature-visual">
+      <div class="visual-stat">7</div>
+      <div class="visual-stat-label">Days to go live</div>
+      <div class="visual-tags">
+        <span class="visual-tag">Meta Verified ✓</span>
+        <span class="visual-tag">Shopify Connected ✓</span>
+        <span class="visual-tag">Flow Built ✓</span>
+        <span class="visual-tag">Custom Persona ✓</span>
+        <span class="visual-tag">Payment Links ✓</span>
+        <span class="visual-tag">You're Live 🎉</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-cta fade-up">
+    <h2>Ready to put Vaani<br>to work for <em>your brand?</em></h2>
+    <p>Join the waitlist and get early access pricing before we open to the public.</p>
+    <a href="contact.html" class="btn-primary">Join the Waitlist</a>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-left">
+    <a href="index.html" class="logo">vaani<span>.</span></a>
+    <p class="footer-tagline">A Leogo Designs product</p>
+  </div>
+  <ul class="footer-links">
+    <li><a href="features.html">Features</a></li><li><a href="pricing.html">Pricing</a></li>
+    <li><a href="about.html">About</a></li><li><a href="contact.html">Contact</a></li>
+    <li><a href="privacy.html">Privacy</a></li><li><a href="terms.html">Terms</a></li>
+  </ul>
+  <div class="footer-right">© 2026 Vaani by Leogo Designs<br>Made with ♥ in Pune</div>
+</footer>
+</body>
+</html>

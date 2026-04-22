@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vaani — WhatsApp AI Sales Bot for Shopify</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--cream:#FAF7F2;--ink:#1A1714;--warm:#C4783A;--warm-light:#F0E0CC;--warm-dark:#9E5E28;--muted:#8A7E74;--border:#E5DDD4;--green:#2D6A4F;--green-light:#D8EDE4;--card-bg:#F4EFE8}
+*{margin:0;padding:0;box-sizing:border-box}html{scroll-behavior:smooth}
+body{background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;font-weight:300;min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");pointer-events:none;z-index:1000;opacity:.4}
+nav{padding:1.8rem 4rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(250,247,242,.92);backdrop-filter:blur(12px);z-index:100}
+.logo{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;letter-spacing:-.01em;color:var(--ink);text-decoration:none}.logo span{color:var(--warm)}
+.nav-links{display:flex;align-items:center;gap:2.5rem;list-style:none}
+.nav-links a{font-size:.82rem;letter-spacing:.04em;color:var(--muted);text-decoration:none;transition:color .2s;font-weight:400}
+.nav-links a:hover,.nav-links a.active{color:var(--ink)}
+.nav-cta{background:var(--ink)!important;color:var(--cream)!important;padding:.55rem 1.3rem!important;border-radius:100px!important;font-size:.78rem!important;text-transform:uppercase;font-weight:500!important}
+.nav-cta:hover{background:var(--warm)!important}
+.btn-primary{display:inline-block;background:var(--warm);color:white;padding:.85rem 2rem;border-radius:100px;font-size:.82rem;letter-spacing:.08em;text-transform:uppercase;font-weight:500;text-decoration:none;transition:background .2s,transform .2s;border:none;cursor:pointer;font-family:'DM Sans',sans-serif}
+.btn-primary:hover{background:var(--warm-dark);transform:translateY(-1px)}
+.btn-outline{display:inline-block;background:transparent;color:var(--ink);padding:.85rem 2rem;border-radius:100px;font-size:.82rem;letter-spacing:.08em;text-transform:uppercase;font-weight:500;text-decoration:none;border:1.5px solid var(--border);transition:border-color .2s,transform .2s;cursor:pointer}
+.btn-outline:hover{border-color:var(--ink);transform:translateY(-1px)}
+footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-items:center;justify-content:space-between;margin-top:6rem}
+.footer-left .logo{font-size:1.2rem}.footer-tagline{font-size:.75rem;color:var(--muted);margin-top:.3rem}
+.footer-links{display:flex;gap:2rem;list-style:none}.footer-links a{font-size:.78rem;color:var(--muted);text-decoration:none;transition:color .2s}.footer-links a:hover{color:var(--ink)}
+.footer-right{font-size:.72rem;color:var(--muted);text-align:right}
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+.fade-up{opacity:0;animation:fadeUp .7s ease forwards}
+.delay-1{animation-delay:.1s}.delay-2{animation-delay:.2s}.delay-3{animation-delay:.3s}.delay-4{animation-delay:.4s}.delay-5{animation-delay:.5s}
+.section-label{display:inline-block;font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;color:var(--warm);margin-bottom:1.2rem;font-weight:500}
+.container{max-width:1100px;margin:0 auto;padding:0 2rem}
+
+.hero{padding:7rem 0 5rem;text-align:center;max-width:820px;margin:0 auto}
+.hero-badge{display:inline-flex;align-items:center;gap:.5rem;background:var(--warm-light);color:var(--warm-dark);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;padding:.4rem 1rem;border-radius:100px;margin-bottom:2.5rem;font-weight:500}
+.hero-badge-dot{width:6px;height:6px;border-radius:50%;background:var(--warm);animation:pulse 2s infinite}
+.hero h1{font-family:'Playfair Display',serif;font-size:clamp(3rem,7vw,5.5rem);font-weight:400;line-height:1.05;letter-spacing:-.03em;margin-bottom:1.8rem}
+.hero h1 em{font-style:italic;color:var(--warm)}
+.hero p{font-size:1.1rem;color:var(--muted);line-height:1.75;max-width:520px;margin:0 auto 3rem}
+.hero-actions{display:flex;align-items:center;justify-content:center;gap:1rem;flex-wrap:wrap}
+.hero-note{font-size:.72rem;color:var(--muted);margin-top:1.2rem;letter-spacing:.04em}
+
+.mockup-section{padding:2rem 0 6rem}
+.mockup-wrapper{max-width:400px;margin:0 auto;background:#E5DDD4;border-radius:24px;padding:1.5rem;box-shadow:0 40px 80px rgba(26,23,20,.12),0 8px 24px rgba(26,23,20,.06)}
+.mockup-header{display:flex;align-items:center;gap:.8rem;margin-bottom:1.2rem;padding-bottom:1rem;border-bottom:1px solid rgba(0,0,0,.06)}
+.mockup-avatar{width:38px;height:38px;border-radius:50%;background:var(--ink);display:flex;align-items:center;justify-content:center;font-size:.75rem;color:white;font-weight:700;letter-spacing:-.02em;font-family:'DM Sans',sans-serif}
+.mockup-name{font-size:.88rem;font-weight:500;color:#111}.mockup-status{font-size:.7rem;color:#25D366}
+.chat-bubble{margin-bottom:.6rem;display:flex;flex-direction:column}
+.bubble{padding:.6rem .9rem;border-radius:10px;font-size:.82rem;line-height:1.5;max-width:82%}
+.bubble-bot{background:white;color:#111;border-bottom-left-radius:3px;align-self:flex-start}
+.bubble-user{background:#DCF8C6;color:#111;border-bottom-right-radius:3px;align-self:flex-end}
+.bubble-time{font-size:.6rem;color:#999;margin-top:2px;padding:0 .4rem}.bubble-time.right{text-align:right}
+.product-cards{display:flex;gap:.5rem;margin:.4rem 0}
+.product-card-mini{background:white;border-radius:10px;padding:.5rem;flex:1;font-size:.7rem}
+.product-img{height:52px;background:var(--warm-light);border-radius:6px;margin-bottom:.3rem;display:flex;align-items:center;justify-content:center;font-size:1.2rem}
+.product-name{font-weight:500;color:#111;font-size:.68rem;line-height:1.3}.product-price{color:var(--warm);font-size:.68rem;margin-top:.2rem}
+.quick-replies{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.6rem}
+.qr{background:white;border:1px solid var(--border);border-radius:100px;padding:.3rem .7rem;font-size:.68rem;color:#0066CC;cursor:pointer}
+
+.proof-section{padding:4rem 0;text-align:center;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.proof-label{font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:2rem}
+.proof-logos{display:flex;align-items:center;justify-content:center;gap:3.5rem;flex-wrap:wrap}
+.proof-logo{font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--muted);opacity:.6;font-weight:600}
+
+.how-section{padding:7rem 0}
+.how-section h2{font-family:'Playfair Display',serif;font-size:clamp(2rem,4vw,3rem);font-weight:400;letter-spacing:-.02em;margin-bottom:1rem;line-height:1.2}
+.how-section h2 em{font-style:italic;color:var(--warm)}
+.how-subtitle{font-size:.95rem;color:var(--muted);line-height:1.7;max-width:440px;margin-bottom:4rem}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--border);border:2px solid var(--border);border-radius:16px;overflow:hidden}
+.step{background:var(--cream);padding:2.5rem 2rem;transition:background .2s}.step:hover{background:#FDF9F4}
+.step-num{font-family:'Playfair Display',serif;font-size:2.5rem;color:var(--warm-light);font-weight:700;line-height:1;margin-bottom:1rem}
+.step h3{font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:600;margin-bottom:.6rem;letter-spacing:-.01em}
+.step p{font-size:.82rem;color:var(--muted);line-height:1.65}
+
+.features-strip{padding:5rem 0;background:var(--ink)}
+.features-strip .inner{max-width:1100px;margin:0 auto;padding:0 2rem;display:grid;grid-template-columns:repeat(4,1fr);gap:2rem}
+.strip-feature{padding:1.5rem 0;border-top:1px solid rgba(255,255,255,.08)}
+.strip-icon{font-size:1.4rem;margin-bottom:.8rem;display:block}
+.strip-feature h4{font-family:'Playfair Display',serif;font-size:1rem;color:var(--cream);font-weight:600;margin-bottom:.4rem}
+.strip-feature p{font-size:.78rem;color:#7A7068;line-height:1.6}
+
+.waitlist-section{padding:8rem 0;text-align:center}
+.waitlist-section h2{font-family:'Playfair Display',serif;font-size:clamp(2.2rem,5vw,3.8rem);font-weight:400;letter-spacing:-.02em;margin-bottom:1rem;line-height:1.1}
+.waitlist-section h2 em{font-style:italic;color:var(--warm)}
+.waitlist-section p{font-size:.95rem;color:var(--muted);margin-bottom:2.5rem;line-height:1.7}
+.waitlist-form{display:flex;gap:.8rem;justify-content:center;flex-wrap:wrap;max-width:480px;margin:0 auto}
+.waitlist-input{flex:1;min-width:220px;padding:.85rem 1.3rem;border:1.5px solid var(--border);border-radius:100px;font-family:'DM Sans',sans-serif;font-size:.85rem;background:white;color:var(--ink);outline:none;transition:border-color .2s}
+.waitlist-input:focus{border-color:var(--warm)}.waitlist-input::placeholder{color:var(--muted)}
+
+@media(max-width:768px){nav{padding:1.2rem 1.5rem}.nav-links{display:none}.hero{padding:4rem 1.5rem 3rem}.steps{grid-template-columns:1fr}.features-strip .inner{grid-template-columns:repeat(2,1fr)}footer{flex-direction:column;gap:2rem;text-align:center;padding:2rem 1.5rem}.footer-right{text-align:center}}
+</style>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="logo">vaani<span>.</span></a>
+  <ul class="nav-links">
+    <li><a href="index.html" class="active">Home</a></li>
+    <li><a href="features.html">Features</a></li>
+    <li><a href="pricing.html">Pricing</a></li>
+    <li><a href="about.html">About</a></li>
+    <li><a href="contact.html" class="nav-cta">Join Waitlist</a></li>
+  </ul>
+</nav>
+
+<section class="container">
+  <div class="hero">
+    <div class="hero-badge fade-up delay-1"><span class="hero-badge-dot"></span>Now in Early Access</div>
+    <h1 class="fade-up delay-2">Your brand's<br><em>sales assistant</em><br>lives in WhatsApp.</h1>
+    <p class="fade-up delay-3">Vaani helps Indian D2C brands sell more — product discovery, shortlisting, and checkout, all inside WhatsApp. No app downloads. No friction. Just sales.</p>
+    <div class="hero-actions fade-up delay-4">
+      <a href="contact.html" class="btn-primary">Join the Waitlist</a>
+      <a href="features.html" class="btn-outline">See How It Works</a>
+    </div>
+    <p class="hero-note fade-up delay-5">Shopify-native · Multilingual · No coding needed</p>
+  </div>
+</section>
+
+<section class="container mockup-section">
+  <div class="mockup-wrapper fade-up delay-3">
+    <div class="mockup-header">
+      <div class="mockup-avatar">इका</div>
+      <div>
+        <div class="mockup-name">Jhilmil · Ikaa</div>
+        <div class="mockup-status">● Online</div>
+      </div>
+    </div>
+    <div class="chat-bubble">
+      <div class="bubble bubble-user">Hi, I want to explore nail art 💅</div>
+      <div class="bubble-time right">3:12</div>
+    </div>
+    <div class="chat-bubble">
+      <div class="bubble bubble-bot">Welcome to Ikaa ✨ What are you looking for?<br><br>A. Nail Extensions<br>B. Nail Art Designs<br>C. DIY Nail Kits<br>D. Jewellery</div>
+      <div class="bubble-time">3:12</div>
+    </div>
+    <div class="chat-bubble">
+      <div class="bubble bubble-user">C</div>
+      <div class="bubble-time right">3:13</div>
+    </div>
+    <div class="chat-bubble">
+      <div class="bubble bubble-bot">Here are our top DIY picks 🖤</div>
+      <div class="bubble-time">3:13</div>
+    </div>
+    <div class="product-cards">
+      <div class="product-card-mini"><div class="product-img">🖤</div><div class="product-name">Chrome Noir Kit</div><div class="product-price">₹1,299</div></div>
+      <div class="product-card-mini"><div class="product-img">✨</div><div class="product-name">Silver Foil Set</div><div class="product-price">₹899</div></div>
+      <div class="product-card-mini"><div class="product-img">💎</div><div class="product-name">Gem Builder</div><div class="product-price">₹1,099</div></div>
+    </div>
+    <div class="quick-replies">
+      <span class="qr">❤️ Shortlist Chrome Noir</span>
+      <span class="qr">Show more →</span>
+      <span class="qr">View Cart</span>
+    </div>
+  </div>
+</section>
+
+<section class="proof-section">
+  <div class="container">
+    <p class="proof-label">Trusted by Indian D2C brands</p>
+    <div class="proof-logos">
+      <span class="proof-logo">Ikaa</span>
+      <span class="proof-logo">The Woof Parade</span>
+      <span class="proof-logo">Rajathee Sarees</span>
+      <span class="proof-logo">Your Brand →</span>
+    </div>
+  </div>
+</section>
+
+<section class="how-section">
+  <div class="container">
+    <div class="section-label fade-up">How it works</div>
+    <h2 class="fade-up delay-1">Three steps from<br><em>chat to checkout.</em></h2>
+    <p class="how-subtitle fade-up delay-2">Vaani handles the entire sales conversation — so your team doesn't have to.</p>
+    <div class="steps fade-up delay-3">
+      <div class="step"><div class="step-num">01</div><h3>Customer says hello</h3><p>A WhatsApp link on your website or Instagram triggers a personalised greeting from Vaani — in your brand's voice.</p></div>
+      <div class="step"><div class="step-num">02</div><h3>Vaani shows & sells</h3><p>Products are shown with images, prices, and shortlisting — all inside the chat. Customers browse without leaving WhatsApp.</p></div>
+      <div class="step"><div class="step-num">03</div><h3>Order confirmed</h3><p>Vaani creates a Shopify draft order and sends a payment link. Your team gets notified. Done.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="features-strip">
+  <div class="inner">
+    <div class="strip-feature"><span class="strip-icon">🛍️</span><h4>Shopify Native</h4><p>Pulls your live catalog, creates draft orders, and syncs inventory automatically.</p></div>
+    <div class="strip-feature"><span class="strip-icon">🗣️</span><h4>Multilingual</h4><p>Speaks Hindi, English, Marathi and more. Meets your customer where they are.</p></div>
+    <div class="strip-feature"><span class="strip-icon">⚡</span><h4>No Code Setup</h4><p>We configure everything. You just share a WhatsApp link and start selling.</p></div>
+    <div class="strip-feature"><span class="strip-icon">🎯</span><h4>Custom Flow</h4><p>Built around your catalog, your categories, your customer journey — not a template.</p></div>
+  </div>
+</section>
+
+<section class="waitlist-section">
+  <div class="container">
+    <div class="section-label fade-up">Early access</div>
+    <h2 class="fade-up delay-1">Be first.<br><em>Get the founder rate.</em></h2>
+    <p class="fade-up delay-2">We're onboarding a limited number of brands before public launch.<br>Early access includes locked-in pricing and hands-on setup support.</p>
+    <div class="waitlist-form fade-up delay-3">
+      <input type="email" class="waitlist-input" placeholder="your@email.com">
+      <a href="contact.html" class="btn-primary">Join Waitlist</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-left">
+    <a href="index.html" class="logo">vaani<span>.</span></a>
+    <p class="footer-tagline">A Leogo Designs product</p>
+  </div>
+  <ul class="footer-links">
+    <li><a href="features.html">Features</a></li>
+    <li><a href="pricing.html">Pricing</a></li>
+    <li><a href="about.html">About</a></li>
+    <li><a href="contact.html">Contact</a></li>
+    <li><a href="privacy.html">Privacy</a></li>
+    <li><a href="terms.html">Terms</a></li>
+  </ul>
+  <div class="footer-right">© 2026 Vaani by Leogo Designs<br>Made with ♥ in Pune</div>
+</footer>
+</body>
+</html>
