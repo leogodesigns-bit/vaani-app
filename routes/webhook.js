@@ -5,6 +5,7 @@ const { getConversation, upsertConversation } = require('../db');
 const { getAIResponse, detectLanguage } = require('../ai');
 const { sendMessage, sendButtons, sendList } = require('../whatsapp');
 const { getProducts } = require('../shopify');
+const { categorizeProducts } = require('../utils/categorize');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -32,78 +33,75 @@ router.post('/', async (req, res) => {
     const entry = body.entry?.[0]?.changes?.[0]?.value;
     const metadata = entry?.metadata;
     const phoneNumberId = metadata?.phone_number_id;
-    const token = (await pool.query('SELECT whatsapp_token FROM tenants WHERE whatsapp_number = $1', [phoneNumberId])).rows[0]?.whatsapp_token || process.env.WHATSAPP_TOKEN;
 
-    // Handle button replies
-    const interactive = entry?.messages?.[0]?.interactive;
+    const tenantResult = await pool.query('SELECT * FROM tenants WHERE whatsapp_number = $1', [phoneNumberId]);
+    const tenant = tenantResult.rows[0] || (await pool.query('SELECT * FROM tenants LIMIT 1')).rows[0];
+    if (!tenant) { console.log('⚠️ No tenant found'); return; }
+    const waToken = tenant.whatsapp_token || process.env.WHATSAPP_TOKEN;
+
     const message = entry?.messages?.[0];
     if (!message) return;
 
     const from = message.from;
     let text = '';
-
     if (message.type === 'text') {
       text = message.text.body;
     } else if (message.type === 'interactive') {
-      text = interactive?.button_reply?.title || interactive?.list_reply?.title || '';
+      text = message.interactive?.button_reply?.title || message.interactive?.list_reply?.title || '';
     } else {
       return;
     }
 
     console.log(`📩 [${phoneNumberId}] Message from ${from}: ${text}`);
 
-    const result = await pool.query('SELECT * FROM tenants WHERE whatsapp_number = $1', [phoneNumberId]);
-    const tenant = result.rows[0] || (await pool.query('SELECT * FROM tenants LIMIT 1')).rows[0];
-    if (!tenant) { console.log('⚠️ No tenant found'); return; }
+    const conv = await getConversation(tenant.id, from);
+    const history = conv?.messages || [];
 
-    // Check if asking to browse/show products
-    const browseKeywords = ['show', 'products', 'browse', 'catalogue', 'catalog', 'what do you have', 'earring', 'ring', 'necklace', 'jewel'];
+    // Browse/catalogue intent
+    const browseKeywords = ['show', 'products', 'browse', 'catalogue', 'catalog', 'what do you have', 'collections'];
+    const categoryKeywords = ['earring', 'jhumki', 'ring', 'saree pin', 'necklace', 'chain', 'pendant'];
     const isBrowsing = browseKeywords.some(k => text.toLowerCase().includes(k));
+    const isCategory = categoryKeywords.some(k => text.toLowerCase().includes(k));
 
-    if (isBrowsing && tenant.shopify_token && tenant.shopify_token !== 'test_token') {
+    if ((isBrowsing || isCategory) && tenant.shopify_token && tenant.shopify_token !== 'test_token') {
       const products = await getProducts(tenant.shop_domain, tenant.shopify_token);
+
       if (products.length > 0) {
-        // Group by product type
-        const categories = [...new Set(products.map(p => p.product_type).filter(Boolean))].slice(0, 3);
-        
-        if (categories.length >= 2) {
-          // Send category buttons
-          await sendButtons(
-            from,
-            `✨ Welcome to Ikaa Jewellery!\n\nWhat are you looking for?`,
-            categories.slice(0, 3),
-            token,
-            phoneNumberId
-          );
-        } else {
-          // Send product list directly
+        const categorized = categorizeProducts(products);
+        const catNames = Object.keys(categorized);
+
+        if (isCategory) {
+          // Find matching category and show its products as list
+          const matchedCat = catNames.find(c => categoryKeywords.some(k => text.toLowerCase().includes(k) && c.toLowerCase().includes(k.split(' ')[0])));
+          const catProducts = matchedCat ? categorized[matchedCat] : products;
+
           const sections = [{
-            title: 'Our Products',
-            rows: products.slice(0, 10).map(p => ({
+            title: matchedCat || 'Products',
+            rows: catProducts.slice(0, 10).map(p => ({
               id: `product_${p.id}`,
               title: p.title.substring(0, 24),
               description: `₹${p.variants?.[0]?.price || 'N/A'}`
             }))
           }];
-          await sendList(from, '✨ Here\'s what we have at Ikaa Jewellery:', sections, token, phoneNumberId);
+          await sendList(from, `Here are our ${matchedCat || 'products'} ✨`, sections, waToken, phoneNumberId);
+
+        } else {
+          // Show category buttons (max 3)
+          const topCats = catNames.slice(0, 3).map(c => c.replace(/[💛💍📌✨🛍️]/gu, '').trim());
+          await sendButtons(from, `✨ Welcome to Ikaa Jewellery!\n\nWe have ${products.length} pieces. What are you looking for?`, topCats, waToken, phoneNumberId);
         }
 
-        // Save to history
-        const conv = await getConversation(tenant.id, from);
-        const history = conv?.messages || [];
-        await upsertConversation(tenant.id, from, [...history, { role: 'user', content: text }, { role: 'assistant', content: '[showed product catalogue]' }], conv?.cart || {});
+        await upsertConversation(tenant.id, from, [...history, { role: 'user', content: text }, { role: 'assistant', content: '[showed catalogue]' }], conv?.cart || {});
         return;
       }
     }
 
     // Default AI response
-    const conv = await getConversation(tenant.id, from);
-    const history = conv?.messages || [];
     const lang = detectLanguage(text);
     const langInstruction = lang !== 'english' ? `Respond in ${lang}.` : '';
     const aiReply = await getAIResponse(tenant, from, langInstruction ? langInstruction + ' ' + text : text, history);
     await upsertConversation(tenant.id, from, [...history, { role: 'user', content: text }, { role: 'assistant', content: aiReply }], conv?.cart || {});
-    await sendMessage(from, aiReply, token, phoneNumberId);
+    await sendMessage(from, aiReply, waToken, phoneNumberId);
     console.log(`🤖 AI replied to ${from}: ${aiReply.substring(0, 50)}...`);
 
   } catch (err) {
