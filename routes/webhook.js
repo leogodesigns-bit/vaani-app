@@ -59,7 +59,7 @@ router.post('/', async (req, res) => {
     const history = conv?.messages || [];
 
     // Browse/catalogue intent
-    const browseKeywords = ['show', 'products', 'browse', 'catalogue', 'catalog', 'what do you have', 'collections'];
+    const browseKeywords = ['show', 'product', 'browse', 'catalogue', 'catalog', 'what do you have', 'collection', 'more product', 'see product', 'view product'];
     const categoryKeywords = ['earring', 'jhumki', 'ring', 'saree pin', 'necklace', 'chain', 'pendant'];
     const isBrowsing = browseKeywords.some(k => text.toLowerCase().includes(k));
     const isCategory = categoryKeywords.some(k => text.toLowerCase().includes(k));
