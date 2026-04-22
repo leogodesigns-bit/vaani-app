@@ -66,3 +66,23 @@ async function sendList(to, bodyText, sections, token, phoneNumberId) {
 }
 
 module.exports = { sendMessage, sendButtons, sendList };
+
+async function sendImage(to, imageUrl, caption, token, phoneNumberId) {
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v25.0/${phoneNumberId}/messages`,
+      {
+        messaging_product: 'whatsapp',
+        to,
+        type: 'image',
+        image: { link: imageUrl, caption }
+      },
+      { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
+    );
+    console.log(`✅ Image sent to ${to}`);
+  } catch (err) {
+    console.error('❌ sendImage error:', err.response?.data || err.message);
+  }
+}
+
+module.exports = { sendMessage, sendButtons, sendList, sendImage };
