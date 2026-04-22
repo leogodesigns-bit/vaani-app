@@ -34,7 +34,8 @@ async function sendProductPage(from, products, offset, waToken, phoneNumberId) {
     const p = page[i];
     const imageUrl = p.images?.[0]?.src;
     const price = p.variants?.[0]?.price || 'N/A';
-    const caption = emojis[i] + ' ' + p.title + ' — ₹' + price;
+    const num = offset + i + 1;
+    const caption = num + '. ' + p.title + ' — ₹' + price;
     if (imageUrl) {
       await sendImage(from, imageUrl, caption, waToken, phoneNumberId);
     } else {
@@ -180,26 +181,19 @@ router.post('/', async (req, res) => {
       const categorized = categorizeProducts(inStock, aiCategories);
       const catProducts = categorized[cart.current_category] || inStock;
 
-      // Show the current page of 3 as numbered buttons
-      const offset = cart.product_offset || 0;
-      const page = catProducts.slice(Math.max(0, offset - 3 + (offset === 0 ? 0 : 0)), offset === 0 ? 3 : offset);
-      // Simpler: show the last-seen 3 products (from offset back)
-      const pageStart = Math.max(0, (cart.product_offset || 0));
-      // Actually show products at the current displayed window:
-      // product_offset is updated AFTER showing, so current window = offset - 3 (if offset > 0) else 0
-      const windowStart = cart.product_offset > 0 ? cart.product_offset - 3 : 0;
-      // But if offset was never advanced (first page), windowStart = 0
-      const windowProducts = catProducts.slice(windowStart < 0 ? 0 : windowStart, (windowStart < 0 ? 0 : windowStart) + 3);
+      // windowStart = last shown page start (product_offset points to NEXT page)
+      const windowStart = Math.max(0, (cart.product_offset || 3) - 3);
+      const windowProducts = catProducts.slice(windowStart, windowStart + 3);
 
       if (windowProducts.length === 0) {
         await sendMessage(from, "Hmm, I couldn't find the products. Try browsing again! 😊", waToken, phoneNumberId);
         return;
       }
 
-      // Send as list buttons (max 3)
+      // Send as list — use cumulative numbers matching what user saw
       const rows = windowProducts.map((p, i) => ({
         id: 'shortlist_' + p.id,
-        title: (i + 1) + '. ' + p.title.substring(0, 24),
+        title: (windowStart + i + 1) + '. ' + p.title.substring(0, 24),
         description: '₹' + (p.variants?.[0]?.price || 'N/A')
       }));
 
