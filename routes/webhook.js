@@ -157,8 +157,7 @@ router.post('/', async (req, res) => {
             const p = top3[i];
             const imageUrl = p.images?.[0]?.src;
             const price = p.variants?.[0]?.price || 'N/A';
-            const caption = emojis[i] + ' *' + p.title + '*
-₹' + price + ' • Available ✅';
+            const caption = emojis[i] + ' ' + p.title + ' — ₹' + price;
             if (imageUrl) { await sendImage(from, imageUrl, caption, waToken, phoneNumberId); }
             else { await sendMessage(from, caption, waToken, phoneNumberId); }
             await new Promise(r => setTimeout(r, 600));
