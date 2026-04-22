@@ -1,23 +1,11 @@
-require('dotenv').config();
-const express = require('express');
-const { initDB } = require('./db');
-const { startScheduler } = require('./scheduler');
-const app = express();
+const fs = require('fs');
+let index = fs.readFileSync('index.js', 'utf8');
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static("public"));
-
-app.use('/shopify', require('./routes/install'));
-app.use('/webhook', require('./routes/webhook'));
-app.use('/gdpr', require('./routes/gdpr'));
-app.use('/dashboard', require('./routes/dashboard'));
-
-
+const billingRoutes = `
 // ── BILLING ROUTES ──────────────────────────────────────────
 app.get('/pricing', (req, res) => {
   const shop = req.query.shop || '';
-  res.send(`<!DOCTYPE html>
+  res.send(\`<!DOCTYPE html>
 <html><head><title>Vaani Pricing</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
@@ -77,7 +65,7 @@ function contactUs() {
   window.open('https://wa.me/919403345612?text=Hi! I want to know more about Vaani Custom plan for my Shopify store: ' + shop, '_blank');
 }
 </script>
-</body></html>`);
+</body></html>\`);
 });
 
 app.get('/billing/create', async (req, res) => {
@@ -123,14 +111,12 @@ app.post('/admin/activate-leogo', async (req, res) => {
   res.json({ success: true, message: shop + ' activated as Leogo custom client at Rs' + price_inr + '/mo' });
 });
 // ── END BILLING ROUTES ───────────────────────────────────────
+`;
 
-app.get('/', (req, res) => {
-  res.json({ status: 'Vaani is running 🟢', version: '1.0.0' });
-});
-
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, async () => {
-  console.log(`🚀 Vaani server running on port ${PORT}`);
-  await initDB();
-  startScheduler();
-});
+// Insert before the last line (module export or listen)
+index = index.replace(
+  "app.get('/', (req, res) => {",
+  billingRoutes + "\napp.get('/', (req, res) => {"
+);
+fs.writeFileSync('index.js', index);
+console.log('✅ Billing routes added');
