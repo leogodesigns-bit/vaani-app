@@ -4,13 +4,14 @@ const { initDB } = require('./db');
 const { startScheduler } = require('./scheduler');
 const app = express();
 
-app.use(express.json());
+app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf.toString("utf8"); } }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
 app.use('/shopify', require('./routes/install'));
 app.use('/webhook', require('./routes/webhook'));
 app.use('/gdpr', require('./routes/gdpr'));
+app.use('/webhooks', require('./routes/gdpr'));
 app.use('/dashboard', require('./routes/dashboard'));
 
 
