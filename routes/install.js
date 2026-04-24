@@ -12,7 +12,7 @@ router.get('/install', (req, res) => {
   res.redirect(redirectUrl);
 });
 
-// Step 2: OAuth callback - exchange code for token
+// Step 2: OAuth callback - exchange code for token, then redirect to dashboard
 router.get('/callback', async (req, res) => {
   const { shop, code, hmac } = req.query;
   if (!shop || !code) return res.status(400).send('Missing parameters');
@@ -33,16 +33,18 @@ router.get('/callback', async (req, res) => {
     const accessToken = response.data.access_token;
     await createTenant(shop, accessToken);
     console.log(`✅ Vaani installed on ${shop}`);
-    res.send(`
-      <html><body style="font-family:sans-serif;text-align:center;padding:50px">
-        <h1>✅ Vaani installed successfully!</h1>
-        <p>Your WhatsApp AI Sales Bot is being set up for <strong>${shop}</strong></p>
-        <p>You'll receive setup instructions on WhatsApp shortly.</p>
-      </body></html>
-    `);
+
+    // Redirect to dashboard with first_install flag so they see the welcome banner + demo CTA
+    res.redirect(`/dashboard?shop=${encodeURIComponent(shop)}&first_install=1`);
   } catch (err) {
     console.error('OAuth error:', err.message);
-    res.status(500).send('Installation failed');
+    res.status(500).send(`
+      <html><body style="font-family:-apple-system,sans-serif;text-align:center;padding:60px;background:#f8f8ff">
+        <h2 style="color:#ef4444">Installation failed</h2>
+        <p>Please try again, or email <a href="mailto:leogodesigns@gmail.com" style="color:#6366f1">leogodesigns@gmail.com</a> for help.</p>
+        <p style="color:#888;font-size:13px;margin-top:20px">Error: ${err.message}</p>
+      </body></html>
+    `);
   }
 });
 
