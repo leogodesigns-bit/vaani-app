@@ -3,6 +3,7 @@ const express = require('express');
 const { initDB } = require('./db');
 const { startScheduler } = require('./scheduler');
 const app = express();
+app.use(express.static(__dirname + '/public'));
 
 app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf.toString("utf8"); } }));
 app.use(express.urlencoded({ extended: true }));
@@ -10,12 +11,21 @@ app.use(express.static("public"));
 
 app.use('/shopify', require('./routes/install'));
 app.use('/webhook', require('./routes/webhook'));
+app.use('/shopify', require('./routes/compliance'));
 app.use('/gdpr', require('./routes/gdpr'));
 app.use('/webhooks', require('./routes/gdpr'));
 app.use('/dashboard', require('./routes/dashboard'));
 
 
 // ── BILLING ROUTES ──────────────────────────────────────────
+app.get('/terms', (req, res) => {
+  res.sendFile(__dirname + '/public/terms.html');
+});
+
+app.get('/privacy', (req, res) => {
+  res.sendFile(__dirname + '/public/privacy.html');
+});
+
 app.get('/pricing', (req, res) => {
   const shop = req.query.shop || '';
   res.send(`<!DOCTYPE html>

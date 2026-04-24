@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vaani — Pricing</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  :root {
+    --cream: #FAF7F2;
+    --ink: #1A1714;
+    --warm: #C4783A;
+    --warm-light: #F0E0CC;
+    --muted: #8A7E74;
+    --border: #E5DDD4;
+    --green: #2D6A4F;
+    --green-light: #D8EDE4;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* NAV */
+  nav{padding:1.8rem 4rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(250,247,242,.92);backdrop-filter:blur(12px);z-index:100}
+  .logo{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;letter-spacing:-.01em;color:var(--ink);text-decoration:none}
+  .logo span{color:var(--warm)}
+  .nav-links{display:flex;align-items:center;gap:2.5rem;list-style:none}
+  .nav-links a{font-size:.82rem;letter-spacing:.04em;color:var(--muted);text-decoration:none;transition:color .2s;font-weight:400}
+  .nav-links a:hover,.nav-links a.active{color:var(--ink)}
+  .nav-cta{background:var(--ink)!important;color:var(--cream)!important;padding:.55rem 1.3rem!important;border-radius:100px!important;font-size:.78rem!important;text-transform:uppercase;font-weight:500!important}
+  .nav-cta:hover{background:var(--warm)!important}
+
+  /* FOOTER */
+  footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-items:center;justify-content:space-between;margin-top:2rem}
+  .footer-left .logo{font-size:1.2rem}.footer-tagline{font-size:.75rem;color:var(--muted);margin-top:.3rem}
+  .footer-links-f{display:flex;gap:2rem;list-style:none}.footer-links-f a{font-size:.78rem;color:var(--muted);text-decoration:none;transition:color .2s}.footer-links-f a:hover{color:var(--ink)}
+  .footer-right{font-size:.72rem;color:var(--muted);text-align:right}
+
+  @media(max-width:768px){nav{padding:1.2rem 1.5rem}.nav-links{display:none}footer{flex-direction:column;gap:2rem;text-align:center;padding:2rem 1.5rem}.footer-right{text-align:center}}
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 100;
+    opacity: 0.4;
+  }
+
+  header {
+    padding: 2.5rem 4rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+
+  .logo span {
+    color: var(--warm);
+  }
+
+  .tagline-header {
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .hero {
+    padding: 6rem 4rem 4rem;
+    max-width: 900px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .hero-label {
+    display: inline-block;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--warm);
+    border: 1px solid var(--warm);
+    padding: 0.35rem 1rem;
+    border-radius: 100px;
+    margin-bottom: 2rem;
+    opacity: 0;
+    animation: fadeUp 0.6s ease forwards 0.1s;
+  }
+
+  .hero h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.8rem, 6vw, 4.5rem);
+    font-weight: 400;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.5rem;
+    opacity: 0;
+    animation: fadeUp 0.6s ease forwards 0.2s;
+  }
+
+  .hero h1 em {
+    font-style: italic;
+    color: var(--warm);
+  }
+
+  .hero p {
+    font-size: 1.05rem;
+    color: var(--muted);
+    line-height: 1.7;
+    max-width: 520px;
+    margin: 0 auto 1rem;
+    opacity: 0;
+    animation: fadeUp 0.6s ease forwards 0.3s;
+  }
+
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5px;
+    max-width: 1100px;
+    margin: 4rem auto;
+    padding: 0 2rem;
+    background: var(--border);
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    opacity: 0;
+    animation: fadeUp 0.7s ease forwards 0.4s;
+  }
+
+  .plan {
+    background: var(--cream);
+    padding: 2.5rem 2rem;
+    position: relative;
+    transition: background 0.2s ease;
+  }
+
+  .plan:hover {
+    background: #FDF9F4;
+  }
+
+  .plan.featured {
+    background: var(--ink);
+    color: var(--cream);
+  }
+
+  .plan.featured:hover {
+    background: #251F1A;
+  }
+
+  .plan-badge {
+    display: inline-block;
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 0.25rem 0.7rem;
+    border-radius: 100px;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+  }
+
+  .plan:not(.featured) .plan-badge {
+    background: var(--warm-light);
+    color: var(--warm);
+  }
+
+  .plan.featured .plan-badge {
+    background: var(--warm);
+    color: white;
+  }
+
+  .plan-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+    letter-spacing: -0.01em;
+  }
+
+  .plan-sub {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 2rem;
+    line-height: 1.5;
+  }
+
+  .plan.featured .plan-sub {
+    color: #A89E94;
+  }
+
+  .plan-price {
+    margin-bottom: 2rem;
+  }
+
+  .price-amount {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.4rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+
+  .price-period {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 0.3rem;
+  }
+
+  .plan.featured .price-period {
+    color: #A89E94;
+  }
+
+  .price-setup {
+    display: inline-block;
+    font-size: 0.72rem;
+    margin-top: 0.4rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+
+  .plan:not(.featured) .price-setup {
+    background: var(--green-light);
+    color: var(--green);
+  }
+
+  .plan.featured .price-setup {
+    background: rgba(255,255,255,0.1);
+    color: #C8E6D9;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin-bottom: 1.5rem;
+  }
+
+  .plan.featured .divider {
+    background: rgba(255,255,255,0.1);
+  }
+
+  .features {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .features li {
+    font-size: 0.82rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    line-height: 1.4;
+    color: var(--ink);
+  }
+
+  .plan.featured .features li {
+    color: #D4CBC2;
+  }
+
+  .features li .check {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--green-light);
+    color: var(--green);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.55rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+    font-weight: 700;
+  }
+
+  .plan.featured .features li .check {
+    background: rgba(255,255,255,0.15);
+    color: #C8E6D9;
+  }
+
+  .features li .dim {
+    color: var(--muted);
+  }
+
+  .plan.featured .features li .dim {
+    color: #7A7068;
+  }
+
+  /* Exclusive section */
+  .exclusive-section {
+    max-width: 1100px;
+    margin: 0 auto 5rem;
+    padding: 0 2rem;
+    opacity: 0;
+    animation: fadeUp 0.7s ease forwards 0.6s;
+  }
+
+  .exclusive-card {
+    background: var(--ink);
+    border-radius: 16px;
+    padding: 3rem 3.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    position: relative;
+    overflow: visible;
+  }
+
+  .exclusive-card::before {
+    content: '';
+    position: absolute;
+    top: -60px;
+    right: -60px;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(196,120,58,0.2) 0%, transparent 70%);
+  }
+
+  .exclusive-left .ex-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--warm);
+    margin-bottom: 0.8rem;
+    font-weight: 500;
+  }
+
+  .exclusive-left h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.8rem;
+    color: var(--cream);
+    font-weight: 400;
+    line-height: 1.2;
+    margin-bottom: 0.8rem;
+  }
+
+  .exclusive-left h2 em {
+    font-style: italic;
+    color: var(--warm);
+  }
+
+  .exclusive-left p {
+    font-size: 0.85rem;
+    color: #8A7E74;
+    line-height: 1.6;
+    max-width: 420px;
+  }
+
+  .exclusive-right {
+    flex-shrink: 0;
+    text-align: right;
+  }
+
+  .exclusive-price {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+  }
+
+  .ex-price-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+
+  .ex-price-label {
+    font-size: 0.7rem;
+    color: #8A7E74;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .ex-price-amount {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    color: var(--cream);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .ex-price-note {
+    font-size: 0.7rem;
+    color: #5A5048;
+    margin-top: 0.3rem;
+  }
+
+  .ex-tag {
+    display: inline-block;
+    background: var(--warm);
+    color: white;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.3rem 0.8rem;
+    border-radius: 100px;
+    font-weight: 500;
+    margin-top: 0.5rem;
+  }
+
+  /* Footer note */
+  .footnote {
+    text-align: center;
+    padding: 2rem 2rem 4rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 1.7;
+    opacity: 0;
+    animation: fadeUp 0.7s ease forwards 0.8s;
+  }
+
+  .footnote a {
+    color: var(--warm);
+    text-decoration: none;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 900px) {
+    header { padding: 1.5rem 2rem; }
+    .hero { padding: 4rem 2rem 2rem; }
+    .pricing-grid { grid-template-columns: repeat(2, 1fr); padding: 0 1rem; }
+    .exclusive-card { flex-direction: column; padding: 2rem; }
+    .exclusive-right { text-align: left; width: 100%; }
+    .exclusive-price { align-items: flex-start; }
+  }
+
+  @media (max-width: 580px) {
+    .pricing-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="logo">vaani<span>.</span></a>
+  <ul class="nav-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="features.html">Features</a></li>
+    <li><a href="pricing.html" class="active">Pricing</a></li>
+    <li><a href="about.html">About</a></li>
+    <li><a href="contact.html" class="nav-cta">Join Waitlist</a></li>
+  </ul>
+</nav>
+
+<section class="hero">
+  <div class="hero-label">Simple, transparent pricing</div>
+  <h1>Sell more while<br>you <em>sleep.</em></h1>
+  <p>Vaani handles product discovery, shortlisting, and payment — right inside WhatsApp. No app. No friction.</p>
+</section>
+
+<div class="pricing-grid">
+
+  <!-- Free -->
+  <div class="plan">
+    <div class="plan-badge">Starter</div>
+    <div class="plan-name">Free</div>
+    <div class="plan-sub">Try Vaani with no commitment</div>
+    <div class="plan-price">
+      <div class="price-amount">₹0</div>
+      <div class="price-period">forever free</div>
+      <div class="price-setup" style="background:var(--warm-light);color:var(--warm);">No setup fee</div>
+    </div>
+    <div class="divider"></div>
+    <ul class="features">
+      <li><span class="check">✓</span> 70 messages / month</li>
+      <li><span class="check">✓</span> Product discovery</li>
+      <li><span class="check">✓</span> Shortlist flow</li>
+      <li><span class="check">✓</span> Shopify connected</li>
+      <li><span class="check">✓</span> English only</li>
+      <li><span class="check" style="background:#F5EEE8;color:#C4A882;">—</span> <span class="dim">No payment links</span></li>
+      <li><span class="check" style="background:#F5EEE8;color:#C4A882;">—</span> <span class="dim">No custom flow</span></li>
+    </ul>
+  </div>
+
+  <!-- Growth -->
+  <div class="plan">
+    <div class="plan-badge">Growth</div>
+    <div class="plan-name">Basic</div>
+    <div class="plan-sub">For stores just getting started with WhatsApp sales</div>
+    <div class="plan-price">
+      <div class="price-amount">₹999<span style="font-size:1rem;font-weight:400">/mo</span></div>
+      <div class="price-period">billed monthly</div>
+      <div class="price-setup">+ ₹2,000 one-time setup</div>
+    </div>
+    <div class="divider"></div>
+    <ul class="features">
+      <li><span class="check">✓</span> 500 messages / month</li>
+      <li><span class="check">✓</span> Product discovery</li>
+      <li><span class="check">✓</span> Shortlist + payment links</li>
+      <li><span class="check">✓</span> Draft orders via Shopify</li>
+      <li><span class="check">✓</span> English + Hindi</li>
+      <li><span class="check" style="background:#F5EEE8;color:#C4A882;">—</span> <span class="dim">No custom flow</span></li>
+      <li><span class="check" style="background:#F5EEE8;color:#C4A882;">—</span> <span class="dim">Standard bot persona</span></li>
+    </ul>
+  </div>
+
+  <!-- Pro — featured -->
+  <div class="plan featured">
+    <div class="plan-badge">Most Popular</div>
+    <div class="plan-name">Pro</div>
+    <div class="plan-sub">For growing D2C brands who want a real sales assistant</div>
+    <div class="plan-price">
+      <div class="price-amount">₹2,499<span style="font-size:1rem;font-weight:400">/mo</span></div>
+      <div class="price-period">billed monthly</div>
+      <div class="price-setup">+ ₹5,000 one-time setup</div>
+    </div>
+    <div class="divider"></div>
+    <ul class="features">
+      <li><span class="check">✓</span> 2,000 messages / month</li>
+      <li><span class="check">✓</span> Full product + shortlist flow</li>
+      <li><span class="check">✓</span> Payment links + order tracking</li>
+      <li><span class="check">✓</span> Multilingual (EN/HI/Regional)</li>
+      <li><span class="check">✓</span> Custom bot name & persona</li>
+      <li><span class="check">✓</span> Basic custom flow</li>
+      <li><span class="check" style="background:rgba(255,255,255,0.08);color:#C8E6D9;">—</span> <span style="color:#5A5048;">No deep custom logic</span></li>
+    </ul>
+  </div>
+
+  <!-- Scale -->
+  <div class="plan">
+    <div class="plan-badge">Scale</div>
+    <div class="plan-name">Brand</div>
+    <div class="plan-sub">For brands that want the full experience, fully tailored</div>
+    <div class="plan-price">
+      <div class="price-amount">₹4,999<span style="font-size:1rem;font-weight:400">/mo</span></div>
+      <div class="price-period">billed monthly</div>
+      <div class="price-setup">+ ₹8,000 one-time setup</div>
+    </div>
+    <div class="divider"></div>
+    <ul class="features">
+      <li><span class="check">✓</span> Unlimited messages</li>
+      <li><span class="check">✓</span> Deep custom chat flow</li>
+      <li><span class="check">✓</span> Category-based navigation</li>
+      <li><span class="check">✓</span> Cross-sell / upsell logic</li>
+      <li><span class="check">✓</span> Callback + handoff flows</li>
+      <li><span class="check">✓</span> Multilingual + regional</li>
+      <li><span class="check">✓</span> Priority support</li>
+    </ul>
+  </div>
+
+</div>
+
+<!-- Custom Flow section -->
+<div class="exclusive-section">
+  <div class="exclusive-card">
+    <div class="exclusive-left">
+      <div class="ex-label">Custom Flow — Built for your brand</div>
+      <h2>A flow that's entirely<br><em>yours.</em></h2>
+      <p>Every brand is different. Custom flows are scoped, designed, and built around your exact catalog, categories, and customer journey — not a template. Pricing depends on complexity.</p>
+    </div>
+    <div class="exclusive-right">
+      <div class="exclusive-price">
+        <div>
+          <div class="ex-price-label">Custom setup starting at</div>
+          <div class="ex-price-row">
+            <div class="ex-price-amount">₹8,000</div>
+          </div>
+        </div>
+        <div style="margin-top:0.8rem;">
+          <div class="ex-price-label">Monthly recurring starting at</div>
+          <div class="ex-price-row">
+            <div class="ex-price-amount">₹5,999<span style="font-size:1rem;font-weight:400;color:#8A7E74">/mo</span></div>
+          </div>
+        </div>
+        <div class="ex-price-note">Final price scoped after a brief call</div>
+        <div class="ex-tag">Get a custom quote →</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Leogo Exclusive section -->
+<div class="exclusive-section" style="margin-top: 0rem; padding-top: 1.5rem;">
+  <div class="exclusive-card" style="background: #1C2B24; position: relative;">
+    <div style="position:absolute;top:-12px;left:3.5rem;">
+      <span style="background:var(--green);color:white;font-size:0.65rem;letter-spacing:0.14em;text-transform:uppercase;padding:0.3rem 1rem;border-radius:100px;font-weight:500;">For Leogo Designs Clients Only</span>
+    </div>
+    <div class="exclusive-left">
+      <div class="ex-label" style="color:#6FCF97;">Exclusive Partner Rate</div>
+      <h2>Because you're already<br><em style="color:#6FCF97;">family.</em></h2>
+      <p>If you're an existing Leogo Designs client, you get Vaani at a private founder rate. No negotiations needed — this is our way of saying thank you for trusting us with your brand.</p>
+    </div>
+    <div class="exclusive-right">
+      <div class="exclusive-price">
+        <div>
+          <div class="ex-price-label">One-time setup</div>
+          <div class="ex-price-row">
+            <div class="ex-price-amount">₹4,000</div>
+          </div>
+        </div>
+        <div style="margin-top:0.8rem;">
+          <div class="ex-price-label">Monthly recurring</div>
+          <div class="ex-price-row">
+            <div class="ex-price-amount">₹1,500<span style="font-size:1rem;font-weight:400;color:#8A7E74">/mo</span></div>
+          </div>
+        </div>
+        <div class="ex-price-note">Full Brand tier features included</div>
+        <div class="ex-tag" style="background:var(--green);">Exclusive — not listed publicly</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-left">
+    <a href="index.html" class="logo">vaani<span>.</span></a>
+    <p class="footer-tagline">A Leogo Designs product</p>
+  </div>
+  <ul class="footer-links-f">
+    <li><a href="features.html">Features</a></li>
+    <li><a href="pricing.html">Pricing</a></li>
+    <li><a href="about.html">About</a></li>
+    <li><a href="contact.html">Contact</a></li>
+    <li><a href="privacy.html">Privacy</a></li>
+    <li><a href="terms.html">Terms</a></li>
+  </ul>
+  <div class="footer-right">© 2026 Vaani by Leogo Designs<br>Made with ♥ in Pune</div>
+</footer>
+
+</body>
+</html>
