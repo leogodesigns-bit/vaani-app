@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const router = express.Router();
 const { Pool } = require('pg');
 
@@ -7,15 +8,52 @@ const pool = new Pool({
   ssl: process.env.DATABASE_URL?.includes('railway') ? { rejectUnauthorized: false } : false
 });
 
+// HMAC verification middleware — Shopify mandatory webhooks MUST return 401 on invalid
+function verifyShopifyHmac(req, res, next) {
+  const hmacHeader = req.get('X-Shopify-Hmac-Sha256');
+  if (!hmacHeader) {
+    console.warn('⚠️ GDPR webhook hit without HMAC header');
+    return res.sendStatus(401);
+  }
+
+  const secret = process.env.SHOPIFY_API_SECRET;
+  if (!secret) {
+    console.error('❌ SHOPIFY_API_SECRET env var missing');
+    return res.sendStatus(401);
+  }
+
+  // req.rawBody is populated by the verify callback in express.json() (see index.js)
+  const body = req.rawBody;
+  if (!body) {
+    console.warn('⚠️ GDPR webhook had no raw body');
+    return res.sendStatus(401);
+  }
+
+  const computed = crypto
+    .createHmac('sha256', secret)
+    .update(body, 'utf8')
+    .digest('base64');
+
+  // Timing-safe comparison
+  const a = Buffer.from(computed);
+  const b = Buffer.from(hmacHeader);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    console.warn('⚠️ GDPR webhook HMAC mismatch');
+    return res.sendStatus(401);
+  }
+
+  next();
+}
+
 // Customer data request - GDPR
-router.post('/customers/data_request', (req, res) => {
+router.post('/customers/data_request', verifyShopifyHmac, (req, res) => {
   const { shop_domain, customer } = req.body;
   console.log(`📋 GDPR data request for customer ${customer?.id} from ${shop_domain}`);
   res.sendStatus(200);
 });
 
 // Customer data deletion - GDPR
-router.post('/customers/redact', async (req, res) => {
+router.post('/customers/redact', verifyShopifyHmac, async (req, res) => {
   const { shop_domain, customer } = req.body;
   try {
     const tenant = await pool.query('SELECT id FROM tenants WHERE shop_domain = $1', [shop_domain]);
@@ -34,7 +72,7 @@ router.post('/customers/redact', async (req, res) => {
 });
 
 // Shop data deletion - GDPR
-router.post('/shop/redact', async (req, res) => {
+router.post('/shop/redact', verifyShopifyHmac, async (req, res) => {
   const { shop_domain } = req.body;
   try {
     const tenant = await pool.query('SELECT id FROM tenants WHERE shop_domain = $1', [shop_domain]);
