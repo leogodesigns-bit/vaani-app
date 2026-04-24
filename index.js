@@ -3,6 +3,7 @@ const express = require('express');
 const { initDB } = require('./db');
 const { startScheduler } = require('./scheduler');
 const app = express();
+app.use(express.static(__dirname + '/public'));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -15,6 +16,10 @@ app.use('/dashboard', require('./routes/dashboard'));
 
 
 // ── BILLING ROUTES ──────────────────────────────────────────
+app.get('/privacy', (req, res) => {
+  res.sendFile(__dirname + '/public/privacy.html');
+});
+
 app.get('/pricing', (req, res) => {
   const shop = req.query.shop || '';
   res.send(`<!DOCTYPE html>

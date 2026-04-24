@@ -1,54 +1,77 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vaani — Privacy Policy</title>
-  <style>
-    body { font-family: -apple-system, sans-serif; max-width: 800px; margin: 60px auto; padding: 0 20px; color: #333; line-height: 1.7; }
-    h1 { color: #1a1a1a; } h2 { color: #444; margin-top: 40px; }
-    a { color: #6366f1; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — Vaani</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --cream: #faf7f2; --ink: #1a1a1a; --warm: #8b6f47; --border: #e8e0d4; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--ink); font-size: 15px; line-height: 1.75; }
+  header { border-bottom: 1px solid var(--border); padding: 24px 40px; }
+  .logo { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--ink); text-decoration: none; }
+  .logo span { color: var(--warm); }
+  .container { max-width: 720px; margin: 60px auto; padding: 0 24px 80px; }
+  h1 { font-family: 'Playfair Display', serif; font-size: 36px; font-weight: 400; margin-bottom: 8px; }
+  .meta { color: var(--warm); font-size: 13px; margin-bottom: 48px; }
+  h2 { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 500; margin: 40px 0 12px; }
+  p { margin-bottom: 16px; color: #3a3530; }
+  ul { padding-left: 20px; margin-bottom: 16px; color: #3a3530; }
+  li { margin-bottom: 6px; }
+  a { color: var(--warm); text-decoration: none; border-bottom: 1px solid var(--border); }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+  footer { text-align: center; font-size: 12px; color: #999; padding: 24px; border-top: 1px solid var(--border); }
+</style>
 </head>
 <body>
-  <h1>Vaani Privacy Policy</h1>
-  <p>Last updated: April 21, 2026</p>
-
-  <h2>1. Introduction</h2>
-  <p>Vaani ("we", "our", "us") provides a WhatsApp AI Sales Bot for Shopify stores. This policy explains how we collect, use, and protect data.</p>
-
-  <h2>2. Data We Collect</h2>
+<header><a href="/" class="logo">Vaani<span>.</span></a></header>
+<div class="container">
+  <h1>Privacy Policy</h1>
+  <p class="meta">Last updated: April 24, 2026</p>
+  <p>Vaani ("we", "our", or "us") is a WhatsApp sales assistant for Shopify stores, operated by Leogo Designs. This Privacy Policy explains how we collect, use, and protect information when merchants install the Vaani app and when their customers interact with Vaani via WhatsApp.</p>
+  <hr class="divider">
+  <h2>1. Information We Collect</h2>
+  <p><strong>From Merchants:</strong></p>
   <ul>
-    <li>Shopify store domain and access token (to fetch products and orders)</li>
-    <li>Customer WhatsApp phone numbers (to send and receive messages)</li>
-    <li>Conversation history (to provide contextual AI responses)</li>
-    <li>Cart data (to assist with purchases)</li>
+    <li>Shopify store URL and access token (to fetch your product catalog)</li>
+    <li>WhatsApp Business phone number and Meta credentials</li>
+    <li>Store configuration preferences (language, categories, brand name)</li>
   </ul>
-
-  <h2>3. How We Use Data</h2>
+  <p><strong>From Customers:</strong></p>
   <ul>
-    <li>To provide AI-powered WhatsApp sales assistance</li>
-    <li>To fetch product and order information from your Shopify store</li>
-    <li>To send automated follow-up messages for abandoned carts</li>
-    <li>To improve our AI responses</li>
+    <li>WhatsApp phone number (received via Meta's API when a customer messages)</li>
+    <li>Conversation history during a shopping session</li>
+    <li>Product shortlists and expressed purchase intent</li>
+    <li>Shipping details voluntarily shared to complete an order</li>
   </ul>
-
-  <h2>4. Data Sharing</h2>
-  <p>We do not sell your data. We share data only with:</p>
+  <h2>2. How We Use Information</h2>
   <ul>
-    <li>Anthropic (AI processing) — subject to their privacy policy</li>
-    <li>Meta/WhatsApp (message delivery) — subject to their privacy policy</li>
-    <li>Railway (hosting) — subject to their privacy policy</li>
+    <li>To connect customers with the correct merchant's store on WhatsApp</li>
+    <li>To fetch and display relevant products from the merchant's Shopify catalog</li>
+    <li>To generate AI-powered responses and product recommendations</li>
+    <li>To create Shopify draft orders and send checkout payment links</li>
+    <li>To manage billing and subscription status for merchants</li>
   </ul>
-
-  <h2>5. Data Retention</h2>
-  <p>Conversation history is retained for 90 days. Store data is deleted within 30 days of uninstalling the app.</p>
-
-  <h2>6. GDPR Compliance</h2>
-  <p>Store owners can request deletion of all data by emailing us. We provide data export on request.</p>
-
-  <h2>7. Contact</h2>
-  <p>Email: <a href="mailto:leogodesigns@gmail.com">leogodesigns@gmail.com</a><br>
-  Website: <a href="https://vaani-app-production-6407.up.railway.app">vaani-app-production-6407.up.railway.app</a></p>
+  <h2>3. Data Sharing</h2>
+  <p>We do not sell your data. We share data only with these service providers to operate Vaani:</p>
+  <ul>
+    <li><strong>Anthropic</strong> — AI processing for chat responses</li>
+    <li><strong>Meta / WhatsApp Business API</strong> — message delivery</li>
+    <li><strong>Shopify</strong> — product catalog access and order creation</li>
+    <li><strong>Railway</strong> — cloud infrastructure hosting</li>
+  </ul>
+  <h2>4. Data Retention</h2>
+  <p>Conversation history is retained for up to 90 days. When a merchant uninstalls Vaani, their store data and customer conversations are deleted within 30 days.</p>
+  <h2>5. Security</h2>
+  <p>All data is stored in encrypted databases. API credentials are never exposed in client-facing code. We use HTTPS for all data in transit.</p>
+  <h2>6. Your Rights</h2>
+  <p>Merchants may request access to, correction of, or deletion of their data at any time by contacting us.</p>
+  <h2>7. WhatsApp & Meta Compliance</h2>
+  <p>Vaani operates through the official WhatsApp Business API and complies with Meta's Business and Commerce policies. We do not initiate unsolicited messages.</p>
+  <h2>8. Contact</h2>
+  <p>Leogo Designs<br>Email: <a href="mailto:hello@leogodesigns.com">hello@leogodesigns.com</a><br>Pune & Satara, Maharashtra, India</p>
+</div>
+<footer>© 2026 Vaani by Leogo Designs · <a href="/">Home</a></footer>
 </body>
 </html>
