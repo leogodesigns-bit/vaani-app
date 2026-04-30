@@ -116,7 +116,11 @@ router.post('/', async (req, res) => {
       console.log(all.rows);
       return;
     }
-    const waToken = tenant.whatsapp_token || process.env.WHATSAPP_TOKEN;
+    if (!tenant.whatsapp_token) {
+      console.error("❌ Tenant " + tenant.shop_domain + " has no whatsapp_token — refusing to send");
+      return;
+    }
+    const waToken = tenant.whatsapp_token;
 
     const message = entry?.messages?.[0];
     if (!message) return;
@@ -145,7 +149,7 @@ router.post('/', async (req, res) => {
       if (msgCount >= 70) {
         await sendMessage(from,
           'You have reached the free plan limit of 70 messages this month.\n\nUpgrade to Standard for unlimited messages + cart building + more!\n\n👉 ' + process.env.APP_URL + '/pricing?shop=' + tenant.shop_domain,
-          tenant.whatsapp_token || process.env.WHATSAPP_TOKEN,
+          tenant.whatsapp_token,
           phoneNumberId
         );
         return;

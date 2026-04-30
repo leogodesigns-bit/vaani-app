@@ -26,7 +26,11 @@ async function checkAbandonedCarts() {
       const itemList = cart.items.map(i => i.title).join(', ');
       const message = `Hi! 👋 You left some items in your cart: ${itemList}. Want to complete your order? Just reply and I'll help you checkout!`;
 
-      const token = conv.whatsapp_token || process.env.WHATSAPP_TOKEN;
+      if (!conv.whatsapp_token) {
+        console.error("❌ Tenant " + conv.shop_domain + " has no whatsapp_token — skipping followup");
+        continue;
+      }
+      const token = conv.whatsapp_token;
       await sendMessage(conv.customer_phone, message, token, conv.whatsapp_number);
 
       // Mark followup sent
