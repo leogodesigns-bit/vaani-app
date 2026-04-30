@@ -1,12 +1,9 @@
 const express = require('express');
 const crypto = require('crypto');
 const router = express.Router();
-const { Pool } = require('pg');
+// Pool now imported from ../db
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes('railway') ? { rejectUnauthorized: false } : false
-});
+const { pool } = require('../db');
 
 // HMAC verification middleware — Shopify mandatory webhooks MUST return 401 on invalid
 function verifyShopifyHmac(req, res, next) {

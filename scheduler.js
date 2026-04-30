@@ -1,12 +1,9 @@
-const { Pool } = require('pg');
+// Pool now imported from ./db
 const { sendMessage } = require('./whatsapp');
 const { getProducts } = require('./shopify');
 const { generateCategories } = require('./utils/autoCategorize');
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes('railway') ? { rejectUnauthorized: false } : false
-});
+const { pool } = require('./db');
 
 async function checkAbandonedCarts() {
   try {

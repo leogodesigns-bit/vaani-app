@@ -6,6 +6,7 @@ const pool = new Pool({
 });
 
 async function initDB() {
+  // Base tables (idempotent)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS tenants (
       id SERIAL PRIMARY KEY,
@@ -38,6 +39,27 @@ async function initDB() {
       orders_assisted INTEGER DEFAULT 0
     );
   `);
+
+  // Idempotent column additions — bring older DBs up to current schema
+  await pool.query(`
+    ALTER TABLE tenants ADD COLUMN IF NOT EXISTS categories JSONB;
+    ALTER TABLE tenants ADD COLUMN IF NOT EXISTS billing_notes TEXT;
+    ALTER TABLE tenants ADD COLUMN IF NOT EXISTS custom_price_inr INTEGER;
+    ALTER TABLE tenants ADD COLUMN IF NOT EXISTS billing_charge_id VARCHAR(100);
+    ALTER TABLE tenants ADD COLUMN IF NOT EXISTS billing_status VARCHAR(30) DEFAULT 'pending';
+    ALTER TABLE tenants ADD COLUMN IF NOT EXISTS billing_plan VARCHAR(20) DEFAULT 'free';
+
+    ALTER TABLE conversations ADD COLUMN IF NOT EXISTS monthly_messages INTEGER DEFAULT 0;
+    ALTER TABLE conversations ADD COLUMN IF NOT EXISTS message_month VARCHAR(7);
+
+    CREATE TABLE IF NOT EXISTS product_scores (
+      tenant_id INTEGER,
+      product_id TEXT,
+      score INTEGER DEFAULT 0,
+      PRIMARY KEY (tenant_id, product_id)
+    );
+  `);
+
   console.log('✅ Database tables ready');
 }
 
@@ -46,10 +68,86 @@ async function getTenant(shopDomain) {
   return res.rows[0];
 }
 
-async function createTenant(shopDomain, shopifyToken) {
+// createTenant: backwards-compatible.
+//   Old call: createTenant(shopDomain, shopifyToken)
+//   New call: createTenant({ shopDomain, shopifyToken, whatsappNumber, whatsappToken, tier, brandPrompt, billingStatus, billingPlan, customPriceInr, billingNotes })
+async function createTenant(arg1, arg2) {
+  const cfg = typeof arg1 === 'object' ? arg1 : { shopDomain: arg1, shopifyToken: arg2 };
+
+  const {
+    shopDomain,
+    shopifyToken = null,
+    whatsappNumber = null,
+    whatsappToken = null,
+    tier = 'free',
+    brandPrompt = null,
+    billingStatus = 'pending',
+    billingPlan = 'free',
+    customPriceInr = null,
+    billingNotes = null
+  } = cfg;
+
+  if (!shopDomain) throw new Error('createTenant: shopDomain is required');
+
   const res = await pool.query(
-    'INSERT INTO tenants (shop_domain, shopify_token) VALUES ($1, $2) ON CONFLICT (shop_domain) DO UPDATE SET shopify_token = $2 RETURNING *',
-    [shopDomain, shopifyToken]
+    `INSERT INTO tenants (
+       shop_domain, shopify_token, whatsapp_number, whatsapp_token,
+       tier, brand_prompt, billing_status, billing_plan, custom_price_inr, billing_notes
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+     ON CONFLICT (shop_domain) DO UPDATE SET
+       shopify_token = COALESCE(EXCLUDED.shopify_token, tenants.shopify_token),
+       whatsapp_number = COALESCE(EXCLUDED.whatsapp_number, tenants.whatsapp_number),
+       whatsapp_token = COALESCE(EXCLUDED.whatsapp_token, tenants.whatsapp_token),
+       tier = COALESCE(EXCLUDED.tier, tenants.tier),
+       brand_prompt = COALESCE(EXCLUDED.brand_prompt, tenants.brand_prompt),
+       billing_status = COALESCE(EXCLUDED.billing_status, tenants.billing_status),
+       billing_plan = COALESCE(EXCLUDED.billing_plan, tenants.billing_plan),
+       custom_price_inr = COALESCE(EXCLUDED.custom_price_inr, tenants.custom_price_inr),
+       billing_notes = COALESCE(EXCLUDED.billing_notes, tenants.billing_notes)
+     RETURNING *`,
+    [shopDomain, shopifyToken, whatsappNumber, whatsappToken,
+     tier, brandPrompt, billingStatus, billingPlan, customPriceInr, billingNotes]
+  );
+  return res.rows[0];
+}
+
+// updateTenant: partial update by shop_domain.
+//   Example: updateTenant('rajathee.myshopify.com', { whatsappNumber: '12345', tier: 'premium' })
+async function updateTenant(shopDomain, fields) {
+  if (!shopDomain) throw new Error('updateTenant: shopDomain is required');
+  if (!fields || Object.keys(fields).length === 0) {
+    return getTenant(shopDomain);
+  }
+
+  const colMap = {
+    shopifyToken: 'shopify_token',
+    whatsappNumber: 'whatsapp_number',
+    whatsappToken: 'whatsapp_token',
+    tier: 'tier',
+    brandPrompt: 'brand_prompt',
+    billingStatus: 'billing_status',
+    billingPlan: 'billing_plan',
+    customPriceInr: 'custom_price_inr',
+    billingNotes: 'billing_notes',
+    categories: 'categories'
+  };
+
+  const sets = [];
+  const values = [];
+  let i = 1;
+  for (const [key, value] of Object.entries(fields)) {
+    const col = colMap[key];
+    if (!col) continue; // ignore unknown keys
+    sets.push(`${col} = $${i++}`);
+    values.push(col === 'categories' && value !== null ? JSON.stringify(value) : value);
+  }
+  if (sets.length === 0) return getTenant(shopDomain);
+
+  values.push(shopDomain);
+  const res = await pool.query(
+    `UPDATE tenants SET ${sets.join(', ')} WHERE shop_domain = $${i} RETURNING *`,
+    values
   );
   return res.rows[0];
 }
@@ -74,4 +172,4 @@ async function upsertConversation(tenantId, customerPhone, messages, cart) {
   return res.rows[0];
 }
 
-module.exports = { initDB, getTenant, createTenant, getConversation, upsertConversation };
+module.exports = { pool, initDB, getTenant, createTenant, updateTenant, getConversation, upsertConversation };

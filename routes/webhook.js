@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
+// Pool now imported from ../db
 const { getConversation, upsertConversation } = require('../db');
 const { getAIResponse, detectLanguage } = require('../ai');
 const { sendMessage, sendButtons, sendList, sendImage } = require('../whatsapp');
@@ -9,10 +9,7 @@ const { categorizeProducts } = require('../utils/categorize');
 const { generateCategories } = require('../utils/autoCategorize');
 const { refreshAllCategories } = require('../scheduler');
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes('railway') ? { rejectUnauthorized: false } : false
-});
+const { pool } = require('../db');
 
 router.get('/', (req, res) => {
   const mode = req.query['hub.mode'];

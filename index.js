@@ -1,6 +1,6 @@
 require('dotenv').config();
 const express = require('express');
-const { initDB } = require('./db');
+const { initDB, pool } = require('./db');
 const { startScheduler } = require('./scheduler');
 const app = express();
 app.use(express.static(__dirname + '/public'));
@@ -95,10 +95,7 @@ app.get('/billing/create', async (req, res) => {
   const { shop, plan } = req.query;
   if (plan === 'custom') return res.redirect('https://wa.me/919403345612?text=Hi! I want Vaani Custom plan for ' + shop);
   try {
-    const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
     const t = await pool.query('SELECT * FROM tenants WHERE shop_domain = $1', [shop]);
-    pool.end();
     if (!t.rows[0]) return res.send('Store not found. Please install Vaani first.');
     const { createSubscription } = require('./billing');
     const charge = await createSubscription(shop, t.rows[0].shopify_token, plan);
@@ -110,10 +107,7 @@ app.get('/billing/create', async (req, res) => {
 app.get('/billing/callback', async (req, res) => {
   const { shop, plan, charge_id } = req.query;
   try {
-    const { Pool } = require('pg');
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
     const t = await pool.query('SELECT * FROM tenants WHERE shop_domain = $1', [shop]);
-    pool.end();
     if (!t.rows[0]) return res.send('Store not found.');
     const { activateSubscription } = require('./billing');
     await activateSubscription(shop, charge_id, t.rows[0].shopify_token);

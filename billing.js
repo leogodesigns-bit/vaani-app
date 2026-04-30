@@ -1,10 +1,7 @@
 const axios = require('axios');
-const { Pool } = require('pg');
+// Pool now imported from ./db
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes('railway') ? { rejectUnauthorized: false } : false
-});
+const { pool } = require('./db');
 
 const PLANS = {
   free:     { name: 'Vaani Free',     price: 0,  trialDays: 0, usd: 0  },

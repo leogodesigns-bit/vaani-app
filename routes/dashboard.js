@@ -1,11 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
+// Pool now imported from ../db
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes('railway') ? { rejectUnauthorized: false } : false
-});
+const { pool } = require('../db');
 
 // Demo WhatsApp link — click-to-chat with IKAA demo store
 const DEMO_WA_LINK = 'https://wa.me/15556338949?text=Hi';
