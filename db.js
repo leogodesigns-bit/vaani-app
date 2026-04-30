@@ -49,6 +49,7 @@ async function initDB() {
     ALTER TABLE tenants ADD COLUMN IF NOT EXISTS billing_status VARCHAR(30) DEFAULT 'pending';
     ALTER TABLE tenants ADD COLUMN IF NOT EXISTS billing_plan VARCHAR(20) DEFAULT 'free';
     ALTER TABLE tenants ADD COLUMN IF NOT EXISTS store_name VARCHAR(100);
+    ALTER TABLE tenants ADD COLUMN IF NOT EXISTS flow_template VARCHAR(20) DEFAULT 'jhilmil';
 
     ALTER TABLE conversations ADD COLUMN IF NOT EXISTS monthly_messages INTEGER DEFAULT 0;
     ALTER TABLE conversations ADD COLUMN IF NOT EXISTS message_month VARCHAR(7);
@@ -86,7 +87,8 @@ async function createTenant(arg1, arg2) {
     billingPlan = 'free',
     customPriceInr = null,
     billingNotes = null,
-    storeName = null
+    storeName = null,
+    flowTemplate = 'jhilmil'
   } = cfg;
 
   if (!shopDomain) throw new Error('createTenant: shopDomain is required');
@@ -94,9 +96,9 @@ async function createTenant(arg1, arg2) {
   const res = await pool.query(
     `INSERT INTO tenants (
        shop_domain, shopify_token, whatsapp_number, whatsapp_token,
-       tier, brand_prompt, billing_status, billing_plan, custom_price_inr, billing_notes, store_name
+       tier, brand_prompt, billing_status, billing_plan, custom_price_inr, billing_notes, store_name, flow_template
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
      ON CONFLICT (shop_domain) DO UPDATE SET
        shopify_token = COALESCE(EXCLUDED.shopify_token, tenants.shopify_token),
        whatsapp_number = COALESCE(EXCLUDED.whatsapp_number, tenants.whatsapp_number),
@@ -107,10 +109,11 @@ async function createTenant(arg1, arg2) {
        billing_plan = COALESCE(EXCLUDED.billing_plan, tenants.billing_plan),
        custom_price_inr = COALESCE(EXCLUDED.custom_price_inr, tenants.custom_price_inr),
        billing_notes = COALESCE(EXCLUDED.billing_notes, tenants.billing_notes),
-       store_name = COALESCE(EXCLUDED.store_name, tenants.store_name)
+       store_name = COALESCE(EXCLUDED.store_name, tenants.store_name),
+       flow_template = COALESCE(EXCLUDED.flow_template, tenants.flow_template)
      RETURNING *`,
     [shopDomain, shopifyToken, whatsappNumber, whatsappToken,
-     tier, brandPrompt, billingStatus, billingPlan, customPriceInr, billingNotes, storeName]
+     tier, brandPrompt, billingStatus, billingPlan, customPriceInr, billingNotes, storeName, flowTemplate]
   );
   return res.rows[0];
 }
@@ -134,7 +137,8 @@ async function updateTenant(shopDomain, fields) {
     customPriceInr: 'custom_price_inr',
     billingNotes: 'billing_notes',
     categories: 'categories',
-    storeName: 'store_name'
+    storeName: 'store_name',
+    flowTemplate: 'flow_template'
   };
 
   const sets = [];
