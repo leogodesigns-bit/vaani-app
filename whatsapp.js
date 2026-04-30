@@ -65,8 +65,6 @@ async function sendList(to, bodyText, sections, token, phoneNumberId) {
   }
 }
 
-module.exports = { sendMessage, sendButtons, sendList };
-
 async function sendImage(to, imageUrl, caption, token, phoneNumberId) {
   try {
     await axios.post(
