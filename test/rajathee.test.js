@@ -190,6 +190,131 @@ function describe(suite, fn) {
     });
   });
 
+  // ─── PHASE C.1 — PDF Section 1 (Welcome flow) ─────────────────────
+  const { WELCOME_BODY, WELCOME_ROW } = rajathee;
+
+  await describe('Phase C.1 — Welcome flow', async () => {
+
+    await test('greeting "hi" sends a list with the locked Welcome body', async () => {
+      const ctx = buildCtx({ message: buildTextMessage('hi') });
+      await rajathee.handle(ctx);
+
+      const lists = mocks.sent.filter(s => s.kind === 'list');
+      assert.strictEqual(lists.length, 1, 'should send exactly one list');
+      assert.strictEqual(lists[0].body, WELCOME_BODY, 'body must match locked WELCOME_BODY');
+    });
+
+    await test('Welcome list has exactly 5 rows', async () => {
+      const ctx = buildCtx({ message: buildTextMessage('hi') });
+      await rajathee.handle(ctx);
+
+      const list = mocks.sent.find(s => s.kind === 'list');
+      assert.ok(list, 'expected a list message');
+      assert.strictEqual(list.sections.length, 1, 'one section');
+      assert.strictEqual(list.sections[0].rows.length, 5, 'exactly 5 rows');
+    });
+
+    await test('Welcome list row IDs match the WELCOME_ROW contract', async () => {
+      const ctx = buildCtx({ message: buildTextMessage('hi') });
+      await rajathee.handle(ctx);
+
+      const list = mocks.sent.find(s => s.kind === 'list');
+      const ids = list.sections[0].rows.map(r => r.id);
+      const expected = [
+        WELCOME_ROW.BROWSE_FABRIC,
+        WELCOME_ROW.BROWSE_COLOUR,
+        WELCOME_ROW.BESTSELLERS,
+        WELCOME_ROW.AKSHAY,
+        WELCOME_ROW.STYLING,
+      ];
+      assert.deepStrictEqual(ids, expected, 'row IDs must match contract in order');
+    });
+
+    await test('Welcome row titles are exactly as the PDF specifies', async () => {
+      const ctx = buildCtx({ message: buildTextMessage('hi') });
+      await rajathee.handle(ctx);
+
+      const list = mocks.sent.find(s => s.kind === 'list');
+      const titles = list.sections[0].rows.map(r => r.title);
+      assert.deepStrictEqual(titles, [
+        'Browse by fabric',
+        'Browse by colour',
+        'Bestsellers',
+        'Akshay Tritiya',
+        "I'd like styling help",
+      ]);
+    });
+
+    await test('voice rules: Welcome body has no exclamation marks', async () => {
+      // PDF voice rules: "No exclamation marks unless quoting a customer."
+      assert.ok(!WELCOME_BODY.includes('!'), 'WELCOME_BODY must not contain "!"');
+    });
+
+    await test('voice rules: Welcome body uses canonical brand tagline', async () => {
+      // Founder-supplied tagline (replaces "Where heritage drapes elegance" placeholder).
+      assert.ok(
+        WELCOME_BODY.includes('Effortless and Elegant Sarees for Women on the Move'),
+        'WELCOME_BODY must contain the canonical brand tagline'
+      );
+    });
+
+    // Greeting variants — all should produce the same Welcome list.
+    const greetings = ['hi', 'hello', 'hey', 'helo', 'namaste', 'namaskar', 'start', 'help'];
+    for (const greeting of greetings) {
+      await test(`greeting variant: "${greeting}" triggers Welcome`, async () => {
+        const ctx = buildCtx({ message: buildTextMessage(greeting) });
+        await rajathee.handle(ctx);
+        const list = mocks.sent.find(s => s.kind === 'list');
+        assert.ok(list, `"${greeting}" must trigger Welcome list`);
+        assert.strictEqual(list.body, WELCOME_BODY);
+      });
+    }
+
+    await test('greeting variant: "Hi!!!" with caps and punctuation triggers Welcome', async () => {
+      const ctx = buildCtx({ message: buildTextMessage('Hi!!!') });
+      await rajathee.handle(ctx);
+      const list = mocks.sent.find(s => s.kind === 'list');
+      assert.ok(list, 'mixed-case + punctuation must still match');
+    });
+
+    await test('greeting variant: "  hello  " (whitespace) triggers Welcome', async () => {
+      const ctx = buildCtx({ message: buildTextMessage('  hello  ') });
+      await rajathee.handle(ctx);
+      const list = mocks.sent.find(s => s.kind === 'list');
+      assert.ok(list, 'whitespace-padded greeting must still match');
+    });
+
+    await test('Welcome persists conversation with [welcome shown] marker', async () => {
+      const ctx = buildCtx({ message: buildTextMessage('hi') });
+      await rajathee.handle(ctx);
+      assert.ok(mocks.persisted, 'should persist');
+      const lastAssistantMsg = mocks.persisted.messages
+        .filter(m => m.role === 'assistant')
+        .pop();
+      assert.strictEqual(lastAssistantMsg.content, '[rajathee welcome shown]');
+    });
+
+    await test('wrong-tenant guard holds even on a greeting', async () => {
+      const ctx = buildCtx({
+        tenant: tenantWrongFlow,
+        message: buildTextMessage('hi'),
+      });
+      await rajathee.handle(ctx);
+      assert.strictEqual(mocks.sent.length, 0, 'wrong tenant must send nothing');
+      assert.strictEqual(mocks.persisted, null, 'wrong tenant must persist nothing');
+    });
+
+    await test('non-greeting on fresh conversation does NOT trigger Welcome', async () => {
+      // E.g. random text that isn't a known intent and isn't ambiguous.
+      // Phase C.1 logs and returns; future phases will add real handlers.
+      const ctx = buildCtx({ message: buildTextMessage('random unmatched text here') });
+      await rajathee.handle(ctx);
+      const lists = mocks.sent.filter(s => s.kind === 'list');
+      assert.strictEqual(lists.length, 0, 'no Welcome list for unmatched non-greeting');
+    });
+
+  });
+
   // Phase C.1+ tests will be added below as each PDF section is built.
 
   // ─── REPORT ─────────────────────────────────────────────────────────────
