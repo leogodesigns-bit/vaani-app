@@ -110,7 +110,7 @@ async function createTenant(arg1, arg2) {
        custom_price_inr = COALESCE(EXCLUDED.custom_price_inr, tenants.custom_price_inr),
        billing_notes = COALESCE(EXCLUDED.billing_notes, tenants.billing_notes),
        store_name = COALESCE(EXCLUDED.store_name, tenants.store_name),
-       flow_template = COALESCE(EXCLUDED.flow_template, tenants.flow_template)
+       flow_template = tenants.flow_template
      RETURNING *`,
     [shopDomain, shopifyToken, whatsappNumber, whatsappToken,
      tier, brandPrompt, billingStatus, billingPlan, customPriceInr, billingNotes, storeName, flowTemplate]
