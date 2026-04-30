@@ -10,6 +10,7 @@ const { generateCategories } = require('../utils/autoCategorize');
 const { refreshAllCategories } = require('../scheduler');
 
 const { pool } = require('../db');
+const rajatheeHandler = require('../handlers/rajathee');
 
 router.get('/', (req, res) => {
   const mode = req.query['hub.mode'];
@@ -169,6 +170,16 @@ router.post('/', async (req, res) => {
     const history = conv?.messages || [];
     // cart holds: { current_category, product_offset, shortlist, pending_product, ... }
     const cart = conv?.cart || {};
+
+    // ─── FLOW ROUTING GATE ───────────────────────────────────────────────────
+    // Tenants with flow_template !== 'jhilmil' are routed to a dedicated handler.
+    // Default ('jhilmil') falls through to the inline Jhilmil/Ikaa flow below.
+    if (tenant.flow_template === 'rajathee') {
+      await rajatheeHandler.handle({
+        tenant, message, from, text, phoneNumberId, waToken, history, cart
+      });
+      return;
+    }
 
     // ─── KEYWORDS ────────────────────────────────────────────────────────────
     const greetKeywords = ['hi', 'hello', 'hey', 'hii', 'helo', 'namaste', 'namaskar', 'start', 'help'];
