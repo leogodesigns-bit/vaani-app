@@ -133,7 +133,7 @@
 
   .pricing-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1.5px;
     max-width: 1100px;
     margin: 4rem auto;
@@ -305,6 +305,58 @@
     color: #7A7068;
   }
 
+  /* Add-on strip: top-ups + cancellation */
+  .addon-strip {
+    max-width: 1100px;
+    margin: 0 auto 4rem;
+    padding: 0 2rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    opacity: 0;
+    animation: fadeUp 0.7s ease forwards 0.5s;
+  }
+
+  .addon-card {
+    background: var(--cream);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 1.8rem 2rem;
+    transition: border-color 0.2s ease;
+  }
+
+  .addon-card:hover {
+    border-color: var(--warm);
+  }
+
+  .addon-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--warm);
+    margin-bottom: 0.6rem;
+    font-weight: 500;
+  }
+
+  .addon-card h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 0.8rem;
+    letter-spacing: -0.01em;
+  }
+
+  .addon-card p {
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .addon-card p strong {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
   /* Exclusive section */
   .exclusive-section {
     max-width: 1100px;
@@ -443,14 +495,11 @@
   @media (max-width: 900px) {
     header { padding: 1.5rem 2rem; }
     .hero { padding: 4rem 2rem 2rem; }
-    .pricing-grid { grid-template-columns: repeat(2, 1fr); padding: 0 1rem; }
+    .pricing-grid { grid-template-columns: 1fr; padding: 0 1rem; }
+    .addon-strip { grid-template-columns: 1fr; padding: 0 1rem; }
     .exclusive-card { flex-direction: column; padding: 2rem; }
     .exclusive-right { text-align: left; width: 100%; }
     .exclusive-price { align-items: flex-start; }
-  }
-
-  @media (max-width: 580px) {
-    .pricing-grid { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -470,24 +519,24 @@
 <section class="hero">
   <div class="hero-label">Simple, transparent pricing</div>
   <h1>Sell more while<br>you <em>sleep.</em></h1>
-  <p>Vaani handles product discovery, shortlisting, and payment — right inside WhatsApp. No app. No friction.</p>
+  <p>Vaani handles product discovery, shortlisting, and payment — right inside WhatsApp. No app. No friction. One simple plan.</p>
 </section>
 
 <div class="pricing-grid">
 
-  <!-- Free -->
+  <!-- Free Trial -->
   <div class="plan">
-    <div class="plan-badge">Starter</div>
-    <div class="plan-name">Free</div>
-    <div class="plan-sub">Try Vaani with no commitment</div>
+    <div class="plan-badge">Free Trial</div>
+    <div class="plan-name">Try Vaani</div>
+    <div class="plan-sub">See if Vaani fits your brand — no commitment</div>
     <div class="plan-price">
       <div class="price-amount">₹0</div>
-      <div class="price-period">forever free</div>
+      <div class="price-period">14-day trial</div>
       <div class="price-setup" style="background:var(--warm-light);color:var(--warm);">No setup fee</div>
     </div>
     <div class="divider"></div>
     <ul class="features">
-      <li><span class="check">✓</span> 70 messages / month</li>
+      <li><span class="check">✓</span> 50 chats over 14 days</li>
       <li><span class="check">✓</span> Product discovery</li>
       <li><span class="check">✓</span> Shortlist flow</li>
       <li><span class="check">✓</span> Shopify connected</li>
@@ -497,33 +546,11 @@
     </ul>
   </div>
 
-  <!-- Growth -->
-  <div class="plan">
-    <div class="plan-badge">Growth</div>
-    <div class="plan-name">Basic</div>
-    <div class="plan-sub">For stores just getting started with WhatsApp sales</div>
-    <div class="plan-price">
-      <div class="price-amount">₹999<span style="font-size:1rem;font-weight:400">/mo</span></div>
-      <div class="price-period">billed monthly</div>
-      <div class="price-setup">+ ₹2,000 one-time setup</div>
-    </div>
-    <div class="divider"></div>
-    <ul class="features">
-      <li><span class="check">✓</span> 500 messages / month</li>
-      <li><span class="check">✓</span> Product discovery</li>
-      <li><span class="check">✓</span> Shortlist + payment links</li>
-      <li><span class="check">✓</span> Draft orders via Shopify</li>
-      <li><span class="check">✓</span> English + Hindi</li>
-      <li><span class="check" style="background:#F5EEE8;color:#C4A882;">—</span> <span class="dim">No custom flow</span></li>
-      <li><span class="check" style="background:#F5EEE8;color:#C4A882;">—</span> <span class="dim">Standard bot persona</span></li>
-    </ul>
-  </div>
-
-  <!-- Pro — featured -->
+  <!-- Full Brand — Monthly — featured -->
   <div class="plan featured">
     <div class="plan-badge">Most Popular</div>
-    <div class="plan-name">Pro</div>
-    <div class="plan-sub">For growing D2C brands who want a real sales assistant</div>
+    <div class="plan-name">Full Brand</div>
+    <div class="plan-sub">The complete Vaani experience, in your brand's voice</div>
     <div class="plan-price">
       <div class="price-amount">₹2,499<span style="font-size:1rem;font-weight:400">/mo</span></div>
       <div class="price-period">billed monthly</div>
@@ -531,36 +558,64 @@
     </div>
     <div class="divider"></div>
     <ul class="features">
-      <li><span class="check">✓</span> 2,000 messages / month</li>
+      <li><span class="check">✓</span> 1,000 chats / month</li>
       <li><span class="check">✓</span> Full product + shortlist flow</li>
-      <li><span class="check">✓</span> Payment links + order tracking</li>
-      <li><span class="check">✓</span> Multilingual (EN/HI/Regional)</li>
-      <li><span class="check">✓</span> Custom bot name & persona</li>
-      <li><span class="check">✓</span> Basic custom flow</li>
-      <li><span class="check" style="background:rgba(255,255,255,0.08);color:#C8E6D9;">—</span> <span style="color:#5A5048;">No deep custom logic</span></li>
+      <li><span class="check">✓</span> Payment links + draft orders</li>
+      <li><span class="check">✓</span> Multilingual (EN / HI / Regional)</li>
+      <li><span class="check">✓</span> Custom bot name &amp; voice</li>
+      <li><span class="check">✓</span> Brand-owner WhatsApp alerts</li>
+      <li><span class="check">✓</span> Top up anytime — ₹500 / 250 chats</li>
     </ul>
   </div>
 
-  <!-- Scale -->
+  <!-- Full Brand — Annual -->
   <div class="plan">
-    <div class="plan-badge">Scale</div>
-    <div class="plan-name">Brand</div>
-    <div class="plan-sub">For brands that want the full experience, fully tailored</div>
+    <div class="plan-badge">Best Value</div>
+    <div class="plan-name">Full Brand · Annual</div>
+    <div class="plan-sub">Same features, one month free</div>
     <div class="plan-price">
-      <div class="price-amount">₹4,999<span style="font-size:1rem;font-weight:400">/mo</span></div>
-      <div class="price-period">billed monthly</div>
-      <div class="price-setup">+ ₹8,000 one-time setup</div>
+      <div class="price-amount">₹27,489<span style="font-size:1rem;font-weight:400">/yr</span></div>
+      <div class="price-period">billed annually · pay for 11, get 12</div>
+      <div class="price-setup">+ ₹4,000 one-time setup</div>
     </div>
     <div class="divider"></div>
     <ul class="features">
-      <li><span class="check">✓</span> Unlimited messages</li>
-      <li><span class="check">✓</span> Deep custom chat flow</li>
-      <li><span class="check">✓</span> Category-based navigation</li>
-      <li><span class="check">✓</span> Cross-sell / upsell logic</li>
-      <li><span class="check">✓</span> Callback + handoff flows</li>
-      <li><span class="check">✓</span> Multilingual + regional</li>
-      <li><span class="check">✓</span> Priority support</li>
+      <li><span class="check">✓</span> 1,000 chats / month</li>
+      <li><span class="check">✓</span> Everything in Full Brand monthly</li>
+      <li><span class="check">✓</span> One month free (save ₹2,499)</li>
+      <li><span class="check">✓</span> Reduced setup fee (₹4,000 vs ₹5,000)</li>
+      <li><span class="check">✓</span> Locked-in pricing for the year</li>
+      <li><span class="check">✓</span> Priority onboarding</li>
     </ul>
+  </div>
+
+</div>
+
+<!-- What counts as a chat? + Top-ups + Cancellation -->
+<div class="addon-strip">
+
+  <div class="addon-card">
+    <div class="addon-label">How we count chats</div>
+    <h3>One unique customer / day = one chat.</h3>
+    <p>Whether they send 2 messages or 20 in a day, it's still <strong>one chat</strong>. Conversations across multiple days from the same number count as separate chats. Honest, predictable billing — no message-counting anxiety.</p>
+  </div>
+
+  <div class="addon-card">
+    <div class="addon-label">Run out? Just top up</div>
+    <h3>₹500 = 250 chats, anytime.</h3>
+    <p>Top-ups stack on top of your monthly cap and stay valid for <strong>3 months</strong>. Used oldest-first. No re-signup, no recontract — just keep selling.</p>
+  </div>
+
+  <div class="addon-card">
+    <div class="addon-label">Cancel anytime</div>
+    <h3>No lock-in, no fine print.</h3>
+    <p>If Vaani isn't working for you, cancel with a one-time <strong>₹2,000 fee</strong> — and we'll credit it back as a <strong>₹2,000 service credit</strong> on any Leogo Designs service, valid for 6 months.</p>
+  </div>
+
+  <div class="addon-card">
+    <div class="addon-label">Setup &amp; onboarding</div>
+    <h3>We do the heavy lifting.</h3>
+    <p>One-time setup fee covers Shopify connection, WhatsApp number registration, product sync, AI categorisation, brand voice tuning, and 2 rounds of flow refinement before go-live.</p>
   </div>
 
 </div>
@@ -603,7 +658,7 @@
     <div class="exclusive-left">
       <div class="ex-label" style="color:#6FCF97;">Exclusive Partner Rate</div>
       <h2>Because you're already<br><em style="color:#6FCF97;">family.</em></h2>
-      <p>If you're an existing Leogo Designs client, you get Vaani at a private founder rate. No negotiations needed — this is our way of saying thank you for trusting us with your brand.</p>
+      <p>If you're an existing Leogo Designs client on an active Social Media retainer or AMC, you get Vaani at a private founder rate. No negotiations needed — this is our way of saying thank you for trusting us with your brand.</p>
     </div>
     <div class="exclusive-right">
       <div class="exclusive-price">
