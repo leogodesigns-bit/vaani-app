@@ -251,6 +251,7 @@ const SHIPPING_FEE = 80;
 // Set to a real phone number in Railway env to enable real owner alerts.
 // Leave null/empty for v1 — alerts will be logged to console only.
 const OWNER_ALERT_PHONE = process.env.OWNER_ALERT_PHONE || null;
+const STYLIST_PHONE     = process.env.STYLIST_PHONE     || null;
 
 const PAGE_SIZE = 3;
 const MAX_SHOWN = 9;
@@ -300,6 +301,7 @@ async function handle(ctx) {
   // ── Welcome list-row taps ──
   if (listReplyId === WELCOME_ROW.BROWSE_FABRIC) { await sendFabricPicker(ctx); return; }
   if (listReplyId === WELCOME_ROW.BROWSE_COLOUR) { await sendColourPicker(ctx); return; }
+  if (listReplyId === WELCOME_ROW.STYLING)       { await handleStylistRequest(ctx); return; }
 
   // ── Fabric list-row taps ──
   if (listReplyId && FABRIC_HANDLES[listReplyId]) {
@@ -1384,6 +1386,53 @@ async function handleCheckoutConfirm(ctx) {
 
 // ─── Post-purchase handlers ──────────────────────────────────────────────
 
+async function handleStylistRequest(ctx) {
+  const { tenant, from, phoneNumberId, waToken, history, cart } = ctx;
+  const r = cart.rajathee || {};
+
+  // Customer-facing acknowledgement.
+  await sendMessage(from,
+    '✨ *Of course!*\n\n' +
+    'Our stylist will reach out shortly to help you find the perfect drape.\n\n' +
+    'In the meantime, feel free to keep browsing.',
+    waToken, phoneNumberId);
+  await sendButtons(from, 'While you wait:',
+    ['Browse by fabric', 'Browse by colour'],
+    waToken, phoneNumberId);
+
+  // Build alert for stylist.
+  const lastMsgs = (history || []).slice(-6).map(m => {
+    const role = m.role === 'user' ? 'Customer' : 'Bot';
+    const content = (m.content || '').slice(0, 200);
+    return role + ': ' + content;
+  }).join('\n');
+
+  const cartSummary = (r.items && r.items.length)
+    ? r.items.map(it => '• ' + (it.productTitle || 'item') + ' — ' + formatPrice(it.price || 0)).join('\n')
+    : '(empty)';
+
+  const lastViewed = r.product?.handle ? r.product.handle : '(none)';
+
+  const alertBody =
+    '👗 *RAJATHEE — Stylist help requested*\n\n' +
+    '*Customer*: +' + from + '\n' +
+    '*Last viewed*: ' + lastViewed + '\n\n' +
+    '*Cart*\n' + cartSummary + '\n\n' +
+    '*Recent messages*\n' + (lastMsgs || '(no history)') + '\n\n' +
+    'Reply directly to the customer\'s number above.';
+
+  if (STYLIST_PHONE) {
+    try {
+      await sendMessage(STYLIST_PHONE, alertBody, waToken, phoneNumberId);
+      console.log('[rajathee] stylist alert sent to ' + STYLIST_PHONE);
+    } catch (e) {
+      console.error('[rajathee] stylist alert failed:', e.message);
+    }
+  } else {
+    console.log('[rajathee] STYLIST_PHONE not set — would have sent:\n' + alertBody);
+  }
+}
+
 async function handleTrackOrder(ctx) {
   const { from, waToken, phoneNumberId, cart } = ctx;
   const orderId = cart.rajathee?.lastOrderId || cart.rajathee?.checkout?.orderId;
@@ -1526,6 +1575,7 @@ module.exports = {
   ADDON_VARIANT, ADDON_PRICE, ADDON_ROW, CART_BTN,
   CHECKOUT_STEP, CHECKOUT_BTN, CHECKOUT_PROMPT,
   POSTPURCHASE_BTN,
+  handleStylistRequest,
   SHIPPING_FREE_THRESHOLD, SHIPPING_FEE,
   formatCartSummary, formatOrderSummary, calcShipping,
   validateCheckoutField, generateOrderId,
