@@ -181,6 +181,30 @@ const PRODUCT_LIST_ROW = {
   BACK_TO_BROWSE:  'product_more_back',
 };
 
+// ─── PDF Section 6 — Add-ons (Fall & Pico, Ready to Wear) ─────────────────
+
+// Rajathee variant IDs — locked from PDF Section 6.
+// Founder review: when onboarding a second sarees brand, move to tenant config.
+const ADDON_VARIANT = {
+  FALL_PICO:     '47195287748791',
+  READY_TO_WEAR: '47195287781559',
+};
+const ADDON_PRICE = {
+  FALL_PICO:     180,
+  READY_TO_WEAR: 1100,
+};
+const ADDON_ROW = {
+  FP:   'addon_fp',
+  RTW:  'addon_rtw',
+  BOTH: 'addon_both',
+  NONE: 'addon_none',
+};
+const CART_BTN = {
+  BROWSE_MORE: 'Browse more sarees',
+  VIEW_CART:   'View cart',
+  CHECKOUT:    'Checkout',
+};
+
 const PAGE_SIZE = 3;
 const MAX_SHOWN = 9;
 const PIC_BATCH_SIZE = 3;
@@ -235,6 +259,17 @@ async function handle(ctx) {
     await sendVariantDetail(ctx, variantId);
     return;
   }
+
+  // ── Add-on list-row taps (PDF Section 6) ──
+  if (listReplyId === ADDON_ROW.FP)   { await handleAddon(ctx, 'fp');   return; }
+  if (listReplyId === ADDON_ROW.RTW)  { await handleAddon(ctx, 'rtw');  return; }
+  if (listReplyId === ADDON_ROW.BOTH) { await handleAddon(ctx, 'both'); return; }
+  if (listReplyId === ADDON_ROW.NONE) { await handleAddon(ctx, 'none'); return; }
+
+  // ── Cart-action buttons ──
+  if (trimmed === CART_BTN.BROWSE_MORE) { await handleBrowseMore(ctx); return; }
+  if (trimmed === CART_BTN.VIEW_CART)   { await handleViewCart(ctx);   return; }
+  if (trimmed === CART_BTN.CHECKOUT)    { await handleCheckout(ctx);   return; }
 
   // ── Product more-options list rows ──
   if (listReplyId === PRODUCT_LIST_ROW.STYLING_HELP) {
@@ -835,11 +870,180 @@ async function sendBackToBrowse(ctx) {
 }
 
 async function handleAddToCart(ctx) {
-  // Deferred to C.5 — add-ons + cart.
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const r = cart.rajathee || {};
+  const productHandle = r.product?.handle;
+  const variantId = r.product?.currentVariantId;
+
+  if (!productHandle) {
+    await sendWelcome(ctx);
+    return;
+  }
+
+  // Resolve product + variant via collection (has .available reliably).
+  const allProducts = await getCollectionProducts(tenant, 'all-sarees');
+  const product = allProducts.find(p => p.handle === productHandle);
+  if (!product) {
+    await sendMessage(from, "Couldn't find that one. Let me bring you back to browse.", waToken, phoneNumberId);
+    await sendWelcome(ctx);
+    return;
+  }
+
+  // Single-variant product: use first variant.
+  const variant = variantId
+    ? (product.variants || []).find(v => String(v.id) === String(variantId))
+    : product.variants?.[0];
+
+  if (!variant) {
+    await sendMessage(from, "That colour isn't available right now.", waToken, phoneNumberId);
+    return;
+  }
+
+  // Add saree line item to in-conversation cart.
+  const items = Array.isArray(r.items) ? [...r.items] : [];
+  items.push({
+    kind: 'saree',
+    productHandle: product.handle,
+    productTitle: product.title,
+    variantId: String(variant.id),
+    colour: variant.option1 || null,
+    price: parseFloat(variant.price) || 0,
+  });
+
+  const colourPart = variant.option1 && variant.option1.toLowerCase() !== 'default title'
+    ? ' in ' + variant.option1
+    : '';
+  await sendMessage(from,
+    'Added — ' + product.title + colourPart + ' in your cart.\n\n' +
+    'Would you like us to take care of the finishing before it reaches you?\n' +
+    '• Fall & Pico — neat hemmed edges +' + formatPrice(ADDON_PRICE.FALL_PICO) + '\n' +
+    '• Ready to Wear — pre-stitched +' + formatPrice(ADDON_PRICE.READY_TO_WEAR) + '\n' +
+    'Both can be added together.',
+    waToken, phoneNumberId);
+
+  // 4 options as a list (WhatsApp buttons cap at 3).
+  await sendList(from, 'Choose:', [{
+    title: 'Finishing options',
+    rows: [
+      { id: ADDON_ROW.FP,   title: 'Add Fall & Pico',  description: '+' + formatPrice(ADDON_PRICE.FALL_PICO) },
+      { id: ADDON_ROW.RTW,  title: 'Add Ready to Wear', description: '+' + formatPrice(ADDON_PRICE.READY_TO_WEAR) },
+      { id: ADDON_ROW.BOTH, title: 'Add both',          description: 'Fall & Pico + Ready to Wear' },
+      { id: ADDON_ROW.NONE, title: 'Just the saree',    description: 'No finishing add-ons' },
+    ],
+  }], waToken, phoneNumberId);
+
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: '[rajathee added_to_cart variantId=' + variant.id + ']' },
+  ], {
+    ...cart,
+    rajathee: {
+      ...r,
+      items,
+      pendingSareeVariantId: String(variant.id),
+    },
+  });
+}
+
+async function handleAddon(ctx, choice) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const r = cart.rajathee || {};
+  const items = Array.isArray(r.items) ? [...r.items] : [];
+  const linkedSareeId = r.pendingSareeVariantId || null;
+
+  // Founder review: PDF says RTW auto-adds F&P. Currently customer must tap both
+  // separately (or 'Add both'). To restore PDF behaviour, change choice='rtw' branch
+  // to also push fall_pico item.
+  if (choice === 'fp' || choice === 'both') {
+    items.push({
+      kind: 'fall_pico',
+      variantId: ADDON_VARIANT.FALL_PICO,
+      price: ADDON_PRICE.FALL_PICO,
+      linkedToSaree: linkedSareeId,
+    });
+  }
+  if (choice === 'rtw' || choice === 'both') {
+    items.push({
+      kind: 'ready_to_wear',
+      variantId: ADDON_VARIANT.READY_TO_WEAR,
+      price: ADDON_PRICE.READY_TO_WEAR,
+      linkedToSaree: linkedSareeId,
+    });
+  }
+  // 'none' adds nothing extra.
+
+  const summary = formatCartSummary(items);
+  const confirmation = choice === 'none'
+    ? 'No problem — just the saree it is.'
+    : (choice === 'both' ? 'Both added.' : (choice === 'fp' ? 'Fall & Pico added.' : 'Ready to Wear added.'));
+
+  await sendMessage(from,
+    confirmation + '\n\n*Your cart*\n' + summary,
+    waToken, phoneNumberId);
+
+  await sendButtons(from, "Anything else you'd like to add to this drape?",
+    [CART_BTN.BROWSE_MORE, CART_BTN.VIEW_CART, CART_BTN.CHECKOUT],
+    waToken, phoneNumberId);
+
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: '[rajathee addon=' + choice + ']' },
+  ], {
+    ...cart,
+    rajathee: {
+      ...r,
+      items,
+      pendingSareeVariantId: null,
+    },
+  });
+}
+
+async function handleViewCart(ctx) {
+  const { from, phoneNumberId, waToken, cart } = ctx;
+  const items = cart.rajathee?.items || [];
+  if (!items.length) {
+    await sendMessage(from, "Your cart is empty. Shall we find you something?", waToken, phoneNumberId);
+    await sendWelcome(ctx);
+    return;
+  }
+  await sendMessage(from, '*Your cart*\n' + formatCartSummary(items), waToken, phoneNumberId);
+  await sendButtons(from, 'What next?',
+    [CART_BTN.BROWSE_MORE, CART_BTN.CHECKOUT, PRODUCT_BTN.BACK_TO_BROWSE],
+    waToken, phoneNumberId);
+}
+
+async function handleBrowseMore(ctx) {
+  await sendBackToBrowse(ctx);
+}
+
+async function handleCheckout(ctx) {
+  // Deferred to C.6.
   const { from, waToken, phoneNumberId } = ctx;
   await sendMessage(from,
-    'Add to cart is coming soon. The full checkout flow will be ready before launch.',
+    'Checkout is coming soon. Once Vaani is approved on the Shopify App Store, you\'ll get a secure payment link here.',
     waToken, phoneNumberId);
+}
+
+function formatCartSummary(items) {
+  if (!items.length) return '_Empty_';
+  let total = 0;
+  const lines = items.map(it => {
+    total += it.price || 0;
+    if (it.kind === 'saree') {
+      const colourPart = it.colour && it.colour.toLowerCase() !== 'default title'
+        ? ' (' + it.colour + ')'
+        : '';
+      return '• ' + it.productTitle + colourPart + ' — ' + formatPrice(it.price);
+    }
+    if (it.kind === 'fall_pico') return '• Fall & Pico — ' + formatPrice(it.price);
+    if (it.kind === 'ready_to_wear') return '• Ready to Wear — ' + formatPrice(it.price);
+    return '• ' + (it.title || 'Item') + ' — ' + formatPrice(it.price);
+  });
+  lines.push('');
+  lines.push('*Subtotal*: ' + formatPrice(total));
+  return lines.join('\n');
 }
 
 // ─── PAGINATION DISPATCH ──────────────────────────────────────────────────
@@ -878,5 +1082,7 @@ module.exports = {
   FABRIC_ROW, FABRIC_HANDLES, FABRIC_LABEL, FABRIC_VOICE, FABRIC_BTN,
   COLOUR_ROW, COLOUR_LABEL, COLOUR_KEYWORDS, COLOUR_VOICE, COLOUR_BTN,
   PRODUCT_BTN, PRODUCT_LIST_ROW,
+  ADDON_VARIANT, ADDON_PRICE, ADDON_ROW, CART_BTN,
+  formatCartSummary,
   variantMatchesColour, filterProductsByColour,
 };
