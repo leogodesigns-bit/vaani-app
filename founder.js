@@ -44,6 +44,8 @@ function isFounderCommand(from, text) {
     'subscriptions',
     'subscribe ',
     'notify ',
+    'namespace ',
+    'templates ',
     'reset usage ',
     'cancel ',
     'kill ',
@@ -115,6 +117,8 @@ function cmdHelp() {
     '• `unpause <brand>` — resume bot',
     '• `subscribe <brand> monthly|annual|internal`',
     '• `notify <brand> <phone>` — set brand-owner alert number',
+    '• `namespace <brand> <uuid>` — set Meta WABA template namespace',
+    '• `templates <brand>` — show WhatsApp template approval status',
     '',
     '*Dangerous (need confirm):*',
     '• `reset usage <brand>` — zero counter',
@@ -576,6 +580,18 @@ async function dispatch(from, text) {
     return await cmdNotify(parts[0], parts[1]);
   }
 
+  if (lower.startsWith('namespace ')) {
+    const parts = t.slice(10).trim().split(/\s+/);
+    if (parts.length < 2) return '❌ Usage: `namespace <brand> <uuid>` or `namespace <brand> clear`';
+    return await cmdNamespace(parts[0], parts[1]);
+  }
+
+  if (lower.startsWith('templates ')) {
+    const slug = t.slice(10).trim();
+    if (!slug) return '❌ Usage: `templates <brand>`';
+    return await cmdTemplates(slug);
+  }
+
   if (lower.startsWith('extend ')) {
     const brand = t.slice(7).trim();
     if (!brand) return '❌ Usage: `extend <brand>`';
@@ -675,6 +691,96 @@ async function handleFounderCommand({ from, text, phoneNumberId, waToken, sendMe
     console.error('[founder] send error:', err);
   }
 }
+
+
+// ─── COMMAND: namespace <brand> <uuid> ─────────────────────────────────────
+// Sets the Meta WABA template namespace for a tenant. Required before any
+// template messages can be sent. Get the UUID from Meta WhatsApp Manager
+// → API Settings → Namespace.
+async function cmdNamespace(slug, uuidArg) {
+  const tenant = await resolveBrand(slug);
+  if (!tenant) return `❌ No brand found matching "${slug}".`;
+  if (!uuidArg) return '❌ Usage: `namespace <brand> <uuid>` or `namespace <brand> clear`';
+
+  const name = brandName(tenant);
+
+  if (uuidArg.toLowerCase() === 'clear' || uuidArg.toLowerCase() === 'none') {
+    await pool.query(
+      `UPDATE tenants SET template_namespace = NULL WHERE id = $1`,
+      [tenant.id]
+    );
+    return `✅ *${name}* — template namespace cleared. Brand alerts will fall back to freeform.`;
+  }
+
+  // Validate UUID-ish format (Meta uses 32-char hex with dashes, but be lenient)
+  const cleaned = uuidArg.trim();
+  if (cleaned.length < 16 || cleaned.length > 64) {
+    return `❌ Namespace "${uuidArg}" doesn't look right. Should be a UUID like \`5a3c2b1e-9f8d-4567-...\`.`;
+  }
+
+  await pool.query(
+    `UPDATE tenants SET template_namespace = $1 WHERE id = $2`,
+    [cleaned, tenant.id]
+  );
+  return [
+    `✅ *${name}* — template namespace set.`,
+    '',
+    `Namespace: \`${cleaned}\``,
+    '',
+    `_Run \`templates ${slug}\` to see template approval status._`
+  ].join('\n');
+}
+
+// ─── COMMAND: templates <brand> ────────────────────────────────────────────
+// Shows approval status of all 6 Vaani templates for this tenant's WABA.
+async function cmdTemplates(slug) {
+  const tenant = await resolveBrand(slug);
+  if (!tenant) return `❌ No brand found matching "${slug}".`;
+
+  const name = brandName(tenant);
+  const namespace = tenant.template_namespace;
+  const approved = tenant.templates_approved || {};
+
+  const ALL_TEMPLATES = [
+    'vaani_threshold_70',
+    'vaani_threshold_90',
+    'vaani_threshold_100',
+    'vaani_topup_confirmed',
+    'vaani_subscription_paused',
+    'vaani_subscription_unpaused',
+  ];
+
+  const lines = [`📋 *${name}* — WhatsApp Templates`, ''];
+
+  if (!namespace) {
+    lines.push(`⚠️ No template namespace set.`);
+    lines.push(`Run: \`namespace ${slug} <uuid>\``);
+    lines.push('');
+    lines.push(`Find UUID in Meta WhatsApp Manager → API Settings.`);
+    return lines.join('\n');
+  }
+
+  lines.push(`Namespace: \`${namespace.slice(0, 12)}...\``);
+  lines.push('');
+
+  const statusEmoji = (s) => {
+    if (s === 'approved') return '✅';
+    if (s === 'pending') return '⏳';
+    if (s === 'rejected') return '❌';
+    if (s === 'paused') return '⏸️';
+    return '⚪';
+  };
+
+  for (const tpl of ALL_TEMPLATES) {
+    const status = approved[tpl] || 'unset';
+    lines.push(`${statusEmoji(status)} ${tpl} — ${status}`);
+  }
+
+  lines.push('');
+  lines.push(`_To mark approved: edit DB directly or use Meta WhatsApp Manager._`);
+  return lines.join('\n');
+}
+
 
 module.exports = {
   isFounderCommand,
