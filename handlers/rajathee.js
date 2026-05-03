@@ -23,6 +23,7 @@
 const { sendMessage, sendButtons, sendList, sendImage } = require('../whatsapp');
 const { getConversation, upsertConversation, saveOrder, getOrder, markOrderPaid } = require('../db');
 const Anthropic = require('@anthropic-ai/sdk');
+const edge = require('./rajathee-edge');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const { getCollectionProducts, getProductByHandle, formatPrice, stripHtml } = require('../shopify');
@@ -34,7 +35,7 @@ const WELCOME_BODY =
   'Effortless and Elegant Sarees for Women on the Move.\n' +
   'How would you like to browse today?';
 
-const GREETING_RE = /^(hi+|hello+|hey+|helo+|namaste|namaskar|start|help)[!.?\s]*$/i;
+const GREETING_RE = edge.GREETING_RE;
 
 const WELCOME_ROW = {
   BROWSE_FABRIC: 'welcome_browse_fabric',
@@ -292,6 +293,19 @@ async function handle(ctx) {
   const trimmed = (text || '').trim();
   const isGreeting = GREETING_RE.test(trimmed);
 
+  // ── PDF Section 12 — non-text messages ──
+  if (edge.isNonTextMessage(message)) {
+    await edge.sendNonTextAck(ctx);
+    await sendWelcome(ctx);
+    return;
+  }
+
+  // ── PDF Section 12 — stylist keyword passthrough ──
+  if (edge.isStylistKeyword(trimmed)) {
+    await handleStylistRequest(ctx);
+    return;
+  }
+
   // ── Checkout state machine: capture free-text inputs during address collection ──
   const checkoutState = ctx.cart?.rajathee?.checkout;
   const collectingSteps = [CHECKOUT_STEP.NAME, CHECKOUT_STEP.ADDRESS1, CHECKOUT_STEP.CITY, CHECKOUT_STEP.STATE, CHECKOUT_STEP.PIN];
@@ -387,6 +401,13 @@ async function handle(ctx) {
   }
 
   console.log(`[rajathee] no handler yet for: ${trimmed} (listId=${listReplyId}, btnId=${buttonReplyId})`);
+  // ── PDF Section 12 — off-topic / unrecognised text ──
+  if (trimmed && trimmed.length > 0) {
+    await edge.sendOffTopicPrompt(ctx);
+    await sendWelcome(ctx);
+    return;
+  }
+  await sendWelcome(ctx);
 }
 
 // ─── PDF SECTION 1 — WELCOME ──────────────────────────────────────────────

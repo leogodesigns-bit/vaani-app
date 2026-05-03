@@ -304,13 +304,16 @@ function describe(suite, fn) {
       assert.strictEqual(mocks.persisted, null, 'wrong tenant must persist nothing');
     });
 
-    await test('non-greeting on fresh conversation does NOT trigger Welcome', async () => {
-      // E.g. random text that isn't a known intent and isn't ambiguous.
-      // Phase C.1 logs and returns; future phases will add real handlers.
+    await test('non-greeting on fresh conversation triggers off-topic + Welcome (C.11)', async () => {
+      // C.11: random text now gets a soft-prompt followed by Welcome list,
+      // so customers who type unmatched text get help instead of silence.
       const ctx = buildCtx({ message: buildTextMessage('random unmatched text here') });
       await rajathee.handle(ctx);
+      const messages = mocks.sent.filter(s => s.kind === 'message');
       const lists = mocks.sent.filter(s => s.kind === 'list');
-      assert.strictEqual(lists.length, 0, 'no Welcome list for unmatched non-greeting');
+      assert.ok(messages.some(m => /sarees|find the right one/i.test(m.body)),
+        'off-topic prompt sent');
+      assert.strictEqual(lists.length, 1, 'Welcome list shown after off-topic prompt');
     });
 
   });
