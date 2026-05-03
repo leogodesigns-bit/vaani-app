@@ -5,3 +5,4 @@ main
 db.js.bak-*
 routes/webhook.js.bak-*
 handlers/rajathee.js.bak-*
+.env.bak
