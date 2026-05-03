@@ -22,6 +22,9 @@
 
 const { sendMessage, sendButtons, sendList, sendImage } = require('../whatsapp');
 const { getConversation, upsertConversation, saveOrder, getOrder, markOrderPaid } = require('../db');
+const Anthropic = require('@anthropic-ai/sdk');
+
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const { getCollectionProducts, getProductByHandle, formatPrice, stripHtml } = require('../shopify');
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────
@@ -302,6 +305,7 @@ async function handle(ctx) {
   if (listReplyId === WELCOME_ROW.BROWSE_FABRIC) { await sendFabricPicker(ctx); return; }
   if (listReplyId === WELCOME_ROW.BROWSE_COLOUR) { await sendColourPicker(ctx); return; }
   if (listReplyId === WELCOME_ROW.STYLING)       { await handleStylistRequest(ctx); return; }
+  if (trimmed === 'Talk to stylist')              { await handleStylistRequest(ctx); return; }
 
   // ── Fabric list-row taps ──
   if (listReplyId && FABRIC_HANDLES[listReplyId]) {
@@ -355,11 +359,7 @@ async function handle(ctx) {
 
   // ── Product more-options list rows ──
   if (listReplyId === PRODUCT_LIST_ROW.STYLING_HELP) {
-    // Deferred to C.8.
-    await sendMessage(ctx.from,
-      'Styling help is coming soon. May I bring our stylist in for a personal answer?',
-      ctx.waToken, ctx.phoneNumberId
-    );
+    await handleStylingHelp(ctx);
     return;
   }
   if (listReplyId === PRODUCT_LIST_ROW.BACK_TO_BROWSE) {
@@ -1386,6 +1386,76 @@ async function handleCheckoutConfirm(ctx) {
 
 // ─── Post-purchase handlers ──────────────────────────────────────────────
 
+// ─── PDF Section 10 — Light styling tips ──────────────────────────────────
+
+const STYLING_SYSTEM_PROMPT =
+  'You are Rajathee\'s in-house stylist. Rajathee is a saree brand whose voice is ' +
+  '"Effortless and Elegant Sarees for Women on the Move." ' +
+  'When given a saree (title, fabric, colour), reply with ONE styling suggestion in 1-2 short sentences. ' +
+  'Mention specific accessories (jewellery type, hair, footwear) and an occasion if it fits naturally. ' +
+  'Use warm, confident language. No hashtags. No emojis except a single 🌸 at the end if it feels natural. ' +
+  'Do not start with "Pair this with" — vary your openings. ' +
+  'Indian styling vocabulary is welcome (jhumkas, mogra, kolhapuris, oxidised silver, etc.).';
+
+async function handleStylingHelp(ctx) {
+  const { from, phoneNumberId, waToken, cart } = ctx;
+  const r = cart.rajathee || {};
+  const product = r.product || {};
+
+  // If we don't know what they were viewing, gracefully redirect.
+  if (!product.handle) {
+    await sendMessage(from,
+      'I\'d love to give you styling tips — please pick a saree first and tap "More options" again.',
+      waToken, phoneNumberId);
+    return;
+  }
+
+  // Build product context from the saree they're currently viewing.
+  let productTitle = product.handle;
+  let colourLine = '';
+  try {
+    const fetched = await getProductByHandle(ctx.tenant, product.handle);
+    if (fetched) {
+      productTitle = fetched.title;
+      const variant = (fetched.variants || []).find(v => String(v.id) === String(product.currentVariantId));
+      if (variant && variant.option1) {
+        colourLine = ' (' + variant.option1 + ')';
+      }
+    }
+  } catch (e) {
+    console.error('[rajathee] styling: product fetch failed', e.message);
+  }
+
+  const userPrompt =
+    'Saree: ' + productTitle + colourLine + '\n' +
+    'Suggest one styling for this saree.';
+
+  let stylingMsg;
+  try {
+    const resp = await anthropic.messages.create({
+      model: 'claude-haiku-4-5',
+      max_tokens: 200,
+      system: STYLING_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: userPrompt }],
+    });
+    stylingMsg = resp.content?.[0]?.text?.trim();
+  } catch (e) {
+    console.error('[rajathee] styling Claude call failed:', e.message);
+  }
+
+  if (!stylingMsg) {
+    // Fallback that still feels in-brand.
+    stylingMsg = 'Try classic gold jhumkas, a low bun with a few mogra, and minimal kohl. Effortless on a busy day, elegant in the evening.';
+  }
+
+  await sendMessage(from, '✨ ' + stylingMsg, waToken, phoneNumberId);
+
+  // Offer next steps.
+  await sendButtons(from, 'Anything else?',
+    ['Add to cart', 'Talk to stylist'],
+    waToken, phoneNumberId);
+}
+
 async function handleStylistRequest(ctx) {
   const { tenant, from, phoneNumberId, waToken, history, cart } = ctx;
   const r = cart.rajathee || {};
@@ -1576,6 +1646,8 @@ module.exports = {
   CHECKOUT_STEP, CHECKOUT_BTN, CHECKOUT_PROMPT,
   POSTPURCHASE_BTN,
   handleStylistRequest,
+  handleStylingHelp,
+  STYLING_SYSTEM_PROMPT,
   SHIPPING_FREE_THRESHOLD, SHIPPING_FEE,
   formatCartSummary, formatOrderSummary, calcShipping,
   validateCheckoutField, generateOrderId,
