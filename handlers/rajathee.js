@@ -4,20 +4,16 @@
 // v1 scope = PDF Sections 1, 2, 3, 4, 5, 6, 8, 9, 11, 12, 13.
 // Sections 7 (cross-sell) and 10 (returning customer) are v1.1, not built here.
 //
-// This handler shares NOTHING with Jhilmil's flow. It only uses low-level
-// transport helpers (sendMessage/sendButtons/sendList/sendImage), Shopify
-// reads (mode-aware via tenant.shopify_mode), and conversation persistence.
-//
 // Sections 14 (fabric voice) and 15 (colour voice) are LOCKED string constants
 // — never sent through the LLM, never templated, never rewritten on the fly.
 //
 // Phase progress:
 //   C.1 — Section 1 Welcome flow                     ✅
-//   C.2 — Section 2 Browse by fabric                 ← THIS COMMIT
-//   C.3 — Section 3 Browse by colour                 (next)
-//   C.4 — Section 4 Product detail + variants
+//   C.2 — Section 2 Browse by fabric                 ✅
+//   C.3 — Section 3 Browse by colour                 ← THIS COMMIT
+//   C.4 — Section 4 Product detail + variants        (next)
 //   C.5 — Section 6 Add-ons (Fall & Pico, RTW)
-//   C.6 — Section 8 Checkout
+//   C.6 — Section 8 Checkout (WhatsApp-managed v1)
 //   C.7 — Section 9 Post-purchase
 //   C.8 — Section 5 Styling help
 //   C.9 — Section 11 Smart-route Q&A
@@ -30,7 +26,6 @@ const { getCollectionProducts, formatPrice } = require('../shopify');
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────
 
-// PDF Section 1 — Welcome body.
 const WELCOME_BODY =
   'Welcome to Rajathee.\n' +
   'Effortless and Elegant Sarees for Women on the Move.\n' +
@@ -91,15 +86,91 @@ const FABRIC_VOICE = {
     'A glossy fall and a modern hand — for when you want sleek and modern.',
 };
 
-// Tappable button text (used as IDs back from WhatsApp).
 const FABRIC_BTN = {
   SHOW_MORE:     'Show 3 more',
   SWITCH_FABRIC: 'Switch fabric',
   HELP_CHOOSE:   'Help me choose',
 };
 
+// ─── PDF Section 3 — Browse by colour ─────────────────────────────────────
+
+const COLOUR_ROW = {
+  IVORY_WHITE:    'colour_ivory_white',
+  PINK_ROSE:      'colour_pink_rose',
+  BLUE_TEAL:      'colour_blue_teal',
+  RED_MAROON:     'colour_red_maroon',
+  PURPLE_PLUM:    'colour_purple_plum',
+  BLACK_GREY:     'colour_black_grey',
+  YELLOW_MUSTARD: 'colour_yellow_mustard',
+  GREEN_OLIVE:    'colour_green_olive',
+  BROWN_BEIGE:    'colour_brown_beige',
+  PASTELS:        'colour_pastels',
+};
+
+const COLOUR_LABEL = {
+  [COLOUR_ROW.IVORY_WHITE]:    'Ivory & White',
+  [COLOUR_ROW.PINK_ROSE]:      'Pink & Rose',
+  [COLOUR_ROW.BLUE_TEAL]:      'Blue & Teal',
+  [COLOUR_ROW.RED_MAROON]:     'Red & Maroon',
+  [COLOUR_ROW.PURPLE_PLUM]:    'Purple & Plum',
+  [COLOUR_ROW.BLACK_GREY]:     'Black & Grey',
+  [COLOUR_ROW.YELLOW_MUSTARD]: 'Yellow & Mustard',
+  [COLOUR_ROW.GREEN_OLIVE]:    'Green & Olive',
+  [COLOUR_ROW.BROWN_BEIGE]:    'Brown & Beige',
+  [COLOUR_ROW.PASTELS]:        'Pastels',
+};
+
+// Variant-name → colour-group mapping. Match is case-insensitive substring.
+// Founder review needed (PDF Section 17 Q2). To adjust groupings, edit here.
+const COLOUR_KEYWORDS = {
+  [COLOUR_ROW.IVORY_WHITE]:    ['ivory', 'white', 'cream', 'off white', 'pearl'],
+  [COLOUR_ROW.PINK_ROSE]:      ['pink', 'rose', 'fuchsia'],
+  [COLOUR_ROW.BLUE_TEAL]:      ['blue', 'teal', 'navy', 'cobalt', 'azure'],
+  [COLOUR_ROW.RED_MAROON]:     ['red', 'maroon', 'crimson', 'scarlet', 'wine'],
+  [COLOUR_ROW.PURPLE_PLUM]:    ['purple', 'plum', 'mauve', 'lavender', 'lavendar', 'magenta', 'violet'],
+  [COLOUR_ROW.BLACK_GREY]:     ['black', 'grey', 'gray', 'charcoal'],
+  [COLOUR_ROW.YELLOW_MUSTARD]: ['yellow', 'mustard', 'gold', 'ochre'],
+  [COLOUR_ROW.GREEN_OLIVE]:    ['green', 'olive', 'sage', 'emerald', 'mint'],
+  [COLOUR_ROW.BROWN_BEIGE]:    ['brown', 'beige', 'tan', 'taupe', 'camel'],
+  [COLOUR_ROW.PASTELS]:        ['pastel', 'powder', 'baby pink', 'baby blue', 'mint'],
+};
+
+// PDF Section 15 — LOCKED colour voice library. Verbatim. Never rewrite.
+const COLOUR_VOICE = {
+  [COLOUR_ROW.IVORY_WHITE]:
+    'Quiet luminous neutrals — for days when you want the saree to whisper, not shout.',
+  [COLOUR_ROW.PINK_ROSE]:
+    'Pink and rose — soft, romantic, endlessly wearable.',
+  [COLOUR_ROW.BLUE_TEAL]:
+    'From cobalt to seafoam — blue is the colour of calm composure.',
+  [COLOUR_ROW.RED_MAROON]:
+    'The colour of celebration and ceremony — warm, rich, unmistakably striking.',
+  [COLOUR_ROW.PURPLE_PLUM]:
+    "Plum, magenta, mauve — the modern Indian woman's wardrobe quiet rebellion.",
+  [COLOUR_ROW.BLACK_GREY]:
+    'Sleek and grounded — for when you want sharp lines and modern presence.',
+  [COLOUR_ROW.YELLOW_MUSTARD]:
+    'Sunlit and golden — yellow lifts every other colour around it.',
+  [COLOUR_ROW.GREEN_OLIVE]:
+    'From sage to emerald — green pairs effortlessly with both gold and silver.',
+  [COLOUR_ROW.BROWN_BEIGE]:
+    'Earthy, warm, grounding — the colours of late afternoon light.',
+  [COLOUR_ROW.PASTELS]:
+    'Soft, breathable hues — for the days when subtle is the whole point.',
+};
+
+const COLOUR_BTN = {
+  SHOW_MORE:     'Show 3 more',
+  SWITCH_COLOUR: 'Switch colour',
+  HELP_CHOOSE:   'Help me choose',
+};
+
+// Variants matching this keyword are NOT colours — they're add-ons (PDF Section 6).
+const NOT_A_COLOUR = ['ready to wear', 'fall and pico', 'fall & pico'];
+
 const PAGE_SIZE = 3;
 const MAX_SHOWN = 9;
+const COLOUR_FETCH_LIMIT = 100; // pull up to 100 sarees from all-sarees, then filter
 
 // ─── ENTRY POINT ──────────────────────────────────────────────────────────
 
@@ -116,28 +187,36 @@ async function handle(ctx) {
 
   console.log(`[rajathee] ${tenant.shop_domain} — from ${from}: ${text}`);
 
-  // Extract interactive IDs (preferred over text title for stable dispatch).
-  const listReplyId  = message.interactive?.list_reply?.id || null;
+  const listReplyId   = message.interactive?.list_reply?.id || null;
   const buttonReplyId = message.interactive?.button_reply?.id || null;
 
   const trimmed = (text || '').trim();
   const isGreeting = GREETING_RE.test(trimmed);
 
-  // ── Dispatch in priority order ──
-
-  // 1. Welcome list-row taps.
+  // ── Welcome list-row taps ──
   if (listReplyId === WELCOME_ROW.BROWSE_FABRIC) {
     await sendFabricPicker(ctx);
     return;
   }
+  if (listReplyId === WELCOME_ROW.BROWSE_COLOUR) {
+    await sendColourPicker(ctx);
+    return;
+  }
 
-  // 2. Fabric list-row taps.
+  // ── Fabric list-row taps ──
   if (listReplyId && FABRIC_HANDLES[listReplyId]) {
     await sendFabricResults(ctx, listReplyId, 0);
     return;
   }
 
-  // 3. Pagination + fabric controls (button replies — text matches button title).
+  // ── Colour list-row taps ──
+  if (listReplyId && COLOUR_KEYWORDS[listReplyId]) {
+    await sendColourResults(ctx, listReplyId, 0);
+    return;
+  }
+
+  // ── Pagination + control buttons ──
+  // SHOW_MORE is the same string in both fabric and colour, so dispatch by current mode.
   if (trimmed === FABRIC_BTN.SHOW_MORE) {
     await handleShowMore(ctx);
     return;
@@ -146,16 +225,18 @@ async function handle(ctx) {
     await sendFabricPicker(ctx);
     return;
   }
-  // FABRIC_BTN.HELP_CHOOSE handled in C.8 (styling). For now, fall through
-  // to Welcome so the customer doesn't get stuck.
+  if (trimmed === COLOUR_BTN.SWITCH_COLOUR) {
+    await sendColourPicker(ctx);
+    return;
+  }
+  // HELP_CHOOSE handled in C.8 (styling).
 
-  // 4. Greetings or ambiguous → Welcome.
+  // ── Greetings or ambiguous → Welcome ──
   if (isGreeting || isAmbiguous(message, trimmed)) {
     await sendWelcome(ctx);
     return;
   }
 
-  // 5. Anything else — log and stay quiet (handlers land in C.3+).
   console.log(`[rajathee] no handler yet for: ${trimmed} (listId=${listReplyId}, btnId=${buttonReplyId})`);
 }
 
@@ -237,15 +318,10 @@ async function sendFabricResults(ctx, fabricRowId, page) {
   const label  = FABRIC_LABEL[fabricRowId];
   const voice  = FABRIC_VOICE[fabricRowId];
 
-  // Fetch up to MAX_SHOWN products from this fabric collection.
   const products = await getCollectionProducts(tenant, handle);
 
   if (!products.length) {
-    await sendMessage(
-      from,
-      `Our ${label} edit is being refreshed. May I show you another fabric in the meantime?`,
-      waToken, phoneNumberId
-    );
+    await sendMessage(from, `Our ${label} edit is being refreshed. May I show you another fabric in the meantime?`, waToken, phoneNumberId);
     await sendFabricPicker(ctx);
     return;
   }
@@ -254,17 +330,11 @@ async function sendFabricResults(ctx, fabricRowId, page) {
   const slice = products.slice(start, start + PAGE_SIZE);
 
   if (!slice.length) {
-    // Past last page — gracefully bounce back to fabric picker.
-    await sendMessage(
-      from,
-      `That's the full ${label} edit for now. Want to explore another fabric?`,
-      waToken, phoneNumberId
-    );
+    await sendMessage(from, `That's the full ${label} edit for now. Want to explore another fabric?`, waToken, phoneNumberId);
     await sendFabricPicker(ctx);
     return;
   }
 
-  // 1) Send 3 product cards (image + caption).
   for (const p of slice) {
     const v0 = p.variants?.[0];
     const img = p.images?.[0]?.src || v0?.featured_image?.src;
@@ -277,11 +347,9 @@ async function sendFabricResults(ctx, fabricRowId, page) {
     }
   }
 
-  // 2) Send the locked fabric voice line, prefixed per PDF.
   const introPrefix = `From the ${label === 'The Silk Edit' ? 'Silk Edit' : label + ' Edit'}. `;
   await sendMessage(from, introPrefix + voice, waToken, phoneNumberId);
 
-  // 3) Action row. WhatsApp buttons cap at 3.
   const totalShownAfter = Math.min((page + 1) * PAGE_SIZE, products.length);
   const moreAvailable = totalShownAfter < Math.min(products.length, MAX_SHOWN);
 
@@ -291,7 +359,6 @@ async function sendFabricResults(ctx, fabricRowId, page) {
 
   await sendButtons(from, 'Anything catch your eye?', buttons, waToken, phoneNumberId);
 
-  // 4) Persist state for pagination + future product-detail dispatch.
   await upsertConversation(
     tenant.id,
     from,
@@ -314,19 +381,180 @@ async function sendFabricResults(ctx, fabricRowId, page) {
   );
 }
 
+// ─── PDF SECTION 3 — BROWSE BY COLOUR ─────────────────────────────────────
+
+async function sendColourPicker(ctx) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+
+  const sections = [{
+    title: 'Choose a palette',
+    rows: [
+      { id: COLOUR_ROW.IVORY_WHITE,    title: 'Ivory & White',    description: 'Quiet luminous neutrals' },
+      { id: COLOUR_ROW.PINK_ROSE,      title: 'Pink & Rose',      description: 'Soft and romantic' },
+      { id: COLOUR_ROW.BLUE_TEAL,      title: 'Blue & Teal',      description: 'Calm composure' },
+      { id: COLOUR_ROW.RED_MAROON,     title: 'Red & Maroon',     description: 'Celebration tones' },
+      { id: COLOUR_ROW.PURPLE_PLUM,    title: 'Purple & Plum',    description: 'A quiet rebellion' },
+      { id: COLOUR_ROW.BLACK_GREY,     title: 'Black & Grey',     description: 'Sleek and grounded' },
+      { id: COLOUR_ROW.YELLOW_MUSTARD, title: 'Yellow & Mustard', description: 'Sunlit and golden' },
+      { id: COLOUR_ROW.GREEN_OLIVE,    title: 'Green & Olive',    description: 'Sage to emerald' },
+      { id: COLOUR_ROW.BROWN_BEIGE,    title: 'Brown & Beige',    description: 'Earthy and warm' },
+      { id: COLOUR_ROW.PASTELS,        title: 'Pastels',          description: 'Soft, breathable hues' },
+    ],
+  }];
+
+  await sendList(from, 'Which palette draws you in?', sections, waToken, phoneNumberId);
+
+  await upsertConversation(
+    tenant.id,
+    from,
+    [
+      ...history,
+      { role: 'user', content: text },
+      { role: 'assistant', content: '[rajathee colour picker shown]' },
+    ],
+    {
+      ...cart,
+      rajathee: {
+        ...(cart.rajathee || {}),
+        browseMode: 'colour',
+        colour: null,
+        page: 0,
+        totalShown: 0,
+        productHandles: [],
+      },
+    }
+  );
+}
+
+// Returns true if the variant title matches the colour group.
+function variantMatchesColour(variantTitle, colourId) {
+  if (!variantTitle) return false;
+  const v = variantTitle.toLowerCase().trim();
+  if (NOT_A_COLOUR.some(n => v.includes(n))) return false;
+  const keywords = COLOUR_KEYWORDS[colourId] || [];
+  return keywords.some(k => v.includes(k));
+}
+
+// Find products that have at least one variant in this colour group.
+function filterProductsByColour(products, colourId) {
+  return products.filter(p => {
+    const variants = p.variants || [];
+    return variants.some(v => variantMatchesColour(v.option1 || v.title, colourId));
+  });
+}
+
+async function sendColourResults(ctx, colourRowId, page) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+
+  const label = COLOUR_LABEL[colourRowId];
+  const voice = COLOUR_VOICE[colourRowId];
+
+  // Pull all sarees once, filter by colour client-side.
+  const allProducts = await getCollectionProducts(tenant, 'all-sarees');
+  const matched = filterProductsByColour(allProducts, colourRowId);
+
+  if (!matched.length) {
+    // Special case for Pastels (PDF founder note: not yet tagged).
+    if (colourRowId === COLOUR_ROW.PASTELS) {
+      await sendMessage(from,
+        'Pastels are coming soon to Rajathee. May I show you another palette in the meantime?',
+        waToken, phoneNumberId
+      );
+    } else {
+      await sendMessage(from,
+        `Our ${label} edit is being refreshed. May I show you another palette in the meantime?`,
+        waToken, phoneNumberId
+      );
+    }
+    await sendColourPicker(ctx);
+    return;
+  }
+
+  const start = page * PAGE_SIZE;
+  const slice = matched.slice(start, start + PAGE_SIZE);
+
+  if (!slice.length) {
+    await sendMessage(from,
+      `That's the full ${label} edit for now. Want to explore another palette?`,
+      waToken, phoneNumberId
+    );
+    await sendColourPicker(ctx);
+    return;
+  }
+
+  // Send 3 product cards. For colour browse, prefer the variant image
+  // matching the colour group when possible.
+  for (const p of slice) {
+    const matchingVariant = (p.variants || []).find(
+      v => variantMatchesColour(v.option1 || v.title, colourRowId)
+    ) || p.variants?.[0];
+
+    const img = matchingVariant?.featured_image?.src
+             || p.images?.[0]?.src;
+    const price = formatPrice(matchingVariant?.price || p.variants?.[0]?.price);
+    const caption = `${p.title}\n${price}`;
+
+    if (img) {
+      await sendImage(from, img, caption, waToken, phoneNumberId);
+    } else {
+      await sendMessage(from, caption, waToken, phoneNumberId);
+    }
+  }
+
+  // Locked PDF Section 15 voice line.
+  await sendMessage(from, voice, waToken, phoneNumberId);
+
+  const totalShownAfter = Math.min((page + 1) * PAGE_SIZE, matched.length);
+  const moreAvailable = totalShownAfter < Math.min(matched.length, MAX_SHOWN);
+
+  const buttons = moreAvailable
+    ? [COLOUR_BTN.SHOW_MORE, COLOUR_BTN.SWITCH_COLOUR, COLOUR_BTN.HELP_CHOOSE]
+    : [COLOUR_BTN.SWITCH_COLOUR, COLOUR_BTN.HELP_CHOOSE];
+
+  await sendButtons(from, 'Anything catch your eye?', buttons, waToken, phoneNumberId);
+
+  await upsertConversation(
+    tenant.id,
+    from,
+    [
+      ...history,
+      { role: 'user', content: text },
+      { role: 'assistant', content: `[rajathee colour=${colourRowId} page=${page} shown=${slice.length}]` },
+    ],
+    {
+      ...cart,
+      rajathee: {
+        ...(cart.rajathee || {}),
+        browseMode: 'colour',
+        colour: colourRowId,
+        page: page,
+        totalShown: totalShownAfter,
+        productHandles: matched.slice(0, totalShownAfter).map(p => p.handle),
+      },
+    }
+  );
+}
+
+// ─── PAGINATION DISPATCH ──────────────────────────────────────────────────
+
 async function handleShowMore(ctx) {
   const { cart } = ctx;
   const r = cart.rajathee || {};
-  if (r.browseMode !== 'fabric' || !r.fabric) {
-    // No active fabric browse — fall back to picker.
-    await sendFabricPicker(ctx);
-    return;
-  }
   if (r.totalShown >= MAX_SHOWN) {
-    await sendFabricPicker(ctx);
+    if (r.browseMode === 'colour') await sendColourPicker(ctx);
+    else await sendFabricPicker(ctx);
     return;
   }
-  await sendFabricResults(ctx, r.fabric, (r.page || 0) + 1);
+  if (r.browseMode === 'colour' && r.colour) {
+    await sendColourResults(ctx, r.colour, (r.page || 0) + 1);
+    return;
+  }
+  if (r.browseMode === 'fabric' && r.fabric) {
+    await sendFabricResults(ctx, r.fabric, (r.page || 0) + 1);
+    return;
+  }
+  // No active browse — fall back gracefully.
+  await sendWelcome(ctx);
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────
@@ -347,4 +575,12 @@ module.exports = {
   FABRIC_LABEL,
   FABRIC_VOICE,
   FABRIC_BTN,
+  COLOUR_ROW,
+  COLOUR_LABEL,
+  COLOUR_KEYWORDS,
+  COLOUR_VOICE,
+  COLOUR_BTN,
+  // Internals exposed for tests.
+  variantMatchesColour,
+  filterProductsByColour,
 };
