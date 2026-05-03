@@ -24,6 +24,7 @@ const { sendMessage, sendButtons, sendList, sendImage } = require('../whatsapp')
 const { getConversation, upsertConversation, saveOrder, getOrder, markOrderPaid } = require('../db');
 const Anthropic = require('@anthropic-ai/sdk');
 const edge = require('./rajathee-edge');
+const qa = require('./rajathee-qa');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const { getCollectionProducts, getProductByHandle, formatPrice, stripHtml } = require('../shopify');
@@ -300,6 +301,25 @@ async function handle(ctx) {
     return;
   }
 
+  // ── PDF Section 13 — mute state (set after repeated off-topic) ──
+  // Mute is cleared by: any interactive tap, OR any saree-related keyword.
+  const isMuted = ctx.cart?.rajathee?.muted === true;
+  const isInteractive = !!(listReplyId || buttonReplyId);
+  if (isMuted) {
+    if (isInteractive || qa.isSareeRelated(trimmed)) {
+      // Unmute and continue normal flow.
+      ctx.cart = ctx.cart || {};
+      ctx.cart.rajathee = ctx.cart.rajathee || {};
+      delete ctx.cart.rajathee.muted;
+      delete ctx.cart.rajathee.offTopicCount;
+      console.log(`[rajathee] unmuted ${ctx.from}`);
+    } else {
+      // Stay silent. Don't even acknowledge.
+      console.log(`[rajathee] muted ${ctx.from} - ignoring: ${trimmed}`);
+      return;
+    }
+  }
+
   // ── PDF Section 12 — stylist keyword passthrough ──
   if (edge.isStylistKeyword(trimmed)) {
     await handleStylistRequest(ctx);
@@ -401,10 +421,38 @@ async function handle(ctx) {
   }
 
   console.log(`[rajathee] no handler yet for: ${trimmed} (listId=${listReplyId}, btnId=${buttonReplyId})`);
-  // ── PDF Section 12 — off-topic / unrecognised text ──
+  // ── PDF Section 13 — Smart Q&A (free-text intent classification) ──
   if (trimmed && trimmed.length > 0) {
-    await edge.sendOffTopicPrompt(ctx);
-    await sendWelcome(ctx);
+    const intent = await qa.classifyIntent(trimmed);
+    console.log(`[rajathee] intent: ${intent} for "${trimmed}"`);
+
+    if (intent !== qa.INTENTS.OFF_TOPIC) {
+      // FAQ answer + show welcome for next action.
+      await qa.sendFaqAnswer(ctx, intent);
+      await sendWelcome(ctx);
+      return;
+    }
+
+    // Off-topic. Track count: 1st = warning, 2nd = mute.
+    ctx.cart = ctx.cart || {};
+    ctx.cart.rajathee = ctx.cart.rajathee || {};
+    const count = (ctx.cart.rajathee.offTopicCount || 0) + 1;
+    ctx.cart.rajathee.offTopicCount = count;
+
+    if (count === 1) {
+      await qa.sendOffTopicWarning(ctx);
+      await sendWelcome(ctx);
+    } else {
+      // Second strike: send mute message and enter silent mode.
+      ctx.cart.rajathee.muted = true;
+      await qa.sendOffTopicMute(ctx);
+      // Persist the mute state.
+      await upsertConversation(ctx.tenant.id, ctx.from, [
+        ...(ctx.history || []),
+        { role: 'user', content: trimmed },
+        { role: 'assistant', content: '[rajathee muted after 2 off-topic]' },
+      ], ctx.cart);
+    }
     return;
   }
   await sendWelcome(ctx);
