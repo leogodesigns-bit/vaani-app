@@ -133,9 +133,9 @@
 
   .pricing-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 1.5px;
-    max-width: 1100px;
+    max-width: 1200px;
     margin: 4rem auto;
     padding: 0 2rem;
     background: var(--border);
@@ -148,7 +148,7 @@
 
   .plan {
     background: var(--cream);
-    padding: 2.5rem 2rem;
+    padding: 2.5rem 1.8rem;
     position: relative;
     transition: background 0.2s ease;
   }
@@ -212,7 +212,7 @@
 
   .price-amount {
     font-family: 'Playfair Display', serif;
-    font-size: 2.4rem;
+    font-size: 2.2rem;
     font-weight: 700;
     letter-spacing: -0.03em;
     line-height: 1;
@@ -305,9 +305,9 @@
     color: #7A7068;
   }
 
-  /* Add-on strip: top-ups + cancellation */
+  /* Add-on strip: how chats are counted + top-ups + cancellation + setup */
   .addon-strip {
-    max-width: 1100px;
+    max-width: 1200px;
     margin: 0 auto 4rem;
     padding: 0 2rem;
     display: grid;
@@ -359,7 +359,7 @@
 
   /* Exclusive section */
   .exclusive-section {
-    max-width: 1100px;
+    max-width: 1200px;
     margin: 0 auto 5rem;
     padding: 0 2rem;
     opacity: 0;
@@ -492,6 +492,10 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
+  @media (max-width: 1100px) {
+    .pricing-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
   @media (max-width: 900px) {
     header { padding: 1.5rem 2rem; }
     .hero { padding: 4rem 2rem 2rem; }
@@ -519,7 +523,7 @@
 <section class="hero">
   <div class="hero-label">Simple, transparent pricing</div>
   <h1>Sell more while<br>you <em>sleep.</em></h1>
-  <p>Vaani handles product discovery, shortlisting, and payment — right inside WhatsApp. No app. No friction. One simple plan.</p>
+  <p>Vaani handles product discovery, shortlisting, and payment — right inside WhatsApp. No app. No friction. Start free, scale as you grow.</p>
 </section>
 
 <div class="pricing-grid">
@@ -542,7 +546,29 @@
       <li><span class="check">✓</span> Shopify connected</li>
       <li><span class="check">✓</span> English only</li>
       <li><span class="check" style="background:#F5EEE8;color:#C4A882;">—</span> <span class="dim">No payment links</span></li>
-      <li><span class="check" style="background:#F5EEE8;color:#C4A882;">—</span> <span class="dim">No custom flow</span></li>
+      <li><span class="check" style="background:#F5EEE8;color:#C4A882;">—</span> <span class="dim">No custom voice</span></li>
+    </ul>
+  </div>
+
+  <!-- Lite -->
+  <div class="plan">
+    <div class="plan-badge">Starter</div>
+    <div class="plan-name">Lite</div>
+    <div class="plan-sub">For small brands testing WhatsApp sales seriously</div>
+    <div class="plan-price">
+      <div class="price-amount">₹1,299<span style="font-size:1rem;font-weight:400">/mo</span></div>
+      <div class="price-period">billed monthly</div>
+      <div class="price-setup">+ ₹3,000 one-time setup</div>
+    </div>
+    <div class="divider"></div>
+    <ul class="features">
+      <li><span class="check">✓</span> 500 chats / month</li>
+      <li><span class="check">✓</span> Full product + shortlist flow</li>
+      <li><span class="check">✓</span> Payment links + draft orders</li>
+      <li><span class="check">✓</span> English + Hindi</li>
+      <li><span class="check">✓</span> Top up anytime — ₹500 / 250 chats</li>
+      <li><span class="check" style="background:#F5EEE8;color:#C4A882;">—</span> <span class="dim">Standard bot voice</span></li>
+      <li><span class="check" style="background:#F5EEE8;color:#C4A882;">—</span> <span class="dim">No brand-owner alerts</span></li>
     </ul>
   </div>
 
@@ -591,7 +617,7 @@
 
 </div>
 
-<!-- What counts as a chat? + Top-ups + Cancellation -->
+<!-- What counts as a chat? + Top-ups + Cancellation + Setup -->
 <div class="addon-strip">
 
   <div class="addon-card">
