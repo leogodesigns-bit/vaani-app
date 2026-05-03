@@ -139,3 +139,4 @@ app.listen(PORT, async () => {
   await initDB();
   startScheduler();
 });
+require('./cron-alerts').start();

@@ -12,6 +12,7 @@ const { refreshAllCategories } = require('../scheduler');
 const { pool } = require('../db');
 const { trackConversation } = require('../usage');
 const { isFounderCommand, handleFounderCommand } = require('../founder');
+const { checkAndFireAlerts } = require('../alerts');
 const rajatheeHandler = require('../handlers/rajathee');
 
 router.get('/', (req, res) => {
@@ -130,12 +131,31 @@ router.post('/', async (req, res) => {
 
     const from = message.from;
 
-    // ─── PHASE 2: usage tracking ─────────────────────────────────────────
-    // Counts unique customers per tenant per day. Errors are swallowed
-    // inside trackConversation — never let tracking break the bot.
-    trackConversation(tenant.id, from).catch(err => {
-      console.error('[usage] tracking failed (non-fatal):', err.message);
-    });
+    // ─── PHASE 2 + 4: usage tracking + threshold alerts ─────────────────
+    // Track this conversation. If a new conversation, also check thresholds
+    // and fire any 70/90/100% alerts that just crossed. All errors are
+    // swallowed — tracking and alerting never break the customer flow.
+    trackConversation(tenant.id, from)
+      .then(async (trackResult) => {
+        if (!trackResult || !trackResult.isNewConversation || !trackResult.usage) return;
+        const newUsed = trackResult.usage.conversation_count;
+        const oldUsed = newUsed - 1;
+        try {
+          await checkAndFireAlerts({
+            tenantId: tenant.id,
+            sendMessage,
+            waToken,
+            phoneNumberId,
+            oldUsed,
+            newUsed
+          });
+        } catch (err) {
+          console.error('[alerts] inline check failed (non-fatal):', err.message);
+        }
+      })
+      .catch(err => {
+        console.error('[usage] tracking failed (non-fatal):', err.message);
+      });
 
     let text = '';
     if (message.type === 'text') {

@@ -43,6 +43,7 @@ function isFounderCommand(from, text) {
     'topup status ',
     'subscriptions',
     'subscribe ',
+    'notify ',
     'reset usage ',
     'cancel ',
     'kill ',
@@ -113,6 +114,7 @@ function cmdHelp() {
     '• `pause <brand>` — pause bot',
     '• `unpause <brand>` — resume bot',
     '• `subscribe <brand> monthly|annual|internal`',
+    '• `notify <brand> <phone>` — set brand-owner alert number',
     '',
     '*Dangerous (need confirm):*',
     '• `reset usage <brand>` — zero counter',
@@ -211,6 +213,21 @@ async function cmdUsageBrand(slug) {
   } else {
     lines.push('');
     lines.push('⚠ No subscription on file. Use `subscribe ' + slug + ' monthly|annual|internal`.');
+  }
+
+  // Phase 4: brand-owner alert config
+  lines.push('');
+  if (tenant.notify_phone) {
+    lines.push(`Brand alerts: ${tenant.notify_phone} (voice: ${tenant.notify_voice || 'neutral'})`);
+  } else {
+    lines.push(`Brand alerts: _not configured_`);
+  }
+
+  // Phase 4: alerts already fired this month
+  const fired = usage?.alerts_sent || {};
+  const firedKeys = Object.keys(fired).sort();
+  if (firedKeys.length > 0) {
+    lines.push(`Alerts fired this month: ${firedKeys.map(k => k + '%').join(', ')}`);
   }
 
   return lines.join('\n');
@@ -382,6 +399,44 @@ async function cmdSubscribe(slug, plan) {
   return lines.join('\n');
 }
 
+// ─── COMMAND: notify <brand> <phone> ───────────────────────────────────────
+// Set or clear the brand-owner alert WhatsApp number.
+//   notify ikaa 8805100535     → set
+//   notify ikaa clear          → unset (no brand-owner alerts)
+async function cmdNotify(slug, phoneOrClear) {
+  const tenant = await resolveBrand(slug);
+  if (!tenant) return `❌ No brand found matching "${slug}".`;
+  if (!phoneOrClear) return '❌ Usage: `notify <brand> <phone>` or `notify <brand> clear`';
+
+  const name = brandName(tenant);
+
+  if (phoneOrClear.toLowerCase() === 'clear' || phoneOrClear.toLowerCase() === 'none') {
+    await pool.query(
+      `UPDATE tenants SET notify_phone = NULL WHERE id = $1`,
+      [tenant.id]
+    );
+    return `✅ *${name}* — brand-owner alerts disabled (notify_phone cleared).`;
+  }
+
+  // Validate phone: digits only, 10–15 chars (allow with/without country code)
+  const cleaned = phoneOrClear.replace(/\D/g, '');
+  if (cleaned.length < 10 || cleaned.length > 15) {
+    return `❌ Phone "${phoneOrClear}" doesn't look right. Use 10-15 digits, e.g. \`8805100535\` or \`918805100535\`.`;
+  }
+
+  await pool.query(
+    `UPDATE tenants SET notify_phone = $1 WHERE id = $2`,
+    [cleaned, tenant.id]
+  );
+  return [
+    `✅ *${name}* — brand-owner alerts will go to *${cleaned}*.`,
+    '',
+    `Voice: ${tenant.notify_voice || 'neutral'}`,
+    '',
+    `_70/90/100% threshold alerts will fire to this number when usage crosses each line._`
+  ].join('\n');
+}
+
 // ─── DANGEROUS: reset usage ────────────────────────────────────────────────
 async function cmdResetUsage(slug) {
   const tenant = await resolveBrand(slug);
@@ -513,6 +568,12 @@ async function dispatch(from, text) {
     const parts = t.slice(10).trim().split(/\s+/);
     if (parts.length < 2) return '❌ Usage: `subscribe <brand> monthly|annual|internal`';
     return await cmdSubscribe(parts[0], parts[1]);
+  }
+
+  if (lower.startsWith('notify ')) {
+    const parts = t.slice(7).trim().split(/\s+/);
+    if (parts.length < 2) return '❌ Usage: `notify <brand> <phone>` or `notify <brand> clear`';
+    return await cmdNotify(parts[0], parts[1]);
   }
 
   if (lower.startsWith('extend ')) {
