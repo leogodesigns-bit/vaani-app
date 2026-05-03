@@ -10,6 +10,7 @@ const { generateCategories } = require('../utils/autoCategorize');
 const { refreshAllCategories } = require('../scheduler');
 
 const { pool } = require('../db');
+const { trackConversation } = require('../usage');
 const rajatheeHandler = require('../handlers/rajathee');
 
 router.get('/', (req, res) => {
@@ -127,6 +128,14 @@ router.post('/', async (req, res) => {
     if (!message) return;
 
     const from = message.from;
+
+    // ─── PHASE 2: usage tracking ─────────────────────────────────────────
+    // Counts unique customers per tenant per day. Errors are swallowed
+    // inside trackConversation — never let tracking break the bot.
+    trackConversation(tenant.id, from).catch(err => {
+      console.error('[usage] tracking failed (non-fatal):', err.message);
+    });
+
     let text = '';
     if (message.type === 'text') {
       text = message.text.body;
