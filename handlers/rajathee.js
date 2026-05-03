@@ -205,6 +205,47 @@ const CART_BTN = {
   CHECKOUT:    'Checkout',
 };
 
+// ─── PDF Section 8 — Checkout (WhatsApp-managed v1, pre-Shopify-approval) ──
+// Customer's address is collected one field at a time, validated, then
+// confirmed. Order is recorded in the conversation cart and an alert is
+// sent to the owner WhatsApp (or logged if OWNER_ALERT_PHONE not set).
+// Post-approval migration: switch to authenticated Shopify draft orders.
+
+const CHECKOUT_STEP = {
+  NAME:     'name',
+  ADDRESS1: 'address1',
+  CITY:     'city',
+  STATE:    'state',
+  PIN:      'pin',
+  REVIEW:   'review',
+  CONFIRMED:'confirmed',
+};
+
+const CHECKOUT_BTN = {
+  CONFIRM:    'Confirm order',
+  EDIT_NAME:  'Edit name',
+  EDIT_ADDR:  'Edit address',
+  EDIT_CITY:  'Edit city',
+  EDIT_STATE: 'Edit state',
+  EDIT_PIN:   'Edit PIN',
+  CANCEL:     'Cancel checkout',
+};
+
+const CHECKOUT_PROMPT = {
+  [CHECKOUT_STEP.NAME]:     'Lovely. To get this drape to you, I\'ll need a few details.\n\nWhat\'s your full name?',
+  [CHECKOUT_STEP.ADDRESS1]: 'Got it. House/flat number and street?',
+  [CHECKOUT_STEP.CITY]:     'And which city?',
+  [CHECKOUT_STEP.STATE]:    'State?',
+  [CHECKOUT_STEP.PIN]:      'Last one — 6-digit PIN code?',
+};
+
+const SHIPPING_FREE_THRESHOLD = 999;
+const SHIPPING_FEE = 80;
+
+// Set to a real phone number in Railway env to enable real owner alerts.
+// Leave null/empty for v1 — alerts will be logged to console only.
+const OWNER_ALERT_PHONE = process.env.OWNER_ALERT_PHONE || null;
+
 const PAGE_SIZE = 3;
 const MAX_SHOWN = 9;
 const PIC_BATCH_SIZE = 3;
@@ -229,6 +270,15 @@ async function handle(ctx) {
 
   const trimmed = (text || '').trim();
   const isGreeting = GREETING_RE.test(trimmed);
+
+  // ── Checkout state machine: capture free-text inputs during address collection ──
+  const checkoutState = ctx.cart?.rajathee?.checkout;
+  const collectingSteps = [CHECKOUT_STEP.NAME, CHECKOUT_STEP.ADDRESS1, CHECKOUT_STEP.CITY, CHECKOUT_STEP.STATE, CHECKOUT_STEP.PIN];
+  const inCollection = checkoutState && (collectingSteps.includes(checkoutState.step) || checkoutState.editingField);
+  if (inCollection && !listReplyId && !buttonReplyId) {
+    await handleCheckoutMessage(ctx);
+    return;
+  }
 
   // ── Welcome list-row taps ──
   if (listReplyId === WELCOME_ROW.BROWSE_FABRIC) { await sendFabricPicker(ctx); return; }
@@ -270,6 +320,15 @@ async function handle(ctx) {
   if (trimmed === CART_BTN.BROWSE_MORE) { await handleBrowseMore(ctx); return; }
   if (trimmed === CART_BTN.VIEW_CART)   { await handleViewCart(ctx);   return; }
   if (trimmed === CART_BTN.CHECKOUT)    { await handleCheckout(ctx);   return; }
+
+  // ── Checkout flow buttons + edit list rows ──
+  if (trimmed === CHECKOUT_BTN.CONFIRM)    { await handleCheckoutConfirm(ctx); return; }
+  if (trimmed === CHECKOUT_BTN.CANCEL)     { await handleCheckoutCancel(ctx);  return; }
+  if (trimmed === CHECKOUT_BTN.EDIT_ADDR)  { await handleCheckoutEdit(ctx, CHECKOUT_STEP.ADDRESS1); return; }
+  if (listReplyId === 'checkout_edit_name')  { await handleCheckoutEdit(ctx, CHECKOUT_STEP.NAME);     return; }
+  if (listReplyId === 'checkout_edit_city')  { await handleCheckoutEdit(ctx, CHECKOUT_STEP.CITY);     return; }
+  if (listReplyId === 'checkout_edit_state') { await handleCheckoutEdit(ctx, CHECKOUT_STEP.STATE);    return; }
+  if (listReplyId === 'checkout_edit_pin')   { await handleCheckoutEdit(ctx, CHECKOUT_STEP.PIN);      return; }
 
   // ── Product more-options list rows ──
   if (listReplyId === PRODUCT_LIST_ROW.STYLING_HELP) {
@@ -1019,11 +1078,298 @@ async function handleBrowseMore(ctx) {
 }
 
 async function handleCheckout(ctx) {
-  // Deferred to C.6.
-  const { from, waToken, phoneNumberId } = ctx;
-  await sendMessage(from,
-    'Checkout is coming soon. Once Vaani is approved on the Shopify App Store, you\'ll get a secure payment link here.',
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const items = cart.rajathee?.items || [];
+
+  if (!items.length) {
+    await sendMessage(from, 'Your cart is empty. Shall we find you a saree first?', waToken, phoneNumberId);
+    await sendWelcome(ctx);
+    return;
+  }
+
+  // Begin name collection.
+  await sendMessage(from, CHECKOUT_PROMPT[CHECKOUT_STEP.NAME], waToken, phoneNumberId);
+
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: '[rajathee checkout_started]' },
+  ], {
+    ...cart,
+    rajathee: {
+      ...(cart.rajathee || {}),
+      checkout: {
+        step: CHECKOUT_STEP.NAME,
+        name: null, address1: null, city: null, state: null, pin: null,
+        phone: from,
+        editingField: null,
+        orderId: null,
+      },
+    },
+  });
+}
+
+// ─── Validation ──────────────────────────────────────────────────────────
+
+function validateCheckoutField(field, raw) {
+  const v = (raw || '').trim();
+  if (field === CHECKOUT_STEP.NAME) {
+    if (v.length < 2) return { valid: false, error: 'Could you share your full name? Even just first and last is fine.' };
+    if (/\d/.test(v))  return { valid: false, error: 'Names usually don\'t have numbers — could you share again?' };
+    return { valid: true, value: v };
+  }
+  if (field === CHECKOUT_STEP.ADDRESS1) {
+    if (v.length < 10) return { valid: false, error: 'Could you share the full address? House/flat number and street.' };
+    return { valid: true, value: v };
+  }
+  if (field === CHECKOUT_STEP.CITY) {
+    if (v.length < 2) return { valid: false, error: 'Which city is this for?' };
+    if (/\d/.test(v)) return { valid: false, error: 'City names usually don\'t have numbers — could you share again?' };
+    return { valid: true, value: v };
+  }
+  if (field === CHECKOUT_STEP.STATE) {
+    if (v.length < 2) return { valid: false, error: 'Could you share the state?' };
+    return { valid: true, value: v };
+  }
+  if (field === CHECKOUT_STEP.PIN) {
+    if (!/^\d{6}$/.test(v)) return { valid: false, error: 'PIN should be exactly 6 digits.' };
+    return { valid: true, value: v };
+  }
+  return { valid: false, error: 'Could you share that again?' };
+}
+
+// ─── Step machine — handles free-text inputs during address collection ──
+
+async function handleCheckoutMessage(ctx) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const r = cart.rajathee || {};
+  const co = r.checkout || {};
+  const editingField = co.editingField;
+  const currentStep = editingField || co.step;
+
+  const result = validateCheckoutField(currentStep, text);
+  if (!result.valid) {
+    await sendMessage(from, result.error, waToken, phoneNumberId);
+    return;
+  }
+
+  // Save the field.
+  const updatedCheckout = { ...co, [currentStep]: result.value };
+
+  if (editingField) {
+    // After editing, jump straight back to review.
+    updatedCheckout.editingField = null;
+    updatedCheckout.step = CHECKOUT_STEP.REVIEW;
+    await upsertConversation(tenant.id, from, [
+      ...history,
+      { role: 'user', content: text },
+      { role: 'assistant', content: '[rajathee checkout_edited=' + currentStep + ']' },
+    ], {
+      ...cart,
+      rajathee: { ...r, checkout: updatedCheckout },
+    });
+    await sendCheckoutReview({ ...ctx, cart: { ...cart, rajathee: { ...r, checkout: updatedCheckout } } });
+    return;
+  }
+
+  // Advance to next step.
+  const stepOrder = [CHECKOUT_STEP.NAME, CHECKOUT_STEP.ADDRESS1, CHECKOUT_STEP.CITY, CHECKOUT_STEP.STATE, CHECKOUT_STEP.PIN];
+  const idx = stepOrder.indexOf(currentStep);
+  const nextStep = idx >= 0 && idx < stepOrder.length - 1 ? stepOrder[idx + 1] : CHECKOUT_STEP.REVIEW;
+  updatedCheckout.step = nextStep;
+
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: '[rajathee checkout_step=' + currentStep + '→' + nextStep + ']' },
+  ], {
+    ...cart,
+    rajathee: { ...r, checkout: updatedCheckout },
+  });
+
+  if (nextStep === CHECKOUT_STEP.REVIEW) {
+    await sendCheckoutReview({ ...ctx, cart: { ...cart, rajathee: { ...r, checkout: updatedCheckout } } });
+  } else {
+    await sendMessage(from, CHECKOUT_PROMPT[nextStep], waToken, phoneNumberId);
+  }
+}
+
+// ─── Review screen ───────────────────────────────────────────────────────
+
+function calcShipping(subtotal) {
+  return subtotal >= SHIPPING_FREE_THRESHOLD ? 0 : SHIPPING_FEE;
+}
+
+function formatOrderSummary(items, checkout) {
+  const subtotal = items.reduce((s, it) => s + (it.price || 0), 0);
+  const shipping = calcShipping(subtotal);
+  const grand = subtotal + shipping;
+
+  let out = '*Order summary*\n\n';
+  out += formatCartSummary(items) + '\n';
+  out += 'Shipping: ' + (shipping === 0 ? 'Free' : formatPrice(shipping)) + '\n';
+  out += '*Grand total: ' + formatPrice(grand) + '*\n\n';
+  out += '*Delivery to*\n';
+  out += checkout.name + '\n';
+  out += checkout.address1 + '\n';
+  out += checkout.city + ', ' + checkout.state + ' — ' + checkout.pin + '\n';
+  out += 'Phone: +' + checkout.phone;
+  return out;
+}
+
+async function sendCheckoutReview(ctx) {
+  const { tenant, from, phoneNumberId, waToken, cart } = ctx;
+  const items = cart.rajathee?.items || [];
+  const co = cart.rajathee?.checkout || {};
+
+  const summary = formatOrderSummary(items, co);
+  await sendMessage(from, summary, waToken, phoneNumberId);
+
+  // Primary action buttons (3 max).
+  await sendButtons(from, 'Ready to place the order?',
+    [CHECKOUT_BTN.CONFIRM, CHECKOUT_BTN.EDIT_ADDR, CHECKOUT_BTN.CANCEL],
     waToken, phoneNumberId);
+
+  // Secondary edit options as a list.
+  await sendList(from, 'Need to change something?', [{
+    title: 'Edit details',
+    rows: [
+      { id: 'checkout_edit_name',  title: CHECKOUT_BTN.EDIT_NAME,  description: co.name || '—' },
+      { id: 'checkout_edit_city',  title: CHECKOUT_BTN.EDIT_CITY,  description: co.city || '—' },
+      { id: 'checkout_edit_state', title: CHECKOUT_BTN.EDIT_STATE, description: co.state || '—' },
+      { id: 'checkout_edit_pin',   title: CHECKOUT_BTN.EDIT_PIN,   description: co.pin || '—' },
+    ],
+  }], waToken, phoneNumberId);
+}
+
+// ─── Edit + confirm + cancel ─────────────────────────────────────────────
+
+async function handleCheckoutEdit(ctx, field) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const r = cart.rajathee || {};
+  const updatedCheckout = { ...(r.checkout || {}), editingField: field };
+
+  await sendMessage(from, CHECKOUT_PROMPT[field], waToken, phoneNumberId);
+
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: '[rajathee checkout_editing=' + field + ']' },
+  ], {
+    ...cart,
+    rajathee: { ...r, checkout: updatedCheckout },
+  });
+}
+
+function generateOrderId(phone) {
+  const last6 = (phone || '').slice(-6).padStart(6, '0');
+  const rand = Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3).padEnd(3, 'X');
+  return 'RAJ-' + last6 + '-' + rand;
+}
+
+async function sendOwnerAlert(tenant, items, checkout, orderId) {
+  const subtotal = items.reduce((s, it) => s + (it.price || 0), 0);
+  const shipping = calcShipping(subtotal);
+  const grand = subtotal + shipping;
+
+  let alert = '🛒 *NEW RAJATHEE ORDER*\n\n';
+  alert += '*Order ID*: ' + orderId + '\n';
+  alert += '*Customer*: ' + checkout.name + '\n';
+  alert += '*Phone*: +' + checkout.phone + '\n\n';
+  alert += '*Items*\n';
+  for (const it of items) {
+    if (it.kind === 'saree') {
+      const c = it.colour && it.colour.toLowerCase() !== 'default title' ? ' (' + it.colour + ')' : '';
+      alert += '• ' + it.productTitle + c + ' — ' + formatPrice(it.price) + '\n';
+    } else if (it.kind === 'fall_pico') {
+      alert += '• Fall & Pico — ' + formatPrice(it.price) + '\n';
+    } else if (it.kind === 'ready_to_wear') {
+      alert += '• Ready to Wear — ' + formatPrice(it.price) + '\n';
+    }
+  }
+  alert += '\nSubtotal: ' + formatPrice(subtotal) + '\n';
+  alert += 'Shipping: ' + (shipping === 0 ? 'Free' : formatPrice(shipping)) + '\n';
+  alert += '*Grand total: ' + formatPrice(grand) + '*\n\n';
+  alert += '*Delivery*\n' + checkout.address1 + '\n';
+  alert += checkout.city + ', ' + checkout.state + ' — ' + checkout.pin;
+
+  if (OWNER_ALERT_PHONE) {
+    try {
+      await sendMessage(OWNER_ALERT_PHONE, alert, tenant.whatsapp_token, tenant.whatsapp_number);
+      console.log('[rajathee] owner alert sent to ' + OWNER_ALERT_PHONE);
+    } catch (e) {
+      console.error('[rajathee] owner alert failed:', e.message);
+    }
+  } else {
+    console.log('[rajathee] OWNER_ALERT_PHONE not set — would have sent:\n' + alert);
+  }
+}
+
+async function handleCheckoutConfirm(ctx) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const r = cart.rajathee || {};
+  const co = r.checkout || {};
+  const items = r.items || [];
+
+  // Final guard.
+  if (!co.name || !co.address1 || !co.city || !co.state || !co.pin) {
+    await sendMessage(from, 'A few details are missing — let me walk through them again.', waToken, phoneNumberId);
+    return;
+  }
+
+  const orderId = generateOrderId(co.phone || from);
+  const subtotal = items.reduce((s, it) => s + (it.price || 0), 0);
+  const shipping = calcShipping(subtotal);
+  const grand = subtotal + shipping;
+
+  const updatedCheckout = { ...co, step: CHECKOUT_STEP.CONFIRMED, orderId };
+
+  // Customer-facing confirmation.
+  await sendMessage(from,
+    '✨ *Order received!*\n\n' +
+    '*Order ID*: ' + orderId + '\n' +
+    '*Total*: ' + formatPrice(grand) + '\n\n' +
+    'Our team will reach out shortly to confirm payment and dispatch.\n' +
+    'Estimated delivery: 5–7 working days.\n\n' +
+    'Thank you for choosing Rajathee 🌸',
+    waToken, phoneNumberId);
+
+  // Owner alert (or log if OWNER_ALERT_PHONE not set).
+  await sendOwnerAlert(tenant, items, co, orderId);
+
+  // Clear cart for next browse session, but keep the confirmed order in history.
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: '[rajathee order_confirmed=' + orderId + ']' },
+  ], {
+    ...cart,
+    rajathee: {
+      ...r,
+      items: [],
+      checkout: updatedCheckout,
+      lastOrderId: orderId,
+    },
+  });
+}
+
+async function handleCheckoutCancel(ctx) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const r = cart.rajathee || {};
+
+  await sendMessage(from, 'Checkout cancelled — your cart is still here.', waToken, phoneNumberId);
+  await sendButtons(from, 'What next?',
+    [CART_BTN.BROWSE_MORE, CART_BTN.VIEW_CART, CART_BTN.CHECKOUT],
+    waToken, phoneNumberId);
+
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: '[rajathee checkout_cancelled]' },
+  ], {
+    ...cart,
+    rajathee: { ...r, checkout: null },
+  });
 }
 
 function formatCartSummary(items) {
@@ -1083,6 +1429,9 @@ module.exports = {
   COLOUR_ROW, COLOUR_LABEL, COLOUR_KEYWORDS, COLOUR_VOICE, COLOUR_BTN,
   PRODUCT_BTN, PRODUCT_LIST_ROW,
   ADDON_VARIANT, ADDON_PRICE, ADDON_ROW, CART_BTN,
-  formatCartSummary,
+  CHECKOUT_STEP, CHECKOUT_BTN, CHECKOUT_PROMPT,
+  SHIPPING_FREE_THRESHOLD, SHIPPING_FEE,
+  formatCartSummary, formatOrderSummary, calcShipping,
+  validateCheckoutField, generateOrderId,
   variantMatchesColour, filterProductsByColour,
 };

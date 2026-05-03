@@ -242,7 +242,7 @@ test('C.5 integration', async (t) => {
     assert.match(summary, /Ready to Wear/);
   });
 
-  await t.test('8. Tap Checkout → placeholder message (deferred to C.6)', async () => {
+  await t.test('8. Tap Checkout → starts address collection (C.6 active)', async () => {
     await resetAndNavigate();
     let conv = await safeConv(tenant.id, TEST_PHONE);
     await rajathee.handle(makeCtx(tenant, buttonReply('atc', 'Add to cart'), conv.messages, conv.cart));
@@ -254,7 +254,11 @@ test('C.5 integration', async (t) => {
     await rajathee.handle(makeCtx(tenant, buttonReply('checkout', 'Checkout'), conv.messages, conv.cart));
 
     const texts = sent.filter(s => s.kind === 'text');
-    assert.match(texts[0].text, /coming soon|payment link/i);
+    assert.match(texts[0].text, /full name|details/i, 'checkout flow asks for name');
+
+    // C.6: cart should now have a checkout state machine started
+    const conv2 = await safeConv(tenant.id, TEST_PHONE);
+    assert.equal(conv2.cart.rajathee?.checkout?.step, 'name', 'checkout step set to name');
   });
 
   await pool.query('DELETE FROM conversations WHERE tenant_id = $1 AND customer_phone = $2', [tenant.id, TEST_PHONE]);
