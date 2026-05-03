@@ -11,6 +11,7 @@ const { refreshAllCategories } = require('../scheduler');
 
 const { pool } = require('../db');
 const { trackConversation } = require('../usage');
+const { isFounderCommand, handleFounderCommand } = require('../founder');
 const rajatheeHandler = require('../handlers/rajathee');
 
 router.get('/', (req, res) => {
@@ -146,6 +147,14 @@ router.post('/', async (req, res) => {
     }
 
     console.log(`📩 [${phoneNumberId}] Message from ${from}: ${text}`);
+
+    // ─── PHASE 3: founder commands intercept ─────────────────────────────
+    // If sender is the Leogo founder AND the message looks like an admin
+    // command, hand off to founder.js and skip the customer flow entirely.
+    if (isFounderCommand(from, text)) {
+      await handleFounderCommand({ from, text, phoneNumberId, waToken, sendMessage });
+      return;
+    }
 
     // Enforce free tier message cap (70/month)
     if (tenant.tier === 'free' || !tenant.tier) {
