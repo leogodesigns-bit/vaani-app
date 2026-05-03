@@ -243,7 +243,7 @@ test('C.6 integration', async (t) => {
     await rajathee.handle(makeCtx(tenant, buttonReply('confirm', 'Confirm order'), conv.messages, conv.cart));
 
     const texts = sent.filter(s => s.kind === 'text');
-    const orderConfirm = texts.find(t => /Order received/i.test(t.text));
+    const orderConfirm = texts.find(t => /Order placed/i.test(t.text));
     assert.ok(orderConfirm, 'order received message sent');
     assert.match(orderConfirm.text, /RAJ-\d+-/, 'order ID format');
 

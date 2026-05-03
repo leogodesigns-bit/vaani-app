@@ -21,7 +21,7 @@
 //   C.11 — Section 13 Edge cases
 
 const { sendMessage, sendButtons, sendList, sendImage } = require('../whatsapp');
-const { getConversation, upsertConversation } = require('../db');
+const { getConversation, upsertConversation, saveOrder, getOrder, markOrderPaid } = require('../db');
 const { getCollectionProducts, getProductByHandle, formatPrice, stripHtml } = require('../shopify');
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────
@@ -231,6 +231,12 @@ const CHECKOUT_BTN = {
   CANCEL:     'Cancel checkout',
 };
 
+// ─── PDF Section 9 — Post-purchase ────────────────────────────────────────
+const POSTPURCHASE_BTN = {
+  TRACK:       'Track order',
+  BROWSE_MORE: 'Browse more',
+};
+
 const CHECKOUT_PROMPT = {
   [CHECKOUT_STEP.NAME]:     'Lovely. To get this drape to you, I\'ll need a few details.\n\nWhat\'s your full name?',
   [CHECKOUT_STEP.ADDRESS1]: 'Got it. House/flat number and street?',
@@ -264,6 +270,17 @@ async function handle(ctx) {
   }
 
   console.log(`[rajathee] ${tenant.shop_domain} — from ${from}: ${text}`);
+
+  // ── Owner confirmation command (PDF Section 9) ──
+  // Format: "confirmed RAJ-XXXXXX-XXX" sent from OWNER_ALERT_PHONE.
+  // Marks the order as paid and sends thank-you to the customer.
+  if (OWNER_ALERT_PHONE && from === OWNER_ALERT_PHONE) {
+    const m = (text || '').trim().match(/^confirmed\s+(RAJ-\d{6}-[A-Z0-9]{3})\s*$/i);
+    if (m) {
+      await handleOwnerConfirmCommand(ctx, m[1].toUpperCase());
+      return;
+    }
+  }
 
   const listReplyId   = message.interactive?.list_reply?.id || null;
   const buttonReplyId = message.interactive?.button_reply?.id || null;
@@ -329,6 +346,10 @@ async function handle(ctx) {
   if (listReplyId === 'checkout_edit_city')  { await handleCheckoutEdit(ctx, CHECKOUT_STEP.CITY);     return; }
   if (listReplyId === 'checkout_edit_state') { await handleCheckoutEdit(ctx, CHECKOUT_STEP.STATE);    return; }
   if (listReplyId === 'checkout_edit_pin')   { await handleCheckoutEdit(ctx, CHECKOUT_STEP.PIN);      return; }
+
+  // ── Post-purchase buttons (PDF Section 9) ──
+  if (trimmed === POSTPURCHASE_BTN.TRACK)       { await handleTrackOrder(ctx); return; }
+  if (trimmed === POSTPURCHASE_BTN.BROWSE_MORE) { await handlePostBrowse(ctx); return; }
 
   // ── Product more-options list rows ──
   if (listReplyId === PRODUCT_LIST_ROW.STYLING_HELP) {
@@ -1311,7 +1332,6 @@ async function handleCheckoutConfirm(ctx) {
   const co = r.checkout || {};
   const items = r.items || [];
 
-  // Final guard.
   if (!co.name || !co.address1 || !co.city || !co.state || !co.pin) {
     await sendMessage(from, 'A few details are missing — let me walk through them again.', waToken, phoneNumberId);
     return;
@@ -1322,26 +1342,35 @@ async function handleCheckoutConfirm(ctx) {
   const shipping = calcShipping(subtotal);
   const grand = subtotal + shipping;
 
+  // Persist order to orders table for owner-side lookup.
+  try {
+    await saveOrder(orderId, tenant.id, from, items, co, subtotal, shipping, grand);
+  } catch (e) {
+    console.error('[rajathee] saveOrder failed:', e.message);
+  }
+
   const updatedCheckout = { ...co, step: CHECKOUT_STEP.CONFIRMED, orderId };
 
-  // Customer-facing confirmation.
+  // Stage 1: order placed (NOT thank-you yet; that comes after payment confirmed).
   await sendMessage(from,
-    '✨ *Order received!*\n\n' +
+    '✅ *Order placed*\n\n' +
     '*Order ID*: ' + orderId + '\n' +
     '*Total*: ' + formatPrice(grand) + '\n\n' +
-    'Our team will reach out shortly to confirm payment and dispatch.\n' +
-    'Estimated delivery: 5–7 working days.\n\n' +
-    'Thank you for choosing Rajathee 🌸',
+    'Our team will reach out shortly to confirm payment.\n' +
+    'Estimated delivery once payment confirmed: 5–7 working days.',
     waToken, phoneNumberId);
 
-  // Owner alert (or log if OWNER_ALERT_PHONE not set).
+  await sendButtons(from, 'What next?',
+    [POSTPURCHASE_BTN.TRACK, POSTPURCHASE_BTN.BROWSE_MORE],
+    waToken, phoneNumberId);
+
+  // Owner alert.
   await sendOwnerAlert(tenant, items, co, orderId);
 
-  // Clear cart for next browse session, but keep the confirmed order in history.
   await upsertConversation(tenant.id, from, [
     ...history,
     { role: 'user', content: text },
-    { role: 'assistant', content: '[rajathee order_confirmed=' + orderId + ']' },
+    { role: 'assistant', content: '[rajathee order_placed=' + orderId + ']' },
   ], {
     ...cart,
     rajathee: {
@@ -1351,6 +1380,72 @@ async function handleCheckoutConfirm(ctx) {
       lastOrderId: orderId,
     },
   });
+}
+
+// ─── Post-purchase handlers ──────────────────────────────────────────────
+
+async function handleTrackOrder(ctx) {
+  const { from, waToken, phoneNumberId, cart } = ctx;
+  const orderId = cart.rajathee?.lastOrderId || cart.rajathee?.checkout?.orderId;
+
+  let msg = '*Tracking your order*\n\n';
+  if (orderId) {
+    const order = await getOrder(orderId).catch(() => null);
+    msg += 'Order ID: ' + orderId + '\n';
+    if (order) {
+      const status = order.status === 'paid' ? '✅ Payment confirmed' : '⏳ Awaiting payment confirmation';
+      msg += 'Status: ' + status + '\n\n';
+    }
+  }
+  msg += 'Once your order ships, you\'ll receive tracking details from our team within 24-48 hours.\n\n';
+  msg += 'For anything urgent, reply here and our team will help.';
+
+  await sendMessage(from, msg, waToken, phoneNumberId);
+  await sendButtons(from, 'Anything else?',
+    [POSTPURCHASE_BTN.BROWSE_MORE],
+    waToken, phoneNumberId);
+}
+
+async function handlePostBrowse(ctx) {
+  await sendWelcome(ctx);
+}
+
+// ─── Owner confirmation command ──────────────────────────────────────────
+// Owner sends "confirmed RAJ-XXXXXX-XXX" from OWNER_ALERT_PHONE → we mark
+// the order paid AND send the customer the thank-you + tracking info.
+
+async function handleOwnerConfirmCommand(ctx, orderId) {
+  const { tenant, from, phoneNumberId, waToken } = ctx;
+
+  const order = await getOrder(orderId).catch(() => null);
+  if (!order) {
+    await sendMessage(from, 'No order found with ID ' + orderId, waToken, phoneNumberId);
+    return;
+  }
+  if (order.status === 'paid') {
+    await sendMessage(from, 'Order ' + orderId + ' was already marked paid.', waToken, phoneNumberId);
+    return;
+  }
+
+  const updated = await markOrderPaid(orderId).catch(() => null);
+  if (!updated) {
+    await sendMessage(from, 'Could not update order ' + orderId, waToken, phoneNumberId);
+    return;
+  }
+
+  // Acknowledge to owner.
+  await sendMessage(from,
+    '✅ Order ' + orderId + ' marked as paid.\nCustomer is being notified now.',
+    waToken, phoneNumberId);
+
+  // Send thank-you to customer.
+  const customerPhone = order.customer_phone;
+  await sendMessage(customerPhone,
+    '🌸 *Payment confirmed — thank you for choosing Rajathee!*\n\n' +
+    'Your order ' + orderId + ' is now in our queue.\n' +
+    'You\'ll receive tracking details once it ships.\n\n' +
+    'For anything else, just message us here.',
+    waToken, phoneNumberId);
 }
 
 async function handleCheckoutCancel(ctx) {
@@ -1430,6 +1525,7 @@ module.exports = {
   PRODUCT_BTN, PRODUCT_LIST_ROW,
   ADDON_VARIANT, ADDON_PRICE, ADDON_ROW, CART_BTN,
   CHECKOUT_STEP, CHECKOUT_BTN, CHECKOUT_PROMPT,
+  POSTPURCHASE_BTN,
   SHIPPING_FREE_THRESHOLD, SHIPPING_FEE,
   formatCartSummary, formatOrderSummary, calcShipping,
   validateCheckoutField, generateOrderId,

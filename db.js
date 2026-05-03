@@ -2,7 +2,16 @@ const { Pool } = require('pg');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes('railway') ? { rejectUnauthorized: false } : false
+  ssl: (process.env.DATABASE_URL || '').match(/railway|rlwy\.net/) ? { rejectUnauthorized: false } : false,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 5000,
+  idleTimeoutMillis: 30000,
+  max: 5,
+});
+
+// Auto-reconnect on transient SSL errors.
+pool.on('error', (err) => {
+  console.error('[pool] idle client error (will retry):', err.code || err.message);
 });
 
 async function initDB() {
@@ -180,4 +189,29 @@ async function upsertConversation(tenantId, customerPhone, messages, cart) {
   return res.rows[0];
 }
 
-module.exports = { pool, initDB, getTenant, createTenant, updateTenant, getConversation, upsertConversation };
+// ─── Orders (PDF Section 9 — post-purchase) ──────────────────────────────
+
+async function saveOrder(orderId, tenantId, customerPhone, items, checkout, subtotal, shipping, grandTotal) {
+  await pool.query(
+    `INSERT INTO orders (order_id, tenant_id, customer_phone, items, checkout, subtotal, shipping, grand_total, status)
+     VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6, $7, $8, 'awaiting_payment')`,
+    [orderId, tenantId, customerPhone, JSON.stringify(items), JSON.stringify(checkout), subtotal, shipping, grandTotal]
+  );
+}
+
+async function getOrder(orderId) {
+  const r = await pool.query('SELECT * FROM orders WHERE order_id = $1', [orderId]);
+  return r.rows[0] || null;
+}
+
+async function markOrderPaid(orderId) {
+  const r = await pool.query(
+    `UPDATE orders SET status = 'paid', confirmed_at = NOW() WHERE order_id = $1 AND status = 'awaiting_payment' RETURNING *`,
+    [orderId]
+  );
+  return r.rows[0] || null;
+}
+
+module.exports = { pool, initDB, getTenant, createTenant, updateTenant, getConversation, upsertConversation ,
+  saveOrder, getOrder, markOrderPaid,
+};
