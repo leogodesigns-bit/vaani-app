@@ -133,11 +133,11 @@
 
   .pricing-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 1.5px;
-    max-width: 1200px;
+    max-width: 1300px;
     margin: 4rem auto;
-    padding: 0 2rem;
+    padding: 0 1.5rem;
     background: var(--border);
     border: 1.5px solid var(--border);
     border-radius: 16px;
@@ -148,7 +148,7 @@
 
   .plan {
     background: var(--cream);
-    padding: 2.5rem 1.8rem;
+    padding: 2.2rem 1.4rem;
     position: relative;
     transition: background 0.2s ease;
   }
@@ -168,12 +168,12 @@
 
   .plan-badge {
     display: inline-block;
-    font-size: 0.62rem;
+    font-size: 0.6rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    padding: 0.25rem 0.7rem;
+    padding: 0.22rem 0.65rem;
     border-radius: 100px;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.3rem;
     font-weight: 500;
   }
 
@@ -189,17 +189,18 @@
 
   .plan-name {
     font-family: 'Playfair Display', serif;
-    font-size: 1.5rem;
+    font-size: 1.35rem;
     font-weight: 700;
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.3rem;
     letter-spacing: -0.01em;
   }
 
   .plan-sub {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     color: var(--muted);
-    margin-bottom: 2rem;
+    margin-bottom: 1.6rem;
     line-height: 1.5;
+    min-height: 2.6rem;
   }
 
   .plan.featured .plan-sub {
@@ -207,19 +208,19 @@
   }
 
   .plan-price {
-    margin-bottom: 2rem;
+    margin-bottom: 1.6rem;
   }
 
   .price-amount {
     font-family: 'Playfair Display', serif;
-    font-size: 2.2rem;
+    font-size: 1.95rem;
     font-weight: 700;
     letter-spacing: -0.03em;
     line-height: 1;
   }
 
   .price-period {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     color: var(--muted);
     margin-top: 0.3rem;
   }
@@ -230,9 +231,9 @@
 
   .price-setup {
     display: inline-block;
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     margin-top: 0.4rem;
-    padding: 0.2rem 0.6rem;
+    padding: 0.2rem 0.55rem;
     border-radius: 4px;
     font-weight: 500;
   }
@@ -250,7 +251,7 @@
   .divider {
     height: 1px;
     background: var(--border);
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.3rem;
   }
 
   .plan.featured .divider {
@@ -261,14 +262,14 @@
     list-style: none;
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.65rem;
   }
 
   .features li {
-    font-size: 0.82rem;
+    font-size: 0.76rem;
     display: flex;
     align-items: flex-start;
-    gap: 0.6rem;
+    gap: 0.5rem;
     line-height: 1.4;
     color: var(--ink);
   }
@@ -278,15 +279,15 @@
   }
 
   .features li .check {
-    width: 14px;
-    height: 14px;
+    width: 13px;
+    height: 13px;
     border-radius: 50%;
     background: var(--green-light);
     color: var(--green);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.55rem;
+    font-size: 0.5rem;
     flex-shrink: 0;
     margin-top: 1px;
     font-weight: 700;
@@ -305,11 +306,11 @@
     color: #7A7068;
   }
 
-  /* Add-on strip: how chats are counted + top-ups + cancellation + setup */
+  /* Add-on strip: how chats are counted + top-ups + setup + social proof */
   .addon-strip {
-    max-width: 1200px;
+    max-width: 1300px;
     margin: 0 auto 4rem;
-    padding: 0 2rem;
+    padding: 0 1.5rem;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
@@ -359,9 +360,9 @@
 
   /* Exclusive section */
   .exclusive-section {
-    max-width: 1200px;
+    max-width: 1300px;
     margin: 0 auto 5rem;
-    padding: 0 2rem;
+    padding: 0 1.5rem;
     opacity: 0;
     animation: fadeUp 0.7s ease forwards 0.6s;
   }
@@ -492,18 +493,22 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
-  @media (max-width: 1100px) {
-    .pricing-grid { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 1200px) {
+    .pricing-grid { grid-template-columns: repeat(3, 1fr); }
   }
 
   @media (max-width: 900px) {
     header { padding: 1.5rem 2rem; }
     .hero { padding: 4rem 2rem 2rem; }
-    .pricing-grid { grid-template-columns: 1fr; padding: 0 1rem; }
+    .pricing-grid { grid-template-columns: repeat(2, 1fr); padding: 0 1rem; }
     .addon-strip { grid-template-columns: 1fr; padding: 0 1rem; }
     .exclusive-card { flex-direction: column; padding: 2rem; }
     .exclusive-right { text-align: left; width: 100%; }
     .exclusive-price { align-items: flex-start; }
+  }
+
+  @media (max-width: 580px) {
+    .pricing-grid { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -528,11 +533,11 @@
 
 <div class="pricing-grid">
 
-  <!-- Free Trial -->
+  <!-- Demo -->
   <div class="plan">
     <div class="plan-badge">Free Demo</div>
-    <div class="plan-name">Try Vaani</div>
-    <div class="plan-sub">Test Vaani with your own products before you commit</div>
+    <div class="plan-name">Demo</div>
+    <div class="plan-sub">Test Vaani with your own products</div>
     <div class="plan-price">
       <div class="price-amount">₹0</div>
       <div class="price-period">14-day demo</div>
@@ -540,85 +545,107 @@
     </div>
     <div class="divider"></div>
     <ul class="features">
-      <li><span class="check">✓</span> Connect your Shopify in 2 mins</li>
-      <li><span class="check">✓</span> Vaani auto-syncs your products</li>
-      <li><span class="check">✓</span> 50 chats on our shared demo number</li>
-      <li><span class="check">✓</span> Test the full conversation flow</li>
+      <li><span class="check">✓</span> 50 chats over 14 days</li>
+      <li><span class="check">✓</span> Connect Shopify in 2 mins</li>
+      <li><span class="check">✓</span> Auto-syncs your products</li>
+      <li><span class="check">✓</span> Shared demo number</li>
       <li><span class="check">✓</span> English only · You only</li>
       <li><span class="check" style="background:#F5EEE8;color:#C4A882;">—</span> <span class="dim">No customer-facing WhatsApp</span></li>
-      <li><span class="check" style="background:#F5EEE8;color:#C4A882;">—</span> <span class="dim">No real payment links</span></li>
+      <li><span class="check" style="background:#F5EEE8;color:#C4A882;">—</span> <span class="dim">No real payments</span></li>
     </ul>
   </div>
 
-  <!-- Lite -->
+  <!-- Basic -->
   <div class="plan">
     <div class="plan-badge">Starter</div>
-    <div class="plan-name">Lite</div>
-    <div class="plan-sub">For small brands testing WhatsApp sales seriously</div>
+    <div class="plan-name">Basic</div>
+    <div class="plan-sub">For stores just getting started with WhatsApp sales</div>
     <div class="plan-price">
-      <div class="price-amount">₹1,299<span style="font-size:1rem;font-weight:400">/mo</span></div>
+      <div class="price-amount">₹999<span style="font-size:0.85rem;font-weight:400">/mo</span></div>
       <div class="price-period">billed monthly</div>
-      <div class="price-setup">+ ₹3,000 one-time setup</div>
+      <div class="price-setup">+ ₹2,000 setup</div>
     </div>
     <div class="divider"></div>
     <ul class="features">
-      <li><span class="check">✓</span> 500 chats / month</li>
-      <li><span class="check">✓</span> Full product + shortlist flow</li>
-      <li><span class="check">✓</span> Payment links + draft orders</li>
+      <li><span class="check">✓</span> 300 chats / month</li>
+      <li><span class="check">✓</span> Product discovery + shortlist</li>
+      <li><span class="check">✓</span> Real payment links</li>
+      <li><span class="check">✓</span> Draft orders via Shopify</li>
       <li><span class="check">✓</span> English + Hindi</li>
-      <li><span class="check">✓</span> Top up anytime — ₹500 / 250 chats</li>
+      <li><span class="check">✓</span> Top up — ₹500 / 250 chats</li>
       <li><span class="check" style="background:#F5EEE8;color:#C4A882;">—</span> <span class="dim">Standard bot voice</span></li>
-      <li><span class="check" style="background:#F5EEE8;color:#C4A882;">—</span> <span class="dim">No brand-owner alerts</span></li>
     </ul>
   </div>
 
-  <!-- Full Brand — Monthly — featured -->
+  <!-- Pro -->
+  <div class="plan">
+    <div class="plan-badge">Growth</div>
+    <div class="plan-name">Pro</div>
+    <div class="plan-sub">For brands who want a real branded sales assistant</div>
+    <div class="plan-price">
+      <div class="price-amount">₹1,799<span style="font-size:0.85rem;font-weight:400">/mo</span></div>
+      <div class="price-period">billed monthly</div>
+      <div class="price-setup">+ ₹3,500 setup</div>
+    </div>
+    <div class="divider"></div>
+    <ul class="features">
+      <li><span class="check">✓</span> 700 chats / month</li>
+      <li><span class="check">✓</span> Everything in Basic</li>
+      <li><span class="check">✓</span> Custom bot name &amp; voice</li>
+      <li><span class="check">✓</span> Brand personality tuning</li>
+      <li><span class="check">✓</span> English + Hindi</li>
+      <li><span class="check">✓</span> Top up — ₹500 / 250 chats</li>
+      <li><span class="check" style="background:#F5EEE8;color:#C4A882;">—</span> <span class="dim">No regional languages</span></li>
+    </ul>
+  </div>
+
+  <!-- Brand — featured -->
   <div class="plan featured">
     <div class="plan-badge">Most Popular</div>
-    <div class="plan-name">Full Brand</div>
-    <div class="plan-sub">The complete Vaani experience, in your brand's voice</div>
+    <div class="plan-name">Brand</div>
+    <div class="plan-sub">The complete Vaani experience, fully tailored</div>
     <div class="plan-price">
-      <div class="price-amount">₹2,499<span style="font-size:1rem;font-weight:400">/mo</span></div>
+      <div class="price-amount">₹2,499<span style="font-size:0.85rem;font-weight:400">/mo</span></div>
       <div class="price-period">billed monthly</div>
-      <div class="price-setup">+ ₹5,000 one-time setup</div>
+      <div class="price-setup">+ ₹5,000 setup</div>
     </div>
     <div class="divider"></div>
     <ul class="features">
       <li><span class="check">✓</span> 1,000 chats / month</li>
-      <li><span class="check">✓</span> Full product + shortlist flow</li>
-      <li><span class="check">✓</span> Payment links + draft orders</li>
+      <li><span class="check">✓</span> Everything in Pro</li>
       <li><span class="check">✓</span> Multilingual (EN / HI / Regional)</li>
-      <li><span class="check">✓</span> Custom bot name &amp; voice</li>
       <li><span class="check">✓</span> Brand-owner WhatsApp alerts</li>
-      <li><span class="check">✓</span> Top up anytime — ₹500 / 250 chats</li>
+      <li><span class="check">✓</span> Priority support</li>
+      <li><span class="check">✓</span> Top up — ₹500 / 250 chats</li>
+      <li><span class="check">✓</span> Quarterly voice refresh</li>
     </ul>
   </div>
 
-  <!-- Full Brand — Annual -->
+  <!-- Annual -->
   <div class="plan">
     <div class="plan-badge">Best Value</div>
-    <div class="plan-name">Full Brand · Annual</div>
-    <div class="plan-sub">Same features, one month free</div>
+    <div class="plan-name">Brand · Annual</div>
+    <div class="plan-sub">Brand features, billed yearly — save 1 month</div>
     <div class="plan-price">
-      <div class="price-amount">₹27,489<span style="font-size:1rem;font-weight:400">/yr</span></div>
-      <div class="price-period">billed annually · pay for 11, get 12</div>
-      <div class="price-setup">+ ₹4,000 one-time setup</div>
+      <div class="price-amount">₹27,489<span style="font-size:0.85rem;font-weight:400">/yr</span></div>
+      <div class="price-period">pay for 11, get 12</div>
+      <div class="price-setup">+ ₹4,000 setup</div>
     </div>
     <div class="divider"></div>
     <ul class="features">
+      <li><span class="check">✓</span> Everything in Brand</li>
       <li><span class="check">✓</span> 1,000 chats / month</li>
-      <li><span class="check">✓</span> Everything in Full Brand monthly</li>
       <li><span class="check">✓</span> One month free (save ₹2,499)</li>
-      <li><span class="check">✓</span> Reduced setup fee (₹4,000 vs ₹5,000)</li>
+      <li><span class="check">✓</span> Reduced setup (₹4K vs ₹5K)</li>
       <li><span class="check">✓</span> Locked-in pricing for the year</li>
       <li><span class="check">✓</span> Priority onboarding</li>
     </ul>
-    <p style="font-size:0.7rem;color:var(--muted);margin-top:1.2rem;line-height:1.5;">Early exit: ₹2,000 fee, refunded as Leogo Designs service credit (6-mo expiry).</p>
+    <p style="font-size:0.65rem;color:var(--muted);margin-top:1.2rem;line-height:1.5;">Early exit: ₹2,000 fee, refunded as Leogo service credit (6mo expiry).</p>
   </div>
 
 </div>
 
-<!-- What counts as a chat? + Top-ups + Cancellation + Setup -->
+<!-- Add-on info strip -->
 <div class="addon-strip">
 
   <div class="addon-card">
@@ -647,7 +674,7 @@
   <div class="addon-card">
     <div class="addon-label">From demo to production</div>
     <h3>Setup unlocks your real WhatsApp.</h3>
-    <p>The demo runs on our shared number with you only. Setup fee covers <strong>your own Meta WhatsApp Business number</strong>, registration, brand voice tuning, and 2 rounds of flow refinement before customers go live. Goes from "try it" to "ship it."</p>
+    <p>The demo runs on our shared number with you only. Setup fee covers <strong>your own Meta WhatsApp Business number</strong>, registration, brand voice tuning, and 2 rounds of flow refinement before customers go live.</p>
   </div>
 
 </div>
@@ -706,7 +733,7 @@
         </div>
         <div style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.85rem; color: #C8E6D9;">
           <span style="width: 16px; height: 16px; border-radius: 50%; background: rgba(111, 207, 151, 0.15); color: #6FCF97; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; flex-shrink: 0; font-weight: 700;">✓</span>
-          <span><strong style="color: #E5DDD4;">All Full Brand features</strong> — multilingual, custom voice, owner alerts</span>
+          <span><strong style="color: #E5DDD4;">All Brand tier features</strong> — multilingual, custom voice, owner alerts</span>
         </div>
       </div>
     </div>
