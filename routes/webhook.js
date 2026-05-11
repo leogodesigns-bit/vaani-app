@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+router.use((req, res, next) => { console.log(`🔵 INCOMING ${req.method} ${req.url}`); next(); });
 // Pool now imported from ../db
 const { getConversation, upsertConversation } = require('../db');
 const { getAIResponse, detectLanguage } = require('../ai');
