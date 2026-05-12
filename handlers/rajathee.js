@@ -479,7 +479,7 @@ async function sendWelcome(ctx) {
   await upsertConversation(tenant.id, from, [
     ...history,
     { role: 'user', content: text },
-    { role: 'assistant', content: '[rajathee welcome shown]' },
+    { role: 'assistant', content: '[rajathee welcome shown: Browse by fabric, Browse by colour, Bestsellers, Akshay Tritiya, Styling help]' },
   ], cart);
 }
 

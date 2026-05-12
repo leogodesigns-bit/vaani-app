@@ -293,7 +293,7 @@ router.post('/', async (req, res) => {
         buttons.push('Back to categories');
         await sendButtons(from, 'See something you like? 💛', buttons, waToken, phoneNumberId);
         await upsertConversation(tenant.id, from,
-          [...history, { role: 'user', content: text }, { role: 'assistant', content: '[showed more products]' }],
+          [...history, { role: 'user', content: text }, { role: 'assistant', content: '[showed more products: ' + catProducts.slice(currentOffset, savedOffset).map(p => p.title).join(', ') + ']' }],
           { ...cart, product_offset: savedOffset }
         );
       }
@@ -361,7 +361,7 @@ router.post('/', async (req, res) => {
       const sections = [{ title: 'Pick one to add 💛', rows }];
       await sendList(from, 'Which one would you like to shortlist? 💛', sections, waToken, phoneNumberId);
       await upsertConversation(tenant.id, from,
-        [...history, { role: 'user', content: text }, { role: 'assistant', content: '[showed shortlist picker]' }],
+        [...history, { role: 'user', content: text }, { role: 'assistant', content: '[showed shortlist picker: ' + windowProducts.map(p => p.title).join(', ') + ']' }],
         { ...cart }
       );
       return;
@@ -422,7 +422,7 @@ router.post('/', async (req, res) => {
             waToken, phoneNumberId
           );
           await upsertConversation(tenant.id, from,
-            [...history, { role: 'user', content: text }, { role: 'assistant', content: '[payment link sent]' }],
+            [...history, { role: 'user', content: text }, { role: 'assistant', content: '[payment link sent: ' + cart.shortlist.length + ' item(s) — ' + cart.shortlist.map(i => i.title).join(', ') + ']' }],
             { last_draft_order: draft.id }
           );
           return;
@@ -492,7 +492,7 @@ router.post('/', async (req, res) => {
       }];
       await sendList(from, '✨ Here are all our collections:', sections, waToken, phoneNumberId);
       await upsertConversation(tenant.id, from,
-        [...history, { role: 'user', content: text }, { role: 'assistant', content: '[showed all categories]' }],
+        [...history, { role: 'user', content: text }, { role: 'assistant', content: '[showed all categories: ' + catNames.join(', ') + ']' }],
         { ...cart }
       );
       return;
@@ -548,7 +548,7 @@ router.post('/', async (req, res) => {
           // Save shuffled product IDs so See More uses same order this session
           const shuffledIds = shuffledProducts.map(p => p.id);
           await upsertConversation(tenant.id, from,
-            [...history, { role: 'user', content: text }, { role: 'assistant', content: '[showed catalogue]' }],
+            [...history, { role: 'user', content: text }, { role: 'assistant', content: '[showed ' + (finalCat || 'catalogue') + ': ' + shuffledProducts.slice(0, firstSent).map(p => p.title).join(', ') + ']' }],
             { ...cart, current_category: finalCat, product_offset: firstSent, session_product_ids: shuffledIds }
           );
 
@@ -560,7 +560,7 @@ router.post('/', async (req, res) => {
             : cleanCats.slice(0, 3);
           await sendButtons(from, `✨ Welcome to ${tenant.store_name || 'our store'}!\n\nWhat are you looking for today?`, topCats, waToken, phoneNumberId);
           await upsertConversation(tenant.id, from,
-            [...history, { role: 'user', content: text }, { role: 'assistant', content: '[showed catalogue]' }],
+            [...history, { role: 'user', content: text }, { role: 'assistant', content: '[showed welcome + categories: ' + topCats.join(', ') + ']' }],
             { ...cart }
           );
         }
@@ -599,7 +599,7 @@ router.post('/', async (req, res) => {
 
       const shuffledIdsFromList = shuffledFromList.map(p => p.id);
       await upsertConversation(tenant.id, from,
-        [...history, { role: 'user', content: text }, { role: 'assistant', content: '[showed category from list]' }],
+        [...history, { role: 'user', content: text }, { role: 'assistant', content: '[showed ' + (finalCat || 'category') + ': ' + shuffledFromList.slice(0, firstSentList).map(p => p.title).join(', ') + ']' }],
         { ...cart, current_category: finalCat, product_offset: firstSentList, session_product_ids: shuffledIdsFromList }
       );
       return;
