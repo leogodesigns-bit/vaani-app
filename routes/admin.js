@@ -79,6 +79,21 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#faf7f2;color:#1a14
 .msg.bot .bubble{display:inline-block;max-width:70%;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.45;word-wrap:break-word;overflow-wrap:break-word;text-align:left;white-space:pre-wrap;vertical-align:top}
 .msg .meta{font-size:10.5px;color:#8a7866;margin-top:3px;text-align:right}
 .empty{padding:60px 24px;text-align:center;color:#8a7866;font-size:14px}
+
+.toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px;padding:14px 20px;background:#fffdf8;border:1px solid #ebe3d3;border-radius:14px}
+.toolbar input{flex:1;min-width:200px;padding:9px 14px;border:1px solid #ebe3d3;border-radius:9px;font-family:inherit;font-size:13.5px;background:#faf7f2;color:#1a1410}
+.toolbar input:focus{outline:none;border-color:#b8904d;background:#fffdf8}
+.toolbar .chip{padding:6px 14px;border:1px solid #ebe3d3;border-radius:20px;font-size:12px;font-weight:500;color:#5a4a35;background:#faf7f2;cursor:pointer;transition:all .15s;user-select:none}
+.toolbar .chip:hover{background:#fef0d8;border-color:#d4c4a0}
+.toolbar .chip.active{background:#1a1410;color:#faf7f2;border-color:#1a1410}
+.tbl th.sortable{cursor:pointer;user-select:none}
+.tbl th.sortable:hover{color:#1a1410}
+.tbl th.sortable::after{content:' ↕';opacity:.4;font-size:10px}
+.tbl th.sortable.asc::after{content:' ↑';opacity:1;color:#b8904d}
+.tbl th.sortable.desc::after{content:' ↓';opacity:1;color:#b8904d}
+.tbl tr.hidden{display:none}
+.empty-search{padding:40px 24px;text-align:center;color:#8a7866;font-size:14px}
+
 @media(max-width:900px){.page{padding:16px}.stats{grid-template-columns:repeat(2,1fr)}.top-bar{padding:12px 16px}.tbl td,.tbl th{padding:10px 14px}}
 </style>
 `;
@@ -132,12 +147,18 @@ router.get('/', async (req, res) => {
     <div class="stat-card"><div class="stat-num">${t.messages}</div><div class="stat-label">Messages</div><div class="stat-meta">All time</div></div>
   </section>
 
+  <div class="toolbar">
+    <input id="tsearch" type="text" placeholder="Search by store name or domain..." oninput="filterTenants()">
+    <div class="chip" data-filter="all" onclick="setFilter(event,'all')" id="chip-all">All</div>
+    <div class="chip" data-filter="active" onclick="setFilter(event,'active')">Active 24h</div>
+    <div class="chip" data-filter="free" onclick="setFilter(event,'free')">Free tier</div>
+    <div class="chip" data-filter="paid" onclick="setFilter(event,'paid')">Paid tiers</div>
+  </div>
+
   <div class="card">
-    <div class="card-head"><div class="card-title">Client Tenants</div></div>
-    <table class="tbl">
-      <thead><tr>
-        <th>Store</th><th>Brand</th><th>Flow</th><th>Tier</th><th>Conversations</th><th>Active 24h</th><th>Last activity</th>
-      </tr></thead>
+    <div class="card-head"><div class="card-title">Client Tenants</div><span id="row-count" style="font-size:12px;color:#8a7866"></span></div>
+    <table class="tbl" id="tenant-table">
+      <thead><tr><th class="sortable" data-sort="0">Store</th><th class="sortable" data-sort="1">Brand</th><th>Flow</th><th class="sortable" data-sort="3">Tier</th><th class="sortable" data-sort="4">Conversations</th><th class="sortable" data-sort="5">Active 24h</th><th class="sortable" data-sort="6">Last activity</th></tr></thead>
       <tbody>
         ${tenants.map(t => `
           <tr class="clickable" onclick="location.href='/admin/tenant/${t.id}?key=${escapeHtml(req.query.key)}'">
@@ -154,6 +175,67 @@ router.get('/', async (req, res) => {
     </table>
   </div>
 </main>
+
+<script>
+  // Mark "All" chip active by default
+  document.getElementById('chip-all')?.classList.add('active');
+
+  function updateRowCount() {
+    const rows = document.querySelectorAll('#tenant-table tbody tr');
+    const visible = Array.from(rows).filter(r => !r.classList.contains('hidden')).length;
+    const total = rows.length;
+    document.getElementById('row-count').textContent = visible === total ? total + ' tenants' : visible + ' of ' + total;
+  }
+
+  function filterTenants() {
+    const q = (document.getElementById('tsearch')?.value || '').toLowerCase().trim();
+    const activeFilter = document.querySelector('.chip.active')?.dataset.filter || 'all';
+    document.querySelectorAll('#tenant-table tbody tr').forEach(r => {
+      const text = r.textContent.toLowerCase();
+      const matchSearch = !q || text.includes(q);
+      let matchFilter = true;
+      if (activeFilter === 'active') {
+        const active24 = parseInt(r.cells[5]?.textContent || '0', 10);
+        matchFilter = active24 > 0;
+      } else if (activeFilter === 'free') {
+        matchFilter = (r.cells[3]?.textContent || '').toLowerCase().includes('free');
+      } else if (activeFilter === 'paid') {
+        const tier = (r.cells[3]?.textContent || '').toLowerCase();
+        matchFilter = !tier.includes('free') && tier.trim() !== '';
+      }
+      r.classList.toggle('hidden', !(matchSearch && matchFilter));
+    });
+    updateRowCount();
+  }
+
+  function setFilter(e, filter) {
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    e.target.classList.add('active');
+    filterTenants();
+  }
+
+  document.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const idx = +th.dataset.sort;
+      const tbody = th.closest('table').querySelector('tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      const asc = !th.classList.contains('asc');
+      document.querySelectorAll('th.sortable').forEach(h => h.classList.remove('asc','desc'));
+      th.classList.add(asc ? 'asc' : 'desc');
+      rows.sort((a, b) => {
+        const av = a.cells[idx]?.textContent.trim() || '';
+        const bv = b.cells[idx]?.textContent.trim() || '';
+        const an = parseFloat(av), bn = parseFloat(bv);
+        if (!isNaN(an) && !isNaN(bn)) return asc ? an - bn : bn - an;
+        return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+      });
+      rows.forEach(r => tbody.appendChild(r));
+    });
+  });
+
+  updateRowCount();
+</script>
+
 </body></html>`);
   } catch (err) {
     console.error('Admin list err:', err);
