@@ -16,7 +16,6 @@ app.use('/gdpr', require('./routes/gdpr'));
 app.use('/webhooks', require('./routes/gdpr'));
 app.use('/dashboard', require('./routes/dashboard'));
 app.use('/admin', require('./routes/admin'));
-app.use('/admin', require('./routes/admin'));
 
 
 // ── BILLING ROUTES ──────────────────────────────────────────
