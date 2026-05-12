@@ -17,7 +17,6 @@ app.use('/webhooks', require('./routes/gdpr'));
 app.use('/dashboard', require('./routes/dashboard'));
 app.use('/admin', require('./routes/admin'));
 
-
 // ── BILLING ROUTES ──────────────────────────────────────────
 app.get('/terms', (req, res) => {
   res.sendFile(__dirname + '/public/terms.html');
