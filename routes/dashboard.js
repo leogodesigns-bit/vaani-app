@@ -1032,10 +1032,11 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#faf7f2;color:#1a14
 .card-head{padding:18px 24px;border-bottom:1px solid #f0e8d6;display:flex;justify-content:space-between;align-items:center}
 .card-title{font-size:15px;font-weight:600;color:#1a1410}
 .chat-thread{padding:24px;max-height:75vh;overflow-y:auto;background:linear-gradient(to bottom,#fffdf8,#fbf6ea)}
-.msg{margin-bottom:10px;display:flex}
-.msg.user{justify-content:flex-end}
-.msg.bot{justify-content:flex-start}
-.bubble{max-width:75%;min-width:60px;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.45;word-wrap:break-word;white-space:pre-wrap;width:fit-content}
+
+.bubble{display:inline-block;max-width:75%;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.45;word-wrap:break-word;overflow-wrap:break-word;white-space:normal;width:auto}
+.msg{display:block;margin-bottom:8px;clear:both}
+.msg.user{text-align:right}
+.msg.bot{text-align:left}
 .msg.user .bubble{background:#d4b372;color:#1a1410;border-bottom-right-radius:4px}
 .msg.bot .bubble{background:#fffdf8;color:#1a1410;border:1px solid #ebe3d3;border-bottom-left-radius:4px}
 .empty{padding:60px 24px;text-align:center;color:#8a7866;font-size:14px}
