@@ -172,9 +172,39 @@ async function tokenExchange(shop, sessionToken, clientId, clientSecret) {
 
 async function handleShopifyInstallLanding(req, res) {
   const { shop, hmac, session } = req.query;
+  console.log('🔵 Install landing: shop=' + shop + ' session_len=' + (session ? session.length : 0));
+  try {
+    const secret = process.env.SHOPIFY_API_SECRET_CUSTOM;
+    const clientId = process.env.SHOPIFY_API_KEY_CUSTOM;
+    if (!secret || !clientId) {
+      console.error('Missing SHOPIFY_API_KEY_CUSTOM or SHOPIFY_API_SECRET_CUSTOM env');
+      return res.status(500).send('Server misconfigured');
+    }
+    if (!verifyShopifyHmac(req.query, secret)) {
+      console.error('❌ HMAC verification failed');
+      return res.status(401).send('Invalid HMAC');
+    }
+    console.log('✅ HMAC verified');
 
+    const accessToken = await tokenExchange(shop, session, clientId, secret);
+    console.log('✅ Got offline token (prefix: ' + accessToken.slice(0, 10) + '...)');
 
+    const dbShop = SHOP_DOMAIN_MAP[shop] || shop;
+    const existing = await getTenant({ shopDomain: dbShop });
+    if (existing) {
+      await updateTenant(dbShop, { shopifyToken: accessToken });
+      console.log('✅ Updated tenant ' + dbShop + ' with new token');
+    } else {
+      await createTenant({ shopDomain: dbShop, shopifyToken: accessToken });
+      console.log('✅ Created tenant ' + dbShop + ' with token');
+    }
 
+    return res.send('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Vaani installed</title><style>body{font-family:-apple-system,sans-serif;text-align:center;padding:80px 20px;background:#f8f8ff;color:#222}h1{color:#10b981}p{color:#555;line-height:1.6;max-width:520px;margin:20px auto}.ok{font-size:64px}</style></head><body><div class="ok">✅</div><h1>Vaani Custom installed</h1><p>Connected to <strong>' + shop + '</strong>. The bot is ready to handle orders on WhatsApp.</p><p style="font-size:13px;color:#888;margin-top:40px">You can close this tab.</p></body></html>');
+  } catch (err) {
+    const detail = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error('❌ Token Exchange error:', detail);
+    return res.status(500).send('<html><body style="font-family:sans-serif;padding:60px;text-align:center"><h2 style="color:#ef4444">Installation failed</h2><p>' + err.message + '</p></body></html>');
+  }
 }
 
 const PORT = process.env.PORT || 3001;
