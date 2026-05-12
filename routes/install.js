@@ -4,40 +4,61 @@ const axios = require('axios');
 const crypto = require('crypto');
 const { createTenant } = require('../db');
 
-// Step 1: Begin OAuth
-router.get('/install', (req, res) => {
-  const shop = req.query.shop;
-  if (!shop) return res.status(400).send('Missing shop parameter');
-  const redirectUrl = `https://${shop}/admin/oauth/authorize?client_id=${process.env.SHOPIFY_API_KEY}&scope=${process.env.SHOPIFY_SCOPES}&redirect_uri=${process.env.APP_URL}/shopify/callback`;
-  res.redirect(redirectUrl);
-});
+// ─── Helper: get OAuth credentials by app variant ──────────────────────────
+function getCreds(variant) {
+  if (variant === 'custom') {
+    return {
+      apiKey: process.env.SHOPIFY_API_KEY_CUSTOM,
+      apiSecret: process.env.SHOPIFY_API_SECRET_CUSTOM,
+      scopes: process.env.SHOPIFY_SCOPES_CUSTOM,
+      callbackPath: '/shopify/callback-custom',
+      label: 'Vaani Custom',
+    };
+  }
+  return {
+    apiKey: process.env.SHOPIFY_API_KEY,
+    apiSecret: process.env.SHOPIFY_API_SECRET,
+    scopes: process.env.SHOPIFY_SCOPES,
+    callbackPath: '/shopify/callback',
+    label: 'Vaani',
+  };
+}
 
-// Step 2: OAuth callback - exchange code for token, then redirect to dashboard
-router.get('/callback', async (req, res) => {
+// ─── Shared install logic ──────────────────────────────────────────────────
+function buildInstallRedirect(shop, variant) {
+  const c = getCreds(variant);
+  return `https://${shop}/admin/oauth/authorize?client_id=${c.apiKey}&scope=${c.scopes}&redirect_uri=${process.env.APP_URL}${c.callbackPath}`;
+}
+
+// ─── Shared callback logic ─────────────────────────────────────────────────
+async function handleCallback(req, res, variant) {
   const { shop, code, hmac } = req.query;
   if (!shop || !code) return res.status(400).send('Missing parameters');
 
+  const c = getCreds(variant);
+
   // Verify HMAC
   const params = Object.keys(req.query).filter(k => k !== 'hmac').sort().map(k => `${k}=${req.query[k]}`).join('&');
-  const digest = crypto.createHmac('sha256', process.env.SHOPIFY_API_SECRET).update(params).digest('hex');
-  if (digest !== hmac) return res.status(401).send('Invalid HMAC');
+  const digest = crypto.createHmac('sha256', c.apiSecret).update(params).digest('hex');
+  if (digest !== hmac) {
+    console.error(`❌ HMAC mismatch for ${c.label} install on ${shop}`);
+    return res.status(401).send('Invalid HMAC');
+  }
 
   try {
-    // Exchange code for access token
     const response = await axios.post(`https://${shop}/admin/oauth/access_token`, {
-      client_id: process.env.SHOPIFY_API_KEY,
-      client_secret: process.env.SHOPIFY_API_SECRET,
-      code
+      client_id: c.apiKey,
+      client_secret: c.apiSecret,
+      code,
     });
 
     const accessToken = response.data.access_token;
     await createTenant(shop, accessToken);
-    console.log(`✅ Vaani installed on ${shop}`);
+    console.log(`✅ ${c.label} installed on ${shop}`);
 
-    // Redirect to dashboard with first_install flag so they see the welcome banner + demo CTA
     res.redirect(`/dashboard?shop=${encodeURIComponent(shop)}&first_install=1`);
   } catch (err) {
-    console.error('OAuth error:', err.message);
+    console.error(`OAuth error (${c.label}):`, err.message);
     res.status(500).send(`
       <html><body style="font-family:-apple-system,sans-serif;text-align:center;padding:60px;background:#f8f8ff">
         <h2 style="color:#ef4444">Installation failed</h2>
@@ -46,6 +67,24 @@ router.get('/callback', async (req, res) => {
       </body></html>
     `);
   }
+}
+
+// ─── Routes: Vaani Public ──────────────────────────────────────────────────
+router.get('/install', (req, res) => {
+  const shop = req.query.shop;
+  if (!shop) return res.status(400).send('Missing shop parameter');
+  res.redirect(buildInstallRedirect(shop, 'public'));
 });
+
+router.get('/callback', (req, res) => handleCallback(req, res, 'public'));
+
+// ─── Routes: Vaani Custom ──────────────────────────────────────────────────
+router.get('/install-custom', (req, res) => {
+  const shop = req.query.shop;
+  if (!shop) return res.status(400).send('Missing shop parameter');
+  res.redirect(buildInstallRedirect(shop, 'custom'));
+});
+
+router.get('/callback-custom', (req, res) => handleCallback(req, res, 'custom'));
 
 module.exports = router;

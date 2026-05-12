@@ -1,0 +1,18 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "ae17427aeb7a7ad9375b8ed5c7400aba"
+name = "Vaani Custom"
+application_url = "https://vaani-app-production-6407.up.railway.app"
+embedded = false
+
+[webhooks]
+api_version = "2026-04"
+
+[access_scopes]
+scopes = "read_customers,read_orders,read_products,write_orders,write_draft_orders"
+use_legacy_install_flow = false
+
+[auth]
+redirect_urls = [
+  "https://vaani-app-production-6407.up.railway.app/shopify/callback-custom"
+]
