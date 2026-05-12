@@ -19,21 +19,21 @@ const VALID_INTENTS = Object.values(INTENTS);
 
 const FAQ_ANSWERS = {
   [INTENTS.SHIPPING]:
-    "We ship across India. Delivery takes 4-5 days after dispatch, and shipping is free on orders above ₹999. " +
-    "Once your order is on its way, we'll share the tracking details with you.",
+    "We ship anywhere in India. Your order reaches you in 4-5 days after dispatch, and shipping is on us for orders above ₹999. " +
+    "We'll send tracking the moment it's on its way.",
   [INTENTS.RETURNS]:
-    "We allow returns and exchanges within 7 days. Items must be unworn, unused, and in original packaging. " +
-    "We cover return shipping for the first request.",
+    "You have 7 days from delivery to return or exchange — we just ask that the saree is unworn and in its original packaging. " +
+    "Return shipping is on us for your first request.",
   [INTENTS.FABRIC_CARE]:
-    "Care varies by fabric. Each saree comes with a care label - please follow the instructions there. " +
-    "We'll be sharing detailed fabric-specific care soon.",
+    "Care depends on the weave. As a rule: gentle hand wash in cold water, dry in the shade, and iron on low. " +
+    "Silks and silk blends are happiest with dry cleaning. Each saree arrives with a care label specific to its fabric — that's the one to follow.",
   [INTENTS.PAYMENT]:
-    "On WhatsApp, we accept UPI, GPay, PhonePe, Paytm, and other UPI apps. " +
-    "For card payments, please order through our website rajathee.com.",
+    "On WhatsApp, we accept UPI — GPay, PhonePe, Paytm, and any UPI app of your choice. " +
+    "For card or net banking, the easiest route is rajathee.com.",
   [INTENTS.SIZING]:
-    "Each Rajathee saree is approximately 6.2 to 6.5 meters and comes with a matching unstitched blouse piece. " +
-    "Fall & Pico finishing (₹180) and Ready to Wear stitching (₹1100) are available as add-ons during checkout. " +
-    "Sarees are one-size, so they fit most.",
+    "Each Rajathee saree is 6.2 to 6.5 metres and comes with a matching unstitched blouse piece. " +
+    "At checkout you can add Fall & Pico finishing (₹180) or Ready to Wear stitching (₹1100). " +
+    "Sarees are one-size, so they sit beautifully on most.",
 };
 
 const CLASSIFY_SYSTEM_PROMPT =
@@ -87,16 +87,16 @@ async function sendFaqAnswer(ctx, intent) {
 async function sendOffTopicWarning(ctx) {
   const { from, phoneNumberId, waToken } = ctx;
   await sendMessage(from,
-    "I help with sarees - finding the right one, styling tips, and orders. " +
-    "Tap an option below or ask me about a saree.",
+    "I'm here to help you find the right saree, share styling notes, and take care of your order. " +
+    "Tap an option below or ask me anything about a saree.",
     waToken, phoneNumberId);
 }
 
 async function sendOffTopicMute(ctx) {
   const { from, phoneNumberId, waToken } = ctx;
   await sendMessage(from,
-    "I'll wait until you have a saree question. " +
-    "Send me anything saree-related (or tap an option) and I'll be right back.",
+    "I'll wait here whenever you'd like to talk sarees. " +
+    "Send me anything saree-related, or tap an option, and we'll pick up from there.",
     waToken, phoneNumberId);
 }
 
