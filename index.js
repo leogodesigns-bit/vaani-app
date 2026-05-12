@@ -5,6 +5,9 @@ const { startScheduler } = require('./scheduler');
 const app = express();
 app.use(async (req, res, next) => {
   if (req.path !== '/') return next();
+  if (Object.keys(req.query).length > 0) {
+    console.log('[/] hit with query:', JSON.stringify(req.query).slice(0, 500));
+  }
   const { shop, hmac, session } = req.query;
   if (!shop || !hmac || !session) return next();
   return handleShopifyInstallLanding(req, res);
