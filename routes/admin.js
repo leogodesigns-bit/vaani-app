@@ -71,7 +71,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#faf7f2;color:#1a14
 .msg{margin-bottom:10px;display:flex}
 .msg.user{justify-content:flex-end}
 .msg.bot{justify-content:flex-start}
-.bubble{max-width:75%;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.45;word-wrap:break-word;white-space:pre-wrap}
+.bubble{max-width:75%;min-width:60px;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.45;word-wrap:break-word;white-space:pre-wrap;width:fit-content}
 .msg.user .bubble{background:#d4b372;color:#1a1410;border-bottom-right-radius:4px}
 .msg.bot .bubble{background:#fffdf8;color:#1a1410;border:1px solid #ebe3d3;border-bottom-left-radius:4px}
 .msg .meta{font-size:10.5px;color:#8a7866;margin-top:3px;text-align:right}

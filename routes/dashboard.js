@@ -37,9 +37,9 @@ router.get('/', async (req, res) => {
   // Get message stats
   const stats = await pool.query(
     `SELECT COUNT(*) as total_conversations,
-     SUM(CASE WHEN message_month = $1 THEN monthly_messages ELSE 0 END) as messages_this_month
-     FROM conversations WHERE tenant_id = $2`,
-    [new Date().toISOString().slice(0, 7), tenant.id]
+     COALESCE(SUM(jsonb_array_length(messages)), 0) as messages_this_month
+     FROM conversations WHERE tenant_id = $1`,
+    [tenant.id]
   );
   const s = stats.rows[0];
 
@@ -1035,7 +1035,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#faf7f2;color:#1a14
 .msg{margin-bottom:10px;display:flex}
 .msg.user{justify-content:flex-end}
 .msg.bot{justify-content:flex-start}
-.bubble{max-width:75%;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.45;word-wrap:break-word;white-space:pre-wrap}
+.bubble{max-width:75%;min-width:60px;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.45;word-wrap:break-word;white-space:pre-wrap;width:fit-content}
 .msg.user .bubble{background:#d4b372;color:#1a1410;border-bottom-right-radius:4px}
 .msg.bot .bubble{background:#fffdf8;color:#1a1410;border:1px solid #ebe3d3;border-bottom-left-radius:4px}
 .empty{padding:60px 24px;text-align:center;color:#8a7866;font-size:14px}
