@@ -1033,12 +1033,12 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#faf7f2;color:#1a14
 .card-title{font-size:15px;font-weight:600;color:#1a1410}
 .chat-thread{padding:24px;max-height:75vh;overflow-y:auto;background:linear-gradient(to bottom,#fffdf8,#fbf6ea)}
 
-.bubble{display:inline-block;max-width:75%;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.45;word-wrap:break-word;overflow-wrap:break-word;white-space:normal;width:auto}
+.bubble{display:inline-block;max-width:70%;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.45;word-wrap:break-word;overflow-wrap:break-word;text-align:left;white-space:pre-wrap}
 .msg{display:block;margin-bottom:8px;clear:both}
 .msg.user{text-align:right}
 .msg.bot{text-align:left}
-.msg.user .bubble{background:#d4b372;color:#1a1410;border-bottom-right-radius:4px}
-.msg.bot .bubble{background:#fffdf8;color:#1a1410;border:1px solid #ebe3d3;border-bottom-left-radius:4px}
+.msg.user .bubble{display:inline-block;max-width:70%;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.45;word-wrap:break-word;overflow-wrap:break-word;text-align:left;white-space:pre-wrap}
+.msg.bot .bubble{display:inline-block;max-width:70%;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.45;word-wrap:break-word;overflow-wrap:break-word;text-align:left;white-space:pre-wrap}
 .empty{padding:60px 24px;text-align:center;color:#8a7866;font-size:14px}
 @media(max-width:700px){.page{padding:16px}.top-bar{padding:12px 16px}}
 </style>
