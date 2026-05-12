@@ -45,13 +45,14 @@ router.get('/', async (req, res) => {
 
   // Get recent conversations (real data)
   const recentConvs = await pool.query(
-    `SELECT customer_number, updated_at, last_action
+    `SELECT id, customer_phone, last_active, jsonb_array_length(messages) AS msg_count,
+            (messages->-1->>'content') AS last_msg
      FROM conversations
      WHERE tenant_id = $1
-     ORDER BY updated_at DESC
+     ORDER BY last_active DESC
      LIMIT 5`,
     [tenant.id]
-  ).catch(() => ({ rows: [] })); // Graceful fallback if schema differs
+  ).catch((err) => { console.error('Dashboard query err:', err.message); return { rows: [] }; })
 
   const hasRealConversations = recentConvs.rows.length > 0;
   const conversationsToShow = hasRealConversations
@@ -718,10 +719,10 @@ ${firstInstall ? `
       </div>
       <div class="conv-list">
         ${conversationsToShow.map(c => `
-          <div class="conv-item">
+          <div class="conv-item" ${c.id ? `onclick="location.href='/dashboard/chat/${c.id}?shop=${encodeURIComponent(shop)}'" style="cursor:pointer"` : ''}>
             <div class="avatar ${c.color}">${escapeHtml(c.initials)}</div>
             <div class="conv-body">
-              <div class="conv-name">${escapeHtml(c.name)}</div>
+              <div class="conv-name">${escapeHtml(c.name)}${c.msgCount ? ` <span style="color:#8a7866;font-weight:400;font-size:11.5px">· ${c.msgCount} msgs</span>` : ''}</div>
               <div class="conv-preview">${escapeHtml(c.preview)}</div>
             </div>
             <div class="conv-time">${escapeHtml(c.time)}</div>
@@ -991,5 +992,79 @@ router.post('/refresh-categories', async (req, res) => {
     res.json({ error: err.message });
   }
 });
+
+
+// ============ CONVERSATION THREAD VIEWER (for shop owner) ============
+router.get('/chat/:id', async (req, res) => {
+  const shop = req.query.shop;
+  if (!shop) return res.status(400).send('<h2 style="font-family:Inter,sans-serif;text-align:center;padding:80px">Shop required</h2>');
+
+  try {
+    const cid = parseInt(req.params.id);
+    const cRes = await pool.query(
+      `SELECT c.*, t.shop_domain, t.store_name, t.flow_template
+       FROM conversations c JOIN tenants t ON c.tenant_id = t.id
+       WHERE c.id = $1 AND t.shop_domain = $2`,
+      [cid, shop]
+    );
+    const conv = cRes.rows[0];
+    if (!conv) return res.status(404).send('<h2 style="font-family:Inter,sans-serif;text-align:center;padding:80px">Conversation not found</h2>');
+
+    const msgs = Array.isArray(conv.messages) ? conv.messages : [];
+
+    res.send(`<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chat — ${escapeHtml(conv.store_name || shop)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,sans-serif;background:#faf7f2;color:#1a1410;line-height:1.5}
+.top-bar{background:#1a1410;color:#faf7f2;padding:14px 32px;display:flex;justify-content:space-between;align-items:center}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
+.brand-mark{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#b8904d,#8a6a35);display:flex;align-items:center;justify-content:center;color:#1a1410;font-weight:700;font-size:13px}
+.page{max-width:900px;margin:0 auto;padding:24px 32px 48px}
+.back-link{display:inline-flex;align-items:center;gap:6px;color:#8a7866;font-size:13px;text-decoration:none;margin-bottom:14px}
+.back-link:hover{color:#1a1410}
+.h-title{font-size:22px;font-weight:600;letter-spacing:-.02em;color:#1a1410}
+.h-sub{color:#8a7866;font-size:14px;margin-top:4px}
+.card{background:#fffdf8;border:1px solid #ebe3d3;border-radius:14px;overflow:hidden;margin-top:18px}
+.card-head{padding:18px 24px;border-bottom:1px solid #f0e8d6;display:flex;justify-content:space-between;align-items:center}
+.card-title{font-size:15px;font-weight:600;color:#1a1410}
+.chat-thread{padding:24px;max-height:75vh;overflow-y:auto;background:linear-gradient(to bottom,#fffdf8,#fbf6ea)}
+.msg{margin-bottom:10px;display:flex}
+.msg.user{justify-content:flex-end}
+.msg.bot{justify-content:flex-start}
+.bubble{max-width:75%;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.45;word-wrap:break-word;white-space:pre-wrap}
+.msg.user .bubble{background:#d4b372;color:#1a1410;border-bottom-right-radius:4px}
+.msg.bot .bubble{background:#fffdf8;color:#1a1410;border:1px solid #ebe3d3;border-bottom-left-radius:4px}
+.empty{padding:60px 24px;text-align:center;color:#8a7866;font-size:14px}
+@media(max-width:700px){.page{padding:16px}.top-bar{padding:12px 16px}}
+</style>
+</head><body>
+<header class="top-bar"><div class="brand"><div class="brand-mark">V</div>Vaani</div></header>
+<main class="page">
+  <a class="back-link" href="/dashboard?shop=${encodeURIComponent(shop)}">← Back to dashboard</a>
+  <div class="h-title">${maskNumber(conv.customer_phone)}</div>
+  <div class="h-sub">${msgs.length} messages · Last active ${timeAgo(conv.last_active)}</div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-title">Conversation</div></div>
+    <div class="chat-thread">
+      ${msgs.length === 0 ? '<div class="empty">No messages yet.</div>' : msgs.map(m => `
+        <div class="msg ${m.role === 'user' ? 'user' : 'bot'}">
+          <div class="bubble">${escapeHtml(m.content || '[no content]')}</div>
+        </div>
+      `).join('')}
+    </div>
+  </div>
+</main>
+</body></html>`);
+  } catch (err) {
+    console.error('Chat view err:', err.message);
+    res.status(500).send('<h2>Error: ' + (err.message) + '</h2>');
+  }
+});
+
 
 module.exports = router;
