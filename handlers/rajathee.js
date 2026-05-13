@@ -28,7 +28,6 @@ const qa = require('./rajathee-qa');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const { getCollectionProducts, getProductByHandle, formatPrice, stripHtml } = require('../shopify');
-const { getTenantSettings } = require('../settings-cache');
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────
 
@@ -472,14 +471,14 @@ async function handle(ctx) {
   }
 
   console.log(`[rajathee] no handler yet for: ${trimmed} (listId=${listReplyId}, btnId=${buttonReplyId})`);
-  // ── Smart Q&A — match against tenant's dashboard-managed FAQs ──
+  // ── PDF Section 13 — Smart Q&A (free-text intent classification) ──
   if (trimmed && trimmed.length > 0) {
-    const matched = await qa.matchFaq(trimmed, ctx.tenant.id);
-    console.log(`[rajathee] FAQ match: ${matched ? matched.q : 'none'} for "${trimmed}"`);
+    const intent = await qa.classifyIntent(trimmed);
+    console.log(`[rajathee] intent: ${intent} for "${trimmed}"`);
 
-    if (matched) {
+    if (intent !== qa.INTENTS.OFF_TOPIC) {
       // FAQ answer + show welcome for next action.
-      await qa.sendFaqMatch(ctx, matched);
+      await qa.sendFaqAnswer(ctx, intent);
       await sendWelcome(ctx);
       return;
     }
@@ -514,18 +513,7 @@ async function handle(ctx) {
 async function sendWelcome(ctx) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
 
-  // Pull tenant-managed welcome from dashboard (cached 60s); fallback to hardcoded.
-  let welcomeBody = WELCOME_BODY;
-  try {
-    const s = await getTenantSettings(tenant.id);
-    if (s && s.welcome_message && s.welcome_message.trim()) {
-      welcomeBody = s.welcome_message.trim();
-    }
-  } catch (e) {
-    console.error('[sendWelcome] settings fetch failed (using fallback):', e.message);
-  }
-
-  await sendButtons(from, welcomeBody,
+  await sendButtons(from, WELCOME_BODY,
     [WELCOME_BTN.FABRIC, WELCOME_BTN.COLOUR, WELCOME_BTN.MORE],
     waToken, phoneNumberId);
 
