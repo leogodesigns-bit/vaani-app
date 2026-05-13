@@ -338,6 +338,8 @@ async function handle(ctx) {
   // ── Welcome list-row taps ──
   if (listReplyId === WELCOME_ROW.BROWSE_FABRIC) { await sendFabricPicker(ctx); return; }
   if (listReplyId === WELCOME_ROW.BROWSE_COLOUR) { await sendColourPicker(ctx); return; }
+  if (listReplyId === WELCOME_ROW.BESTSELLERS)   { await sendCuratedCollection(ctx, 'bestsellers', 'Bestsellers', 'Most loved drapes'); return; }
+  if (listReplyId === WELCOME_ROW.AKSHAY)        { await sendCuratedCollection(ctx, 'akshay-tritiya', 'Akshay Tritiya', 'Our festive edit'); return; }
   if (listReplyId === WELCOME_ROW.STYLING)       { await handleStylistRequest(ctx); return; }
   if (trimmed === 'Talk to stylist')              { await handleStylistRequest(ctx); return; }
 
@@ -405,6 +407,12 @@ async function handle(ctx) {
   if (trimmed === FABRIC_BTN.SHOW_MORE) { await handleShowMore(ctx); return; }
   if (trimmed === FABRIC_BTN.SWITCH_FABRIC) { await sendFabricPicker(ctx); return; }
   if (trimmed === COLOUR_BTN.SWITCH_COLOUR) { await sendColourPicker(ctx); return; }
+
+  // ── In-stock filter (free text) ──
+  if (/^(show\s+)?(only\s+)?in[\s-]*stock$/i.test(trimmed) || /^available\s+only$/i.test(trimmed)) {
+    await handleInStockFilter(ctx);
+    return;
+  }
 
   // ── Product action buttons ──
   if (trimmed === PRODUCT_BTN.ADD_TO_CART)    { await handleAddToCart(ctx); return; }
@@ -1696,6 +1704,132 @@ async function handleShowMore(ctx) {
     return;
   }
   await sendWelcome(ctx);
+}
+
+// ─── CURATED COLLECTIONS (Bestsellers, Akshay Tritiya) ────────────────────
+
+async function sendCuratedCollection(ctx, handle, label, voice) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+
+  const products = await getCollectionProducts(tenant, handle).catch(e => {
+    console.error(`[rajathee] curated ${handle} fetch failed:`, e.message);
+    return [];
+  });
+
+  if (!products.length) {
+    await sendMessage(from,
+      `Our ${label} edit is being refreshed. May I show you another way to browse?`,
+      waToken, phoneNumberId);
+    await sendWelcome(ctx);
+    return;
+  }
+
+  const slice = products.slice(0, PAGE_SIZE);
+
+  for (const p of slice) {
+    const v0 = p.variants?.[0];
+    const img = p.images?.[0]?.src || v0?.featured_image?.src;
+    const price = formatPrice(v0?.price);
+    const caption = `${p.title}\n${price}`;
+    if (img) await sendImage(from, img, caption, waToken, phoneNumberId);
+    else await sendMessage(from, caption, waToken, phoneNumberId);
+  }
+
+  await sendMessage(from, `${label}. ${voice}.`, waToken, phoneNumberId);
+  await sendSareePickerList(ctx, slice);
+
+  const totalShownAfter = Math.min(PAGE_SIZE, products.length);
+  const moreAvailable = totalShownAfter < Math.min(products.length, MAX_SHOWN);
+
+  const buttons = moreAvailable
+    ? [FABRIC_BTN.SHOW_MORE, 'Browse by fabric', 'Browse by colour']
+    : ['Browse by fabric', 'Browse by colour', FABRIC_BTN.HELP_CHOOSE];
+
+  await sendButtons(from, 'Or:', buttons, waToken, phoneNumberId);
+
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: `[rajathee curated=${handle} shown=${slice.length}]` },
+  ], {
+    ...cart,
+    rajathee: {
+      ...(cart.rajathee || {}),
+      browseMode: 'curated',
+      curatedHandle: handle,
+      curatedLabel: label,
+      page: 0,
+      totalShown: totalShownAfter,
+      productHandles: products.slice(0, totalShownAfter).map(p => p.handle),
+    },
+  });
+}
+
+// ─── IN-STOCK FILTER ──────────────────────────────────────────────────────
+
+async function handleInStockFilter(ctx) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const r = cart.rajathee || {};
+
+  let products = [];
+  let label = '';
+
+  if (r.browseMode === 'fabric' && r.fabric) {
+    const handle = FABRIC_HANDLES[r.fabric];
+    label = FABRIC_LABEL[r.fabric];
+    products = await getCollectionProducts(tenant, handle).catch(() => []);
+  } else if (r.browseMode === 'colour' && r.colour) {
+    label = COLOUR_LABEL[r.colour];
+    const all = await getCollectionProducts(tenant, 'all-sarees').catch(() => []);
+    products = filterProductsByColour(all, r.colour);
+  } else if (r.browseMode === 'curated' && r.curatedHandle) {
+    label = r.curatedLabel || 'edit';
+    products = await getCollectionProducts(tenant, r.curatedHandle).catch(() => []);
+  } else {
+    await sendMessage(from,
+      "Pick a fabric or palette first, then I'll show you only what's in stock.",
+      waToken, phoneNumberId);
+    await sendWelcome(ctx);
+    return;
+  }
+
+  const inStock = products.filter(p =>
+    (p.variants || []).some(v => v.available !== false)
+  );
+
+  if (!inStock.length) {
+    await sendMessage(from,
+      `Everything in our ${label} edit is currently sold out — let me show you another option.`,
+      waToken, phoneNumberId);
+    await sendWelcome(ctx);
+    return;
+  }
+
+  const slice = inStock.slice(0, PAGE_SIZE);
+
+  for (const p of slice) {
+    const v0 = (p.variants || []).find(v => v.available !== false) || p.variants?.[0];
+    const img = v0?.featured_image?.src || p.images?.[0]?.src;
+    const price = formatPrice(v0?.price);
+    const caption = `${p.title}\n${price}`;
+    if (img) await sendImage(from, img, caption, waToken, phoneNumberId);
+    else await sendMessage(from, caption, waToken, phoneNumberId);
+  }
+
+  await sendMessage(from,
+    `Showing only in-stock pieces from the ${label} edit.`,
+    waToken, phoneNumberId);
+  await sendSareePickerList(ctx, slice);
+
+  await sendButtons(from, 'Or:',
+    ['Switch fabric', 'Switch colour', FABRIC_BTN.HELP_CHOOSE],
+    waToken, phoneNumberId);
+
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: `[rajathee in_stock_filter mode=${r.browseMode} shown=${slice.length}]` },
+  ], cart);
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────
