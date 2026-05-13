@@ -425,7 +425,6 @@ async function handle(ctx) {
   // New button-based add-on routing (3-button flow).
   if (trimmed === 'Ready to Wear') { await handleAddon(ctx, 'rtw'); return; }
   if (trimmed === 'Pico Fall')     { await handleAddon(ctx, 'fp');  return; }
-  if (trimmed === 'Skip')          { await handleAddon(ctx, 'none'); return; }
   if (listReplyId === ADDON_ROW.RTW)  { await handleAddon(ctx, 'rtw');  return; }
   if (listReplyId === ADDON_ROW.BOTH) { await handleAddon(ctx, 'both'); return; }
   if (listReplyId === ADDON_ROW.NONE) { await handleAddon(ctx, 'none'); return; }
@@ -1181,9 +1180,9 @@ async function handleAddToCart(ctx) {
     '• Pico Fall — neat hemmed edges +' + formatPrice(ADDON_PRICE.FALL_PICO),
     waToken, phoneNumberId);
 
-  // 3 buttons: RTW, Pico Fall, Skip.
+  // 2 buttons per PDF v1.1: RTW + Pico Fall only. No Skip.
   await sendButtons(from, 'Choose:',
-    ['Ready to Wear', 'Pico Fall', 'Skip'],
+    ['Ready to Wear', 'Pico Fall'],
     waToken, phoneNumberId);
 
   await upsertConversation(tenant.id, from, [
@@ -1209,7 +1208,8 @@ async function handleAddon(ctx, choice) {
   // Founder review: PDF says RTW auto-adds F&P. Currently customer must tap both
   // separately (or 'Add both'). To restore PDF behaviour, change choice='rtw' branch
   // to also push fall_pico item.
-  if (choice === 'fp' || choice === 'both') {
+  // PDF v1.1 Section 06: RTW auto-adds Pico Fall.
+  if (choice === 'fp' || choice === 'rtw' || choice === 'both') {
     items.push({
       kind: 'fall_pico',
       variantId: ADDON_VARIANT.FALL_PICO,
@@ -1230,14 +1230,14 @@ async function handleAddon(ctx, choice) {
   const summary = formatCartSummary(items);
   const confirmation = choice === 'none'
     ? 'No problem — just the saree it is.'
-    : (choice === 'both' ? 'Both added.' : (choice === 'fp' ? 'Fall & Pico added.' : 'Ready to Wear added.'));
+    : (choice === 'both' ? 'Both added.' : (choice === 'fp' ? 'Pico Fall added.' : 'Ready to Wear includes Pico Fall — we'll take care of both.'));
 
   await sendMessage(from,
     confirmation + '\n\n*Your cart*\n' + summary,
     waToken, phoneNumberId);
 
   await sendButtons(from, "Anything else you'd like to add to this drape?",
-    [CART_BTN.CHECKOUT, CART_BTN.BROWSE_MORE],
+    [CART_BTN.BROWSE_MORE, CART_BTN.VIEW_CART, CART_BTN.CHECKOUT],
     waToken, phoneNumberId);
 
   await upsertConversation(tenant.id, from, [
@@ -1269,8 +1269,8 @@ async function handleViewCart(ctx) {
   if (couponLine) {
     await sendMessage(from, couponLine.trim(), waToken, phoneNumberId);
   }
-  await sendButtons(from, 'What next?',
-    [CART_BTN.APPLY_COUPON, CART_BTN.CHECKOUT, CART_BTN.BROWSE_MORE],
+  await sendButtons(from, 'Have a coupon code? Tap below to apply, or continue to checkout.',
+    [CART_BTN.APPLY_COUPON, CART_BTN.CHECKOUT],
     waToken, phoneNumberId);
 }
 
