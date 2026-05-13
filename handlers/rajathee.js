@@ -1230,7 +1230,7 @@ async function handleAddon(ctx, choice) {
   const summary = formatCartSummary(items);
   const confirmation = choice === 'none'
     ? 'No problem — just the saree it is.'
-    : (choice === 'both' ? 'Both added.' : (choice === 'fp' ? 'Pico Fall added.' : 'Ready to Wear includes Pico Fall — we'll take care of both.'));
+    : (choice === 'both' ? 'Both added.' : (choice === 'fp' ? 'Pico Fall added.' : "Ready to Wear includes Pico Fall — we'll take care of both."));
 
   await sendMessage(from,
     confirmation + '\n\n*Your cart*\n' + summary,
