@@ -41,8 +41,17 @@ const GREETING_RE = edge.GREETING_RE;
 const WELCOME_ROW = {
   BROWSE_FABRIC:     'welcome_browse_fabric',
   BROWSE_COLOUR:     'welcome_browse_colour',
+  MORE:              'welcome_more',
+  // sub-rows under "More options"
   BROWSE_COLLECTION: 'welcome_browse_collection',
   STYLING:           'welcome_styling_help',
+};
+
+// Button labels for the 3-button welcome.
+const WELCOME_BTN = {
+  FABRIC: 'Browse by fabric',
+  COLOUR: 'Browse by colour',
+  MORE:   'More options',
 };
 
 // Curated collections shown under "Browse by collection".
@@ -364,9 +373,10 @@ async function handle(ctx) {
     return;
   }
 
-  // ── Welcome list-row taps ──
-  if (listReplyId === WELCOME_ROW.BROWSE_FABRIC) { await sendFabricPicker(ctx); return; }
-  if (listReplyId === WELCOME_ROW.BROWSE_COLOUR) { await sendColourPicker(ctx); return; }
+  // ── Welcome buttons (3) + list-row taps ──
+  if (trimmed === WELCOME_BTN.FABRIC || listReplyId === WELCOME_ROW.BROWSE_FABRIC) { await sendFabricPicker(ctx); return; }
+  if (trimmed === WELCOME_BTN.COLOUR || listReplyId === WELCOME_ROW.BROWSE_COLOUR) { await sendColourPicker(ctx); return; }
+  if (trimmed === WELCOME_BTN.MORE   || listReplyId === WELCOME_ROW.MORE)          { await sendMoreOptions(ctx); return; }
   if (listReplyId === WELCOME_ROW.BROWSE_COLLECTION) { await sendCollectionPicker(ctx); return; }
   if (listReplyId && COLLECTION_HANDLES[listReplyId]) {
     await sendCuratedCollection(ctx, COLLECTION_HANDLES[listReplyId], COLLECTION_LABEL[listReplyId], COLLECTION_VOICE[listReplyId]);
@@ -503,22 +513,33 @@ async function handle(ctx) {
 async function sendWelcome(ctx) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
 
-  const sections = [{
-    title: 'Browse by',
-    rows: [
-      { id: WELCOME_ROW.BROWSE_FABRIC,     title: 'Browse by fabric',     description: 'By feel and weave' },
-      { id: WELCOME_ROW.BROWSE_COLOUR,     title: 'Browse by colour',     description: 'By palette' },
-      { id: WELCOME_ROW.BROWSE_COLLECTION, title: 'Browse by collection', description: 'Our curated edits' },
-      { id: WELCOME_ROW.STYLING,           title: "I'd like styling help", description: 'Talk to us' },
-    ],
-  }];
-
-  await sendList(from, WELCOME_BODY, sections, waToken, phoneNumberId);
+  await sendButtons(from, WELCOME_BODY,
+    [WELCOME_BTN.FABRIC, WELCOME_BTN.COLOUR, WELCOME_BTN.MORE],
+    waToken, phoneNumberId);
 
   await upsertConversation(tenant.id, from, [
     ...history,
     { role: 'user', content: text },
-    { role: 'assistant', content: '[rajathee welcome shown: Browse by fabric, Browse by colour, Browse by collection, Styling help]' },
+    { role: 'assistant', content: '[rajathee welcome shown: Browse by fabric, Browse by colour, More options]' },
+  ], cart);
+}
+
+// "More options" submenu — opens curated collections + styling help.
+async function sendMoreOptions(ctx) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+
+  await sendList(from, 'What else can I help with?', [{
+    title: 'More options',
+    rows: [
+      { id: WELCOME_ROW.BROWSE_COLLECTION, title: 'Browse by collection', description: 'Our curated edits' },
+      { id: WELCOME_ROW.STYLING,           title: "I'd like styling help", description: 'Talk to us' },
+    ],
+  }], waToken, phoneNumberId);
+
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: '[rajathee more options shown]' },
   ], cart);
 }
 
@@ -1898,7 +1919,7 @@ function isAmbiguous(message, trimmed) {
 module.exports = {
   handle,
   WELCOME_BODY,
-  WELCOME_ROW,
+  WELCOME_ROW, WELCOME_BTN,
   GREETING_RE,
   FABRIC_ROW, FABRIC_HANDLES, FABRIC_LABEL, FABRIC_VOICE, FABRIC_BTN,
   COLOUR_ROW, COLOUR_LABEL, COLOUR_KEYWORDS, COLOUR_VOICE, COLOUR_BTN,
