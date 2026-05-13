@@ -130,7 +130,7 @@ const FABRIC_VOICE = {
 };
 
 const FABRIC_BTN = {
-  SHOW_MORE:     'Show 3 more',
+  SHOW_MORE:     'Show more products',
   SWITCH_FABRIC: 'Switch fabric',
   HELP_CHOOSE:   'Help me choose',
 };
@@ -201,7 +201,7 @@ const COLOUR_VOICE = {
 };
 
 const COLOUR_BTN = {
-  SHOW_MORE:     'Show 3 more',
+  SHOW_MORE:     'Show more products',
   SWITCH_COLOUR: 'Switch colour',
   HELP_CHOOSE:   'Help me choose',
 };
@@ -244,6 +244,7 @@ const ADDON_ROW = {
   NONE: 'addon_none',
 };
 const CART_BTN = {
+  APPLY_COUPON: 'Apply coupon',
   BROWSE_MORE: 'Browse more sarees',
   VIEW_CART:   'View cart',
   CHECKOUT:    'Checkout',
@@ -282,7 +283,7 @@ const POSTPURCHASE_BTN = {
 };
 
 const CHECKOUT_PROMPT = {
-  [CHECKOUT_STEP.NAME]:     'Lovely. To get this drape to you, I\'ll need a few details.\n\nWhat\'s your full name?',
+  [CHECKOUT_STEP.NAME]:     'Lovely. To get this drape to you, please share in ONE message:\n\n*Full name*\n*Full address* (house/flat, street, area)\n*City, State*\n*6-digit pincode*',
   [CHECKOUT_STEP.ADDRESS1]: 'Got it. House/flat number and street?',
   [CHECKOUT_STEP.CITY]:     'And which city?',
   [CHECKOUT_STEP.STATE]:    'State?',
@@ -365,6 +366,13 @@ async function handle(ctx) {
     return;
   }
 
+  // ── Coupon entry: capture free-text coupon code if customer was prompted ──
+  if (cart.rajathee?.awaitingCoupon && trimmed && trimmed.length > 0
+      && !buttonReplyId && !listReplyId) {
+    await handleCouponMessage(ctx, trimmed);
+    return;
+  }
+
   // ── Checkout state machine: capture free-text inputs during address collection ──
   const checkoutState = ctx.cart?.rajathee?.checkout;
   const collectingSteps = [CHECKOUT_STEP.NAME, CHECKOUT_STEP.ADDRESS1, CHECKOUT_STEP.CITY, CHECKOUT_STEP.STATE, CHECKOUT_STEP.PIN];
@@ -414,6 +422,10 @@ async function handle(ctx) {
 
   // ── Add-on list-row taps (PDF Section 6) ──
   if (listReplyId === ADDON_ROW.FP)   { await handleAddon(ctx, 'fp');   return; }
+  // New button-based add-on routing (3-button flow).
+  if (trimmed === 'Ready to Wear') { await handleAddon(ctx, 'rtw'); return; }
+  if (trimmed === 'Pico Fall')     { await handleAddon(ctx, 'fp');  return; }
+  if (trimmed === 'Skip')          { await handleAddon(ctx, 'none'); return; }
   if (listReplyId === ADDON_ROW.RTW)  { await handleAddon(ctx, 'rtw');  return; }
   if (listReplyId === ADDON_ROW.BOTH) { await handleAddon(ctx, 'both'); return; }
   if (listReplyId === ADDON_ROW.NONE) { await handleAddon(ctx, 'none'); return; }
@@ -421,6 +433,7 @@ async function handle(ctx) {
   // ── Cart-action buttons ──
   if (trimmed === CART_BTN.BROWSE_MORE) { await handleBrowseMore(ctx); return; }
   if (trimmed === CART_BTN.VIEW_CART)   { await handleViewCart(ctx);   return; }
+  if (trimmed === CART_BTN.APPLY_COUPON) { await handleApplyCouponPrompt(ctx); return; }
   if (trimmed === CART_BTN.CHECKOUT)    { await handleCheckout(ctx);   return; }
 
   // ── Checkout flow buttons + edit list rows ──
@@ -830,7 +843,7 @@ async function sendSareePickerList(ctx, products) {
   });
 
   const sections = [{ title: 'Tap to see details', rows }];
-  await sendList(from, 'Which one would you like to explore?', sections, waToken, phoneNumberId);
+  await sendList(from, 'Choose 1, 2, or 3 products so we can share more details with you.', sections, waToken, phoneNumberId);
 }
 
 // ─── PDF SECTION 4 — PRODUCT DETAIL ───────────────────────────────────────
@@ -1163,14 +1176,17 @@ async function handleAddToCart(ctx) {
     : '';
   await sendMessage(from,
     'Added — ' + product.title + colourPart + ' in your cart.\n\n' +
-    'Would you like us to take care of the finishing before it reaches you?\n' +
-    '• Fall & Pico — neat hemmed edges +' + formatPrice(ADDON_PRICE.FALL_PICO) + '\n' +
+    'Would you like us to take care of the finishing?\n' +
     '• Ready to Wear — pre-stitched +' + formatPrice(ADDON_PRICE.READY_TO_WEAR) + '\n' +
-    'Both can be added together.',
+    '• Pico Fall — neat hemmed edges +' + formatPrice(ADDON_PRICE.FALL_PICO),
     waToken, phoneNumberId);
 
-  // 4 options as a list (WhatsApp buttons cap at 3).
-  await sendList(from, 'Choose:', [{
+  // 3 buttons: RTW, Pico Fall, Skip.
+  await sendButtons(from, 'Choose:',
+    ['Ready to Wear', 'Pico Fall', 'Skip'],
+    waToken, phoneNumberId);
+  // Keep legacy list block below for reference, but it will not be sent.
+  return; await sendList(from, 'Choose:', [{
     title: 'Finishing options',
     rows: [
       { id: ADDON_ROW.FP,   title: 'Add Fall & Pico',  description: '+' + formatPrice(ADDON_PRICE.FALL_PICO) },
@@ -1231,7 +1247,7 @@ async function handleAddon(ctx, choice) {
     waToken, phoneNumberId);
 
   await sendButtons(from, "Anything else you'd like to add to this drape?",
-    [CART_BTN.BROWSE_MORE, CART_BTN.VIEW_CART, CART_BTN.CHECKOUT],
+    [CART_BTN.CHECKOUT, CART_BTN.BROWSE_MORE],
     waToken, phoneNumberId);
 
   await upsertConversation(tenant.id, from, [
@@ -1257,8 +1273,14 @@ async function handleViewCart(ctx) {
     return;
   }
   await sendMessage(from, '*Your cart*\n' + formatCartSummary(items), waToken, phoneNumberId);
+  const couponLine = cart.rajathee?.discountCode
+    ? `\n_Coupon applied: ${cart.rajathee.discountCode}_`
+    : '';
+  if (couponLine) {
+    await sendMessage(from, couponLine.trim(), waToken, phoneNumberId);
+  }
   await sendButtons(from, 'What next?',
-    [CART_BTN.BROWSE_MORE, CART_BTN.CHECKOUT, PRODUCT_BTN.BACK_TO_BROWSE],
+    [CART_BTN.APPLY_COUPON, CART_BTN.CHECKOUT, CART_BTN.BROWSE_MORE],
     waToken, phoneNumberId);
 }
 
@@ -1330,6 +1352,11 @@ function validateCheckoutField(field, raw) {
 // ─── Step machine — handles free-text inputs during address collection ──
 
 async function handleCheckoutMessage(ctx) {
+  // ── Try to parse combined customer details if we're at the NAME step ──
+  // Customer may have sent all info (name, address, city, state, pin) in one message.
+  const _bulkTry = await tryParseBulkDetails(ctx);
+  if (_bulkTry === 'PARSED') return;
+
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
   const r = cart.rajathee || {};
   const co = r.checkout || {};
@@ -1948,3 +1975,158 @@ module.exports = {
   validateCheckoutField, generateOrderId,
   variantMatchesColour, filterProductsByColour,
 };
+
+
+// ─── Coupon entry helpers (added by 6-item batch) ──────────────────────────
+
+async function handleApplyCouponPrompt(ctx) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  await sendMessage(from,
+    "Type your coupon code below (or tap *Skip* to continue without one).",
+    waToken, phoneNumberId);
+  await sendButtons(from, 'Or:', ['Skip'], waToken, phoneNumberId);
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: '[rajathee coupon_prompt]' },
+  ], {
+    ...cart,
+    rajathee: {
+      ...(cart.rajathee || {}),
+      awaitingCoupon: true,
+    },
+  });
+}
+
+async function handleCouponMessage(ctx, code) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const trimmedCode = String(code || '').trim();
+
+  // Skip path
+  if (/^skip$/i.test(trimmedCode)) {
+    await sendMessage(from, "No problem — continuing without a coupon.", waToken, phoneNumberId);
+    const updatedCart = { ...cart, rajathee: { ...(cart.rajathee || {}) } };
+    delete updatedCart.rajathee.awaitingCoupon;
+    await upsertConversation(tenant.id, from, [
+      ...history,
+      { role: 'user', content: text },
+      { role: 'assistant', content: '[rajathee coupon_skipped]' },
+    ], updatedCart);
+    await handleViewCart({ ...ctx, cart: updatedCart });
+    return;
+  }
+
+  // For now: store the code in cart and acknowledge. Validation against Shopify
+  // happens at draft-order creation time in handleCheckout.
+  const cleanCode = trimmedCode.toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 40);
+  if (!cleanCode) {
+    await sendMessage(from, "That doesn't look like a valid code. Try again or tap *Skip*.", waToken, phoneNumberId);
+    return;
+  }
+
+  const updatedCart = {
+    ...cart,
+    rajathee: {
+      ...(cart.rajathee || {}),
+      discountCode: cleanCode,
+    },
+  };
+  delete updatedCart.rajathee.awaitingCoupon;
+
+  await sendMessage(from,
+    `Coupon *${cleanCode}* noted. We'll apply it at checkout — if it's not valid, we'll let you know.`,
+    waToken, phoneNumberId);
+
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: '[rajathee coupon_set=' + cleanCode + ']' },
+  ], updatedCart);
+
+  await handleViewCart({ ...ctx, cart: updatedCart });
+}
+
+
+// ─── Bulk customer details parser (Claude-based, added by 6-item batch) ────
+
+async function tryParseBulkDetails(ctx) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const checkout = cart.rajathee?.checkout;
+  if (!checkout || checkout.step !== CHECKOUT_STEP.NAME) return 'CONTINUE';
+
+  const msg = (text || '').trim();
+  // Only attempt bulk parse if message looks substantial (likely contains address)
+  // Heuristic: must have at least 20 chars and contain a 6-digit number (pincode)
+  if (msg.length < 20 || !/\d{6}/.test(msg)) return 'CONTINUE';
+
+  if (!process.env.ANTHROPIC_API_KEY) return 'CONTINUE';
+
+  try {
+    const Anthropic = require('@anthropic-ai/sdk');
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const sys =
+      "Extract the customer's shipping details from their message. " +
+      "Reply with ONLY a JSON object, no other text, in this exact format: " +
+      '{"name":"...","address1":"...","city":"...","state":"...","pin":"......"}. ' +
+      "If any field is missing or unclear, set it to null. " +
+      "name = full name; address1 = house/flat/street/area (not city); " +
+      "city = city name only; state = Indian state name; pin = 6-digit pincode as string.";
+
+    const r = await anthropic.messages.create({
+      model: 'claude-haiku-4-5',
+      max_tokens: 300,
+      system: sys,
+      messages: [{ role: 'user', content: msg }],
+    });
+    const raw = (r.content[0]?.text || '').trim();
+    const cleaned = raw.replace(/```json|```/g, '').trim();
+    let parsed;
+    try { parsed = JSON.parse(cleaned); } catch { return 'CONTINUE'; }
+
+    const { name, address1, city, state, pin } = parsed || {};
+    // All five must be present for bulk-fill to succeed
+    if (!name || !address1 || !city || !state || !pin) {
+      console.log('[rajathee bulk-parse] incomplete:', parsed);
+      return 'CONTINUE';
+    }
+    const pinClean = String(pin).replace(/\D/g, '');
+    if (pinClean.length !== 6) return 'CONTINUE';
+    if (String(name).trim().length < 2) return 'CONTINUE';
+
+    // Write all fields, advance to confirm step.
+    const updatedCart = {
+      ...cart,
+      rajathee: {
+        ...(cart.rajathee || {}),
+        checkout: {
+          ...checkout,
+          name: String(name).trim(),
+          address1: String(address1).trim(),
+          city: String(city).trim(),
+          state: String(state).trim(),
+          pin: pinClean,
+          step: CHECKOUT_STEP.REVIEW,
+        },
+      },
+    };
+
+    await sendMessage(from,
+      `Got it — confirming:\n\n*${name}*\n${address1}\n${city}, ${state} - ${pinClean}`,
+      waToken, phoneNumberId);
+
+    await upsertConversation(tenant.id, from, [
+      ...history,
+      { role: 'user', content: text },
+      { role: 'assistant', content: '[rajathee bulk_details_parsed]' },
+    ], updatedCart);
+
+    // Show order summary + confirm/cancel.
+    await sendCheckoutReview({ ...ctx, cart: updatedCart });
+    return 'PARSED';
+  } catch (e) {
+    console.error('[rajathee bulk-parse] error:', e.message);
+    return 'CONTINUE';
+  }
+}
+
