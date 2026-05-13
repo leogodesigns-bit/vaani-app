@@ -1185,16 +1185,6 @@ async function handleAddToCart(ctx) {
   await sendButtons(from, 'Choose:',
     ['Ready to Wear', 'Pico Fall', 'Skip'],
     waToken, phoneNumberId);
-  // Keep legacy list block below for reference, but it will not be sent.
-  return; await sendList(from, 'Choose:', [{
-    title: 'Finishing options',
-    rows: [
-      { id: ADDON_ROW.FP,   title: 'Add Fall & Pico',  description: '+' + formatPrice(ADDON_PRICE.FALL_PICO) },
-      { id: ADDON_ROW.RTW,  title: 'Add Ready to Wear', description: '+' + formatPrice(ADDON_PRICE.READY_TO_WEAR) },
-      { id: ADDON_ROW.BOTH, title: 'Add both',          description: 'Fall & Pico + Ready to Wear' },
-      { id: ADDON_ROW.NONE, title: 'Just the saree',    description: 'No finishing add-ons' },
-    ],
-  }], waToken, phoneNumberId);
 
   await upsertConversation(tenant.id, from, [
     ...history,
