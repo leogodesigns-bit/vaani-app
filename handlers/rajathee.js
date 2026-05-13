@@ -338,7 +338,7 @@ async function handle(ctx) {
   // ── Welcome list-row taps ──
   if (listReplyId === WELCOME_ROW.BROWSE_FABRIC) { await sendFabricPicker(ctx); return; }
   if (listReplyId === WELCOME_ROW.BROWSE_COLOUR) { await sendColourPicker(ctx); return; }
-  if (listReplyId === WELCOME_ROW.BESTSELLERS)   { await sendCuratedCollection(ctx, 'bestsellers', 'Bestsellers', 'Most loved drapes'); return; }
+  if (listReplyId === WELCOME_ROW.BESTSELLERS)   { await sendCuratedCollection(ctx, 'best-sellers', 'Bestsellers', 'Most loved drapes'); return; }
   if (listReplyId === WELCOME_ROW.AKSHAY)        { await sendCuratedCollection(ctx, 'akshay-tritiya', 'Akshay Tritiya', 'Our festive edit'); return; }
   if (listReplyId === WELCOME_ROW.STYLING)       { await handleStylistRequest(ctx); return; }
   if (trimmed === 'Talk to stylist')              { await handleStylistRequest(ctx); return; }
