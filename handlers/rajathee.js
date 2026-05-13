@@ -367,7 +367,7 @@ async function handle(ctx) {
   }
 
   // ── Coupon entry: capture free-text coupon code if customer was prompted ──
-  if (cart.rajathee?.awaitingCoupon && trimmed && trimmed.length > 0
+  if (ctx.cart?.rajathee?.awaitingCoupon && trimmed && trimmed.length > 0
       && !buttonReplyId && !listReplyId) {
     await handleCouponMessage(ctx, trimmed);
     return;
