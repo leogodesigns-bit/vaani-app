@@ -635,7 +635,8 @@ async function sendFabricResults(ctx, fabricRowId, page) {
   const label  = FABRIC_LABEL[fabricRowId];
   const voice  = FABRIC_VOICE[fabricRowId];
 
-  const products = await getCollectionProducts(tenant, handle);
+  const productsRaw = await getCollectionProducts(tenant, handle);
+  const products = filterInStock(productsRaw);
 
   if (!products.length) {
     await sendMessage(from, `Our ${label} edit is being refreshed. May I show you another fabric in the meantime?`, waToken, phoneNumberId);
@@ -750,13 +751,22 @@ function filterProductsByColour(products, colourId) {
   });
 }
 
+// PDF Section 13 stock rule (Shweta 14 May):
+// Hide a saree from carousels if ALL its variants are sold out.
+// Treats v.available === undefined as in-stock (defensive default).
+function filterInStock(products) {
+  return (products || []).filter(p =>
+    (p.variants || []).some(v => v.available !== false)
+  );
+}
+
 async function sendColourResults(ctx, colourRowId, page) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
 
   const label = COLOUR_LABEL[colourRowId];
   const voice = COLOUR_VOICE[colourRowId];
 
-  const allProducts = await getCollectionProducts(tenant, 'all-sarees');
+  const allProducts = filterInStock(await getCollectionProducts(tenant, 'all-sarees'));
   const matched = filterProductsByColour(allProducts, colourRowId);
 
   if (!matched.length) {
@@ -879,7 +889,7 @@ async function sendProductDetail(ctx, productHandle) {
 
   // Single-variant product: skip colour picker.
   const realVariants = (product.variants || []).filter(
-    v => v.option1 && v.option1.toLowerCase() !== 'default title'
+    v => v.option1 && v.option1.toLowerCase() !== 'default title' && v.available !== false
   );
 
   if (realVariants.length === 0) {
@@ -916,7 +926,7 @@ async function sendProductDetail(ctx, productHandle) {
   const colourRows = realVariants.slice(0, 10).map(v => ({
     id: `product_variant_${v.id}`,
     title: v.option1.length > 24 ? v.option1.slice(0, 21) + '...' : v.option1,
-    description: v.available ? formatPrice(v.price) : 'Sold out',
+    description: formatPrice(v.price),
   }));
 
   await sendList(from,
@@ -1817,10 +1827,11 @@ async function handleShowMore(ctx) {
 async function sendCuratedCollection(ctx, handle, label, voice) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
 
-  const products = await getCollectionProducts(tenant, handle).catch(e => {
+  const productsRaw = await getCollectionProducts(tenant, handle).catch(e => {
     console.error(`[rajathee] curated ${handle} fetch failed:`, e.message);
     return [];
   });
+  const products = filterInStock(productsRaw);
 
   if (!products.length) {
     await sendMessage(from,
