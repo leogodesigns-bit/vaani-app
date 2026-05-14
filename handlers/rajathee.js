@@ -1972,9 +1972,9 @@ module.exports = {
 async function handleApplyCouponPrompt(ctx) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
   await sendMessage(from,
-    "Type your coupon code below (or tap *Skip* to continue without one).",
+    "Type your coupon code below, or tap *Continue to checkout* to proceed without one.",
     waToken, phoneNumberId);
-  await sendButtons(from, 'Or:', ['Skip'], waToken, phoneNumberId);
+  await sendButtons(from, 'Or:', ['Continue to checkout'], waToken, phoneNumberId);
   await upsertConversation(tenant.id, from, [
     ...history,
     { role: 'user', content: text },
@@ -1992,8 +1992,8 @@ async function handleCouponMessage(ctx, code) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
   const trimmedCode = String(code || '').trim();
 
-  // Skip path
-  if (/^skip$/i.test(trimmedCode)) {
+  // Skip path — matches 'Skip' (legacy) or 'Continue to checkout' (PDF v1.1 button)
+  if (/^skip$/i.test(trimmedCode) || /^continue to checkout$/i.test(trimmedCode)) {
     await sendMessage(from, "No problem — continuing without a coupon.", waToken, phoneNumberId);
     const updatedCart = { ...cart, rajathee: { ...(cart.rajathee || {}) } };
     delete updatedCart.rajathee.awaitingCoupon;
@@ -2010,7 +2010,7 @@ async function handleCouponMessage(ctx, code) {
   // happens at draft-order creation time in handleCheckout.
   const cleanCode = trimmedCode.toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 40);
   if (!cleanCode) {
-    await sendMessage(from, "That doesn't look like a valid code. Try again or tap *Skip*.", waToken, phoneNumberId);
+    await sendMessage(from, "That doesn't look like a valid code. Try again or tap *Continue to checkout*.", waToken, phoneNumberId);
     return;
   }
 
