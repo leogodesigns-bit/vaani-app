@@ -283,7 +283,7 @@ const POSTPURCHASE_BTN = {
 };
 
 const CHECKOUT_PROMPT = {
-  [CHECKOUT_STEP.NAME]:     'Lovely. To get this drape to you, please share in ONE message:\n\n*Full name*\n*Full address* (house/flat, street, area)\n*City, State*\n*6-digit pincode*',
+  [CHECKOUT_STEP.NAME]:     'Lovely. To wrap this up, please share in ONE message:\n\n*Full Name*\n*Full Address* (house/flat, street, area, city, state)\n*6-digit Pincode*',
   [CHECKOUT_STEP.ADDRESS1]: 'Got it. House/flat number and street?',
   [CHECKOUT_STEP.CITY]:     'And which city?',
   [CHECKOUT_STEP.STATE]:    'State?',
