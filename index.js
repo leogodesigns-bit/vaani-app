@@ -126,7 +126,18 @@ app.get('/', async (req, res, next) => {
   }
 
   // ── Case A: managed install landing (has hmac + session) ──
+  // ONLY do token exchange if we don't already have a token for this shop.
+  // For OAuth-installed shops, just render the embedded shell.
   if (hmac && session) {
+    const dbShop = SHOP_DOMAIN_MAP[shop] || shop;
+    const existing = await getTenant({ shopDomain: dbShop });
+    if (existing) {
+      // Already installed via OAuth — just render the embedded UI
+      const apiKey = process.env.SHOPIFY_API_KEY || process.env.SHOPIFY_API_KEY_CUSTOM;
+      console.log(`[/] Embedded re-open for already-installed ${dbShop}`);
+      return res.send(embeddedAppShell(shop, host || '', apiKey));
+    }
+    // Not installed yet — try managed install token exchange
     const v = detectVariantByHmac(req);
     if (!v) {
       console.error('[/] HMAC verification failed for install landing on', shop);
@@ -134,20 +145,15 @@ app.get('/', async (req, res, next) => {
     }
     try {
       const accessToken = await tokenExchange(shop, session, v.apiKey, v.secret);
-      const dbShop = SHOP_DOMAIN_MAP[shop] || shop;
-      const existing = await getTenant({ shopDomain: dbShop });
-      if (existing) {
-        await updateTenant(dbShop, { shopifyToken: accessToken });
-      } else {
-        await createTenant({ shopDomain: dbShop, shopifyToken: accessToken });
-      }
-      console.log(`✅ ${v.variant} installed/refreshed token for ${dbShop}`);
-      // Render embedded shell so reviewer sees the app load successfully
+      await createTenant({ shopDomain: dbShop, shopifyToken: accessToken });
+      console.log(`✅ ${v.variant} installed via managed install for ${dbShop}`);
       return res.send(embeddedAppShell(shop, host || '', v.apiKey));
     } catch (err) {
       const detail = err.response ? JSON.stringify(err.response.data) : err.message;
       console.error('❌ Token exchange error:', detail);
-      return res.status(500).send('<html><body style="font-family:sans-serif;padding:60px;text-align:center"><h2 style="color:#ef4444">Installation failed</h2><p>' + err.message + '</p></body></html>');
+      // Fall back to classic OAuth install
+      console.log(`[/] Falling back to OAuth install for ${shop}`);
+      return res.redirect(`/shopify/install?shop=${encodeURIComponent(shop)}`);
     }
   }
 
