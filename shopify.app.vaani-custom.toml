@@ -9,10 +9,14 @@ embedded = false
 api_version = "2026-04"
 
 [access_scopes]
-scopes = "read_customers,read_orders,read_products,write_orders,write_draft_orders"
-use_legacy_install_flow = false
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_customers,read_orders,read_products,write_draft_orders,write_orders"
+use_legacy_install_flow = true
 
 [auth]
 redirect_urls = [
   "https://vaani-app-production-6407.up.railway.app/shopify/callback-custom"
 ]
+
+[pos]
+embedded = false
