@@ -1,9 +1,7 @@
-# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
-
 client_id = "4299c9c4aaececd9b64943bca3f45dc8"
 name = "Vaani"
-application_url = "https://vaani-app-production-6407.up.railway.app"
-embedded = false
+application_url = "https://www.vaani.website"
+embedded = true
 
 [webhooks]
 api_version = "2025-01"
@@ -21,12 +19,12 @@ api_version = "2025-01"
   compliance_topics = [ "shop/redact" ]
 
 [access_scopes]
-# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_customers,read_orders,read_products,write_orders"
+scopes = "read_products,read_inventory,read_orders,write_orders,write_draft_orders"
 
 [auth]
 redirect_urls = [
-  "https://vaani-app-production-6407.up.railway.app/shopify/callback"
+  "https://www.vaani.website/shopify/callback",
+  "https://www.vaani.website/"
 ]
 
 [pos]
