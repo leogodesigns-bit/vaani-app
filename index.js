@@ -1,22 +1,178 @@
 require('dotenv').config();
 const express = require('express');
-const { initDB, pool } = require('./db');
+const crypto = require('crypto');
+const axios = require('axios');
+const { initDB, pool, updateTenant, getTenant, createTenant } = require('./db');
 const { startScheduler } = require('./scheduler');
-const app = express();
-app.use(async (req, res, next) => {
-  if (req.path !== '/') return next();
-  if (Object.keys(req.query).length > 0) {
-    console.log('[/] hit with query:', JSON.stringify(req.query).slice(0, 500));
-  }
-  const { shop, hmac, session } = req.query;
-  if (!shop || !hmac || !session) return next();
-  return handleShopifyInstallLanding(req, res);
-});
-app.use(express.static(__dirname + '/public'));
 
+const app = express();
+
+// ── Body parsers FIRST ──────────────────────────────────────
 app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf.toString("utf8"); } }));
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static("public"));
+
+// ── Shop domain remap (legacy dev → prod) ───────────────────
+const SHOP_DOMAIN_MAP = {
+  'udhuxy-pc.myshopify.com': 'rajathee.myshopify.com',
+};
+
+// ── HMAC verification using RAW query string ────────────────
+function verifyShopifyHmacFromRawUrl(rawUrl, secret) {
+  const qIdx = rawUrl.indexOf('?');
+  if (qIdx === -1) return false;
+  const rawQuery = rawUrl.slice(qIdx + 1);
+  const pairs = rawQuery.split('&');
+  let receivedHmac = null;
+  const kept = [];
+  for (const p of pairs) {
+    const eq = p.indexOf('=');
+    const k = eq === -1 ? p : p.slice(0, eq);
+    if (k === 'hmac') { receivedHmac = decodeURIComponent(p.slice(eq + 1)); continue; }
+    if (k === 'signature') continue;
+    kept.push(p);
+  }
+  if (!receivedHmac) return false;
+  kept.sort();
+  const msg = kept.join('&');
+  const digest = crypto.createHmac('sha256', secret).update(msg).digest('hex');
+  try {
+    return crypto.timingSafeEqual(Buffer.from(digest, 'utf8'), Buffer.from(receivedHmac, 'utf8'));
+  } catch (e) { return false; }
+}
+
+// ── Detect which app variant a request belongs to ───────────
+// Tries public secret first, then custom. Returns {variant, apiKey, secret} or null.
+function detectVariantByHmac(req) {
+  const variants = [
+    { variant: 'public', apiKey: process.env.SHOPIFY_API_KEY, secret: process.env.SHOPIFY_API_SECRET },
+    { variant: 'custom', apiKey: process.env.SHOPIFY_API_KEY_CUSTOM, secret: process.env.SHOPIFY_API_SECRET_CUSTOM },
+  ];
+  for (const v of variants) {
+    if (!v.secret) continue;
+    if (verifyShopifyHmacFromRawUrl(req.originalUrl, v.secret)) return v;
+  }
+  return null;
+}
+
+// ── Token exchange (session token → offline access token) ───
+async function tokenExchange(shop, sessionToken, clientId, clientSecret) {
+  const url = 'https://' + shop + '/admin/oauth/access_token';
+  const body = {
+    client_id: clientId,
+    client_secret: clientSecret,
+    grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+    subject_token: sessionToken,
+    subject_token_type: 'urn:ietf:params:oauth:token-type:id_token',
+    requested_token_type: 'urn:shopify:params:oauth:token-type:offline-access-token',
+  };
+  const resp = await axios.post(url, body, { headers: { 'Content-Type': 'application/json' } });
+  return resp.data.access_token;
+}
+
+// ── App Bridge embedded shell (served for embedded app loads) ─
+function embeddedAppShell(shop, host, apiKey) {
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vaani</title>
+<meta name="shopify-api-key" content="${apiKey}">
+<script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;padding:0;background:#f6f6f7;color:#202223}
+.wrap{max-width:720px;margin:0 auto;padding:40px 24px}
+.card{background:white;border:1px solid #e1e3e5;border-radius:12px;padding:32px;box-shadow:0 1px 0 rgba(0,0,0,0.05)}
+h1{margin:0 0 8px;font-size:24px;color:#1a1a2e}
+.sub{color:#6d7175;margin:0 0 24px}
+.ok{display:inline-block;background:#e3f1df;color:#108043;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:500;margin-bottom:16px}
+.row{display:flex;justify-content:space-between;padding:14px 0;border-bottom:1px solid #f1f1f1;font-size:14px}
+.row:last-child{border-bottom:none}
+.label{color:#6d7175}
+.val{color:#202223;font-weight:500}
+.btn{display:inline-block;background:#008060;color:white;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:500;font-size:14px;margin-top:20px;margin-right:8px}
+.btn.secondary{background:white;color:#202223;border:1px solid #c9cccf}
+.note{background:#fff8e1;border-left:3px solid #f5a623;padding:12px 16px;margin-top:20px;font-size:13px;color:#6d4f00;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="ok">● Connected</div>
+    <h1>Vaani is installed</h1>
+    <p class="sub">WhatsApp AI Sales Bot for <strong>${shop}</strong></p>
+    <div class="row"><span class="label">Store</span><span class="val">${shop}</span></div>
+    <div class="row"><span class="label">Status</span><span class="val">Active</span></div>
+    <div class="row"><span class="label">Support</span><span class="val">leogodesigns@gmail.com</span></div>
+    <a class="btn" href="/pricing?shop=${encodeURIComponent(shop)}" target="_top">View plans</a>
+    <a class="btn secondary" href="https://wa.me/919403345612?text=Hi%20Vaani%20team" target="_blank" rel="noopener">Contact support</a>
+    <div class="note">Vaani runs on WhatsApp — your customers chat with the bot on your business number. No action needed inside Shopify after install.</div>
+  </div>
+</div>
+</body>
+</html>`;
+}
+
+// ── Root handler: embedded load, install landing, or marketing ─
+app.get('/', async (req, res, next) => {
+  const { shop, host, embedded, hmac, session, id_token } = req.query;
+
+  // No shop param → serve static landing (index.html in /public)
+  if (!shop) return next();
+
+  // Validate shop domain shape
+  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(shop)) {
+    return res.status(400).send('Invalid shop parameter');
+  }
+
+  // ── Case A: managed install landing (has hmac + session) ──
+  if (hmac && session) {
+    const v = detectVariantByHmac(req);
+    if (!v) {
+      console.error('[/] HMAC verification failed for install landing on', shop);
+      return res.status(401).send('Invalid HMAC');
+    }
+    try {
+      const accessToken = await tokenExchange(shop, session, v.apiKey, v.secret);
+      const dbShop = SHOP_DOMAIN_MAP[shop] || shop;
+      const existing = await getTenant({ shopDomain: dbShop });
+      if (existing) {
+        await updateTenant(dbShop, { shopifyToken: accessToken });
+      } else {
+        await createTenant({ shopDomain: dbShop, shopifyToken: accessToken });
+      }
+      console.log(`✅ ${v.variant} installed/refreshed token for ${dbShop}`);
+      // Render embedded shell so reviewer sees the app load successfully
+      return res.send(embeddedAppShell(shop, host || '', v.apiKey));
+    } catch (err) {
+      const detail = err.response ? JSON.stringify(err.response.data) : err.message;
+      console.error('❌ Token exchange error:', detail);
+      return res.status(500).send('<html><body style="font-family:sans-serif;padding:60px;text-align:center"><h2 style="color:#ef4444">Installation failed</h2><p>' + err.message + '</p></body></html>');
+    }
+  }
+
+  // ── Case B: embedded re-open (has shop+host, no hmac) ─────
+  // Shopify opens the app embedded with ?shop=...&host=...&embedded=1
+  // No HMAC here — App Bridge will handle session token issuance client-side.
+  // We need to verify the merchant is installed; if not, kick to install.
+  if (host || embedded) {
+    const dbShop = SHOP_DOMAIN_MAP[shop] || shop;
+    const existing = await getTenant({ shopDomain: dbShop });
+    if (!existing) {
+      // Not installed — send to OAuth install (use public app by default)
+      return res.redirect(`/shopify/install?shop=${encodeURIComponent(shop)}`);
+    }
+    // Installed — render embedded shell
+    const apiKey = process.env.SHOPIFY_API_KEY || process.env.SHOPIFY_API_KEY_CUSTOM;
+    return res.send(embeddedAppShell(shop, host || '', apiKey));
+  }
+
+  // ── Case C: ?shop=... only (legacy install entry) ─────────
+  return res.redirect(`/shopify/install?shop=${encodeURIComponent(shop)}`);
+});
+
+// ── Static + remaining routes ───────────────────────────────
+app.use(express.static(__dirname + '/public'));
 
 app.use('/shopify', require('./routes/install'));
 app.use('/webhook', require('./routes/webhook'));
@@ -136,79 +292,6 @@ app.post('/admin/activate-leogo', async (req, res) => {
   await activateLeogoClient(shop, price_inr, notes);
   res.json({ success: true, message: shop + ' activated as Leogo custom client at Rs' + price_inr + '/mo' });
 });
-// ── END BILLING ROUTES ───────────────────────────────────────
-
-const crypto = require('crypto');
-const axios = require('axios');
-const { updateTenant, getTenant, createTenant } = require('./db');
-
-const SHOP_DOMAIN_MAP = {
-  'udhuxy-pc.myshopify.com': 'rajathee.myshopify.com',
-};
-
-function verifyShopifyHmac(query, secret) {
-  const rest = {};
-  for (const k of Object.keys(query)) {
-    if (k === 'hmac' || k === 'signature') continue;
-    rest[k] = query[k];
-  }
-  const msg = Object.keys(rest).sort().map(k => k + '=' + rest[k]).join('&');
-  const digest = crypto.createHmac('sha256', secret).update(msg).digest('hex');
-  try {
-    return crypto.timingSafeEqual(Buffer.from(digest, 'utf8'), Buffer.from(query.hmac, 'utf8'));
-  } catch (e) { return false; }
-}
-
-async function tokenExchange(shop, sessionToken, clientId, clientSecret) {
-  const url = 'https://' + shop + '/admin/oauth/access_token';
-  const body = {
-    client_id: clientId,
-    client_secret: clientSecret,
-    grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
-    subject_token: sessionToken,
-    subject_token_type: 'urn:ietf:params:oauth:token-type:id_token',
-    requested_token_type: 'urn:shopify:params:oauth:token-type:offline-access-token',
-  };
-  const resp = await axios.post(url, body, { headers: { 'Content-Type': 'application/json' } });
-  return resp.data.access_token;
-}
-
-async function handleShopifyInstallLanding(req, res) {
-  const { shop, hmac, session } = req.query;
-  console.log('🔵 Install landing: shop=' + shop + ' session_len=' + (session ? session.length : 0));
-  try {
-    const secret = process.env.SHOPIFY_API_SECRET_CUSTOM;
-    const clientId = process.env.SHOPIFY_API_KEY_CUSTOM;
-    if (!secret || !clientId) {
-      console.error('Missing SHOPIFY_API_KEY_CUSTOM or SHOPIFY_API_SECRET_CUSTOM env');
-      return res.status(500).send('Server misconfigured');
-    }
-    if (!verifyShopifyHmac(req.query, secret)) {
-      console.error('❌ HMAC verification failed');
-      return res.status(401).send('Invalid HMAC');
-    }
-    console.log('✅ HMAC verified');
-
-    const accessToken = await tokenExchange(shop, session, clientId, secret);
-    console.log('✅ Got offline token (prefix: ' + accessToken.slice(0, 10) + '...)');
-
-    const dbShop = SHOP_DOMAIN_MAP[shop] || shop;
-    const existing = await getTenant({ shopDomain: dbShop });
-    if (existing) {
-      await updateTenant(dbShop, { shopifyToken: accessToken });
-      console.log('✅ Updated tenant ' + dbShop + ' with new token');
-    } else {
-      await createTenant({ shopDomain: dbShop, shopifyToken: accessToken });
-      console.log('✅ Created tenant ' + dbShop + ' with token');
-    }
-
-    return res.send('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Vaani installed</title><style>body{font-family:-apple-system,sans-serif;text-align:center;padding:80px 20px;background:#f8f8ff;color:#222}h1{color:#10b981}p{color:#555;line-height:1.6;max-width:520px;margin:20px auto}.ok{font-size:64px}</style></head><body><div class="ok">✅</div><h1>Vaani Custom installed</h1><p>Connected to <strong>' + shop + '</strong>. The bot is ready to handle orders on WhatsApp.</p><p style="font-size:13px;color:#888;margin-top:40px">You can close this tab.</p></body></html>');
-  } catch (err) {
-    const detail = err.response ? JSON.stringify(err.response.data) : err.message;
-    console.error('❌ Token Exchange error:', detail);
-    return res.status(500).send('<html><body style="font-family:sans-serif;padding:60px;text-align:center"><h2 style="color:#ef4444">Installation failed</h2><p>' + err.message + '</p></body></html>');
-  }
-}
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, async () => {

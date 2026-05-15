@@ -2,9 +2,8 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const crypto = require('crypto');
-const { createTenant } = require('../db');
+const { createTenant, getTenant, updateTenant } = require('../db');
 
-// ─── Helper: get OAuth credentials by app variant ──────────────────────────
 function getCreds(variant) {
   if (variant === 'custom') {
     return {
@@ -24,24 +23,42 @@ function getCreds(variant) {
   };
 }
 
-// ─── Shared install logic ──────────────────────────────────────────────────
 function buildInstallRedirect(shop, variant) {
   const c = getCreds(variant);
-  return `https://${shop}/admin/oauth/authorize?client_id=${c.apiKey}&scope=${c.scopes}&redirect_uri=${process.env.APP_URL}${c.callbackPath}`;
+  return `https://${shop}/admin/oauth/authorize?client_id=${c.apiKey}&scope=${encodeURIComponent(c.scopes)}&redirect_uri=${encodeURIComponent(process.env.APP_URL + c.callbackPath)}`;
 }
 
-// ─── Shared callback logic ─────────────────────────────────────────────────
+function verifyHmacFromRawUrl(rawUrl, secret) {
+  const qIdx = rawUrl.indexOf('?');
+  if (qIdx === -1) return false;
+  const rawQuery = rawUrl.slice(qIdx + 1);
+  const pairs = rawQuery.split('&');
+  let receivedHmac = null;
+  const kept = [];
+  for (const p of pairs) {
+    const eq = p.indexOf('=');
+    const k = eq === -1 ? p : p.slice(0, eq);
+    if (k === 'hmac') { receivedHmac = decodeURIComponent(p.slice(eq + 1)); continue; }
+    if (k === 'signature') continue;
+    kept.push(p);
+  }
+  if (!receivedHmac) return false;
+  kept.sort();
+  const msg = kept.join('&');
+  const digest = crypto.createHmac('sha256', secret).update(msg).digest('hex');
+  try {
+    return crypto.timingSafeEqual(Buffer.from(digest, 'utf8'), Buffer.from(receivedHmac, 'utf8'));
+  } catch (e) { return false; }
+}
+
 async function handleCallback(req, res, variant) {
-  const { shop, code, hmac } = req.query;
+  const { shop, code, host } = req.query;
   if (!shop || !code) return res.status(400).send('Missing parameters');
 
   const c = getCreds(variant);
 
-  // Verify HMAC
-  const params = Object.keys(req.query).filter(k => k !== 'hmac').sort().map(k => `${k}=${req.query[k]}`).join('&');
-  const digest = crypto.createHmac('sha256', c.apiSecret).update(params).digest('hex');
-  if (digest !== hmac) {
-    console.error(`❌ HMAC mismatch for ${c.label} install on ${shop}`);
+  if (!verifyHmacFromRawUrl(req.originalUrl, c.apiSecret)) {
+    console.error(`HMAC mismatch for ${c.label} install on ${shop}`);
     return res.status(401).send('Invalid HMAC');
   }
 
@@ -53,12 +70,19 @@ async function handleCallback(req, res, variant) {
     });
 
     const accessToken = response.data.access_token;
-    await createTenant(shop, accessToken);
-    console.log(`✅ ${c.label} installed on ${shop}`);
+    const existing = await getTenant({ shopDomain: shop });
+    if (existing) {
+      await updateTenant(shop, { shopifyToken: accessToken });
+    } else {
+      await createTenant({ shopDomain: shop, shopifyToken: accessToken });
+    }
+    console.log(`${c.label} installed on ${shop}`);
 
-    res.redirect(`/dashboard?shop=${encodeURIComponent(shop)}&first_install=1`);
+    const hostParam = host ? `&host=${encodeURIComponent(host)}` : '';
+    return res.redirect(`https://${shop}/admin/apps/${c.apiKey}?shop=${encodeURIComponent(shop)}${hostParam}`);
   } catch (err) {
-    console.error(`OAuth error (${c.label}):`, err.message);
+    const detail = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error(`OAuth error (${c.label}):`, detail);
     res.status(500).send(`
       <html><body style="font-family:-apple-system,sans-serif;text-align:center;padding:60px;background:#f8f8ff">
         <h2 style="color:#ef4444">Installation failed</h2>
@@ -69,19 +93,19 @@ async function handleCallback(req, res, variant) {
   }
 }
 
-// ─── Routes: Vaani Public ──────────────────────────────────────────────────
 router.get('/install', (req, res) => {
   const shop = req.query.shop;
   if (!shop) return res.status(400).send('Missing shop parameter');
+  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(shop)) return res.status(400).send('Invalid shop');
   res.redirect(buildInstallRedirect(shop, 'public'));
 });
 
 router.get('/callback', (req, res) => handleCallback(req, res, 'public'));
 
-// ─── Routes: Vaani Custom ──────────────────────────────────────────────────
 router.get('/install-custom', (req, res) => {
   const shop = req.query.shop;
   if (!shop) return res.status(400).send('Missing shop parameter');
+  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(shop)) return res.status(400).send('Invalid shop');
   res.redirect(buildInstallRedirect(shop, 'custom'));
 });
 
