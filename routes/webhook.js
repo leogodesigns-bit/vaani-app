@@ -15,6 +15,7 @@ const { trackConversation } = require('../usage');
 const { isFounderCommand, handleFounderCommand } = require('../founder');
 const { checkAndFireAlerts } = require('../alerts');
 const rajatheeHandler = require('../handlers/rajathee');
+const woofparadeHandler = require('../handlers/woofparade');
 
 router.get('/', (req, res) => {
   const mode = req.query['hub.mode'];
@@ -215,6 +216,13 @@ router.post('/', async (req, res) => {
     // Default ('jhilmil') falls through to the inline Jhilmil/Ikaa flow below.
     if (tenant.flow_template === 'rajathee') {
       await rajatheeHandler.handle({
+        tenant, message, from, text, phoneNumberId, waToken, history, cart
+      });
+      return;
+    }
+
+    if (tenant.flow_template === 'woofparade') {
+      await woofparadeHandler.handle({
         tenant, message, from, text, phoneNumberId, waToken, history, cart
       });
       return;
