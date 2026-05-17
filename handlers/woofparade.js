@@ -2648,3 +2648,5 @@ async function getRecentChats(tenantId, n) {
     return [];
   }
 }
+
+module.exports = { handle };
