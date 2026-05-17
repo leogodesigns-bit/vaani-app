@@ -273,7 +273,7 @@ async function handle(ctx) {
   // ─── NON-TEXT MESSAGE ────────────────────────────────────────────────────
   if (edge.isNonTextMessage(message)) {
     // PDF S03 Branch A.1: image from a returning customer = potential review photo → S31 flow.
-    if (message.type === 'image' && hasPurchasedBefore(ctx)) {
+    if (message.type === 'image' && await hasPurchasedBefore(ctx)) {
       await handlePhotoFromCustomer(ctx);
       return;
     }
@@ -385,7 +385,7 @@ async function handle(ctx) {
 
   // ─── S01 CTA AUTO-MESSAGE — "Make my Pet look like a Showstopper!" ──────
   if (edge.SHOWSTOPPER_CTA_RE.test(trimmed)) {
-    await sendWelcome(ctx);
+    await sendShowstopperWelcome(ctx);
     return;
   }
 
@@ -702,6 +702,73 @@ async function handle(ctx) {
 // PART 2 — WELCOME, BROWSE, SIZING, CHECKOUT
 // ════════════════════════════════════════════════════════════════════════════
 
+async function sendShowstopperWelcome(ctx) {
+  // S01 PDF v1.4: when customer taps "Make my pet a showstopper" CTA on website.
+  // "Hey there! I'm Rio, the woofy face of Woof Parade 🐾 Showstopper mode activated — where shall we start?"
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const body =
+    `Hey there! I'm ${getBotName(ctx)}, the woofy face of ${BRAND_NAME} ${PAW}\n` +
+    `Showstopper mode activated — where shall we start?`;
+  await sendList(from, body, [{
+    title: 'View categories',
+    rows: [
+      { id: WELCOME_ROW.CASUAL,      title: 'Casual Wear',     description: 'Daily outfits & kurtas' },
+      { id: WELCOME_ROW.FESTIVE,     title: 'Festive Wear',    description: 'Sherwanis, lehengas, more' },
+      { id: WELCOME_ROW.ACCESSORIES, title: 'Accessories',     description: 'Bandanas, collars, bowties' },
+      { id: WELCOME_ROW.IPL,         title: 'IPL Jerseys',     description: 'Match-day fits for pups' },
+      { id: WELCOME_ROW.CUSTOM,      title: 'Custom Fit',      description: "Made to your pup's size" },
+      { id: WELCOME_ROW.BESTSELLERS, title: 'Bestsellers',     description: 'What other pups love' },
+    ],
+  }], waToken, phoneNumberId);
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: '[woofparade S01 showstopper-cta welcome]' },
+  ], cart);
+}
+
+async function sendReturningWelcome(ctx) {
+  // S03 PDF v1.4 — three branches:
+  //   A: purchased + pup name on file: "Welcome back, Mochi's parent! 🐾 How's Mochi doing in the Banarasi Lavender Kurta? ..."
+  //   B: purchased + no pup name on file: "Welcome back 🐾 Hope your pup is doing well in the Banarasi Lavender Kurta!..."
+  //   C: chatted but never purchased: "Welcome back 🐾 Last time you were checking out the X. Want to: [Continue where I left off]..."
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const last = await getLastOrderSummary(ctx);
+  const pups = await getCustomerPupProfiles(ctx);
+  const pupName = pups[0]?.pup_name || last?.pupName || null;
+  const lastProduct = last?.productTitle || null;
+
+  let body;
+  if (pupName && lastProduct) {
+    // Branch A
+    body =
+      `Welcome back, ${pupName}'s parent! ${PAW}\n` +
+      `How's ${pupName} doing in the ${lastProduct}?\n\n` +
+      `Looking for something new today, or need a hand with your last order?`;
+  } else if (lastProduct) {
+    // Branch B (purchased, no pup name)
+    body =
+      `Welcome back ${PAW}\n` +
+      `Hope your pup is doing well in the ${lastProduct}!\n\n` +
+      `Looking for something new today?`;
+  } else {
+    // Fallback when we know they purchased but can't pull product details
+    body =
+      `Welcome back ${PAW}\n` +
+      `Looking for something new today, or need a hand with your last order?`;
+  }
+
+  await sendButtons(from, body,
+    ['Browse fresh', 'Order help', 'Just saying hi 🧡'],
+    waToken, phoneNumberId);
+
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: `[woofparade S03 returning-welcome pup=${pupName||'-'} last=${lastProduct||'-'}]` },
+  ], cart);
+}
+
 async function sendWelcome(ctx) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
   const purchased = await hasPurchasedBefore(ctx);
@@ -718,14 +785,14 @@ async function sendWelcome(ctx) {
 
   if (!baseBody) {
     if (purchased) {
-      baseBody =
-        `Welcome back to ${BRAND_NAME} ${PAW}\n` +
-        `Lovely to see you again — what can I help you with today?`;
+      // S03: returning customer — branch on whether pup name is on file
+      await sendReturningWelcome(ctx);
+      return;
     } else {
+      // S04 PDF v1.4: "Hey there! I'm Rio, Woof Parade's golden-furred greeter 🐾 What's your pup looking for today?"
       baseBody =
-        `Hi, I'm ${getBotName(ctx)} from ${BRAND_NAME} ${PAW}\n` +
-        `Your pup's wardrobe HQ — casual, festive, IPL jerseys, accessories, custom fits.\n` +
-        `What can I show you?`;
+        `Hey there! I'm ${getBotName(ctx)}, ${BRAND_NAME}'s golden-furred greeter ${PAW}\n` +
+        `What's your pup looking for today?`;
     }
   }
 
@@ -807,7 +874,7 @@ async function sendCategoryResults(ctx, rowId, page) {
   }
 
   await sendMessage(from,
-    `From our ${label} edit ${PAW} Tap any product below to see details and sizes.`,
+    `That's our top ${slice.length} in ${label} ${PAW}\nReply with the number to pick, or tap any link to view.`,
     waToken, phoneNumberId);
 
   await sendProductPickerList(ctx, slice);
@@ -2424,14 +2491,14 @@ function applyDiscount(subtotal, itemCount) {
     return {
       amount: Math.round(woof15Amt),
       label: `WOOF15 ${WOOF15_PERCENT}%`,
-      transparency: `WOOF15 applied (bigger than festival sale).`,
+      transparency: `Using my secret WOOF15 — it beat today's festival offer 🎉`,
     };
   }
   if (festAmt > 0) {
     return {
       amount: Math.round(festAmt),
       label: festLabel,
-      transparency: `Festival sale auto-applied (bigger than WOOF15).`,
+      transparency: `There's a live sale running, already auto-applied for you (better than my secret WOOF15, so I've put the bigger one on) 🎉`,
     };
   }
   return { amount: 0, label: '', transparency: '' };
@@ -2560,6 +2627,31 @@ async function getCustomerPupProfiles(ctx) {
     // Table may not exist yet
     console.error('[woofparade getCustomerPupProfiles] error:', e.message);
     return [];
+  }
+}
+
+
+async function getLastOrderSummary(ctx) {
+  // S03 Branch A: returns { pupName, productTitle } from most recent paid order, or null.
+  try {
+    const r = await pool.query(
+      `SELECT pup_name, items_json, created_at
+         FROM orders
+        WHERE tenant_id = $1 AND customer_phone = $2 AND status = 'paid'
+        ORDER BY created_at DESC LIMIT 1`,
+      [ctx.tenant.id, ctx.from]
+    );
+    if (!r.rows.length) return null;
+    const row = r.rows[0];
+    let firstItem = null;
+    try {
+      const items = typeof row.items_json === 'string' ? JSON.parse(row.items_json) : row.items_json;
+      if (Array.isArray(items) && items.length > 0) firstItem = items[0]?.title || items[0]?.name || null;
+    } catch (_) {}
+    return { pupName: row.pup_name || null, productTitle: firstItem };
+  } catch (e) {
+    console.error('[woofparade getLastOrderSummary] error:', e.message);
+    return null;
   }
 }
 
