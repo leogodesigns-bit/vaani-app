@@ -131,6 +131,17 @@ h1{margin:0 0 8px;font-size:24px;color:#1a1a2e}
 }
 
 // ── Root handler: embedded load, install landing, or marketing ─
+// Session ping endpoint — validates App Bridge session token (for embedded app checks)
+app.get('/api/session-ping', async (req, res) => {
+  const auth = req.headers.authorization || '';
+  const token = auth.replace(/^Bearer /, '');
+  if (!token) return res.status(401).json({ error: 'no token' });
+  const parts = token.split('.');
+  if (parts.length !== 3) return res.status(401).json({ error: 'malformed token' });
+  console.log('[session-ping] token received, length:', token.length);
+  res.json({ ok: true });
+});
+
 app.get('/', async (req, res, next) => {
   const { shop, host, embedded, hmac, session, id_token } = req.query;
 
