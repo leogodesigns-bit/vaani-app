@@ -58,8 +58,8 @@ const WELCOME_ROW = {
 // Founder review: confirm these match thewoofparade.com handles.
 const CATEGORY_HANDLES = {
   [WELCOME_ROW.CASUAL]:      'pet-clothes',           // S05 PDF example
-  [WELCOME_ROW.FESTIVE]:     'festive-wear',
-  [WELCOME_ROW.ACCESSORIES]: 'accessories',
+  [WELCOME_ROW.FESTIVE]:     'festive-fits',
+  [WELCOME_ROW.ACCESSORIES]: 'toys-accessories',
   [WELCOME_ROW.IPL]:         'jerseys-for-dogs-and-cats',
   [WELCOME_ROW.BESTSELLERS]: 'bestsellers',
   // CUSTOM is handled inline (S12 flow), not a Shopify collection.
@@ -846,9 +846,8 @@ async function sendCategoryResults(ctx, rowId, page) {
 
   if (!products.length) {
     await sendMessage(from,
-      `Looks like our ${label} edit is being refreshed ${PAW} Let me show you another category.`,
+      `Hmm, our ${label} edit looks empty right now ${PAW} Try another category from the menu, or tap *Custom Fit* and we'll get something made.`,
       waToken, phoneNumberId);
-    await sendWelcome(ctx);
     return;
   }
 
@@ -860,7 +859,6 @@ async function sendCategoryResults(ctx, rowId, page) {
     await sendMessage(from,
       `That's all I've got for ${label} ${PAW} Want to peek at another category?`,
       waToken, phoneNumberId);
-    await sendWelcome(ctx);
     return;
   }
 
