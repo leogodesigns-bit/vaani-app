@@ -408,7 +408,7 @@ async function handle(ctx) {
     await handleCustomFitStart(ctx);
     return;
   }
-  if (trimmed === 'Chat it through' || trimmed === 'Chat it through with me') {
+  if (/^(chat\s+(it\s+through|with\s+me|through\s+with)|chat\s+through)/i.test(trimmed)) {
     await handleCustomChatStart(ctx);
     return;
   }
@@ -1530,7 +1530,7 @@ async function handleCustomFitStart(ctx) {
   await sendButtons(from,
     `Custom designs starting from ₹300+ over base price ${PAW}\n` +
     `Two ways we can do this — pick what's easier:`,
-    ['Fill the form', 'Chat it through with me', PRODUCT_BTN.BACK_TO_MENU],
+    ['Fill the form', 'Chat with me 💬', PRODUCT_BTN.BACK_TO_MENU],
     waToken, phoneNumberId);
 }
 
