@@ -130,7 +130,7 @@ app.get('/', async (req, res, next) => {
   // For OAuth-installed shops, just render the embedded shell.
   if (hmac && session) {
     const dbShop = SHOP_DOMAIN_MAP[shop] || shop;
-    const existing = await getTenant({ shopDomain: dbShop });
+    const existing = await getTenant(dbShop);
     if (existing) {
       // Already installed via OAuth — just render the embedded UI
       const apiKey = process.env.SHOPIFY_API_KEY || process.env.SHOPIFY_API_KEY_CUSTOM;
@@ -145,7 +145,7 @@ app.get('/', async (req, res, next) => {
     }
     try {
       const accessToken = await tokenExchange(shop, session, v.apiKey, v.secret);
-      await createTenant({ shopDomain: dbShop, shopifyToken: accessToken });
+      await createTenant(dbShop, accessToken);
       console.log(`✅ ${v.variant} installed via managed install for ${dbShop}`);
       return res.send(embeddedAppShell(shop, host || '', v.apiKey));
     } catch (err) {
@@ -163,7 +163,7 @@ app.get('/', async (req, res, next) => {
   // We need to verify the merchant is installed; if not, kick to install.
   if (host || embedded) {
     const dbShop = SHOP_DOMAIN_MAP[shop] || shop;
-    const existing = await getTenant({ shopDomain: dbShop });
+    const existing = await getTenant(dbShop);
     if (!existing) {
       // Not installed — send to OAuth install (use public app by default)
       return res.redirect(`/shopify/install?shop=${encodeURIComponent(shop)}`);
