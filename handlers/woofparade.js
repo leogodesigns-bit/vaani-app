@@ -142,13 +142,14 @@ const CHECKOUT_STEP = {
 };
 
 const ADDRESS_PROMPT =
-  'Sure! 🐾 I\'ll need a delivery address.\n\n' +
-  'Could you share in ONE message:\n' +
-  '1. Full name\n' +
-  '2. Address (house/flat, street, area)\n' +
-  '3. City + State\n' +
-  '4. 6-digit PIN code\n' +
-  '5. Phone (different from WhatsApp, if any — optional)';
+  // S10 PDF v1.4: "Sure! I'll need a delivery address..."
+  `Sure! I'll need a delivery address.\n\n` +
+  `Could you share:\n` +
+  `1. Full name\n` +
+  `2. Address (house/flat, street, area)\n` +
+  `3. City + State\n` +
+  `4. PIN code\n` +
+  `5. Alternate phone (different from WhatsApp, optional)`;
 
 // Shipping (PDF S17: free on ₹899+).
 const SHIPPING_FREE_THRESHOLD = 899;
@@ -407,13 +408,13 @@ async function handle(ctx) {
     await handleCustomFitStart(ctx);
     return;
   }
-  if (trimmed === 'Chat it through') {
+  if (trimmed === 'Chat it through' || trimmed === 'Chat it through with me') {
     await handleCustomChatStart(ctx);
     return;
   }
-  if (trimmed === 'Use website form') {
+  if (trimmed === 'Use website form' || trimmed === 'Fill the form') {
     await sendMessage(ctx.from,
-      `Lovely ${PAW} Fill the quick form here:\nhttps://thewoofparade.com/pages/custom-order\n\nAnouttama will pick up from there.`,
+      `Pawfect — here's the link ${PAW}\nhttps://thewoofparade.com/pages/custom-order\n\nOnce you submit, I'll pick it up here and Anouttama will reach out shortly.`,
       ctx.waToken, ctx.phoneNumberId);
     return;
   }
@@ -1124,15 +1125,9 @@ async function handleContinueSection(ctx) {
 
 async function handleSizingHelpStart(ctx) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
-  await sendMessage(from,
-    `Easy — let's find the perfect fit for your pup ${PAW}\n\n` +
-    `I'll need 3 measurements:\n` +
-    `1. *Back length* (base of neck → base of tail) in inches\n` +
-    `2. *Chest girth* (widest part of chest, behind front legs) in inches\n` +
-    `3. *Neck girth* (where collar sits) in inches\n\n` +
-    `Got them handy?`,
-    waToken, phoneNumberId);
-  await sendButtons(from, 'Choose:',
+  // S07 PDF v1.4: "No stress — we'll get the fit just right 🐾 Do you have your pup's measurements handy?"
+  await sendButtons(from,
+    `No stress — we'll get the fit just right ${PAW}\nDo you have your pup's measurements handy?`,
     [SIZE_BTN.YES_HAVE, SIZE_BTN.REMIND, SIZE_BTN.HOOMAN],
     waToken, phoneNumberId);
 
@@ -1148,8 +1143,14 @@ async function handleSizingHelpStart(ctx) {
 
 async function handleSizingHaveMeasurements(ctx) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  // S07 PDF v1.4: ask for back/chest/neck only (armhole is custom-only — see S12)
   await sendMessage(from,
-    `Lovely. Send all 3 in one message like this:\n\n*Back 18, Chest 22, Neck 14*`,
+    `Here's our size chart ${PAW}\nTap to zoom in — measurements you'll need below.\n\n` +
+    `Pop them in here:\n` +
+    `• Back length (neck base to tail base)\n` +
+    `• Chest (widest part behind front legs)\n` +
+    `• Neck (around the base)\n\n` +
+    `In inches please. Like:\n*Back 14, Chest 18, Neck 12*`,
     waToken, phoneNumberId);
   await upsertConversation(tenant.id, from, [
     ...history,
@@ -1196,29 +1197,32 @@ async function handleMeasurementsMessage(ctx) {
   };
 
   if (match.outcome === 'clean') {
-    await sendMessage(from,
-      `✅ Best size for your pup: *${match.size}*\n\n` +
-      `Back: ${parsed.back}", Chest: ${parsed.chest}", Neck: ${parsed.neck}" ${PAW}`,
-      waToken, phoneNumberId);
-    await sendButtons(from, "Shall I add it to your shortlist?",
-      [`Add ${match.size}`, SIZE_BTN.HOOMAN, PRODUCT_BTN.BACK_TO_MENU],
+    // S07 PDF v1.4 clean match: "That's a Size M for your pup 🐾 Want to go ahead?"
+    await sendButtons(from,
+      `That's a Size *${match.size}* for your pup ${PAW}\nWant to go ahead?`,
+      [`Add ${match.size} to shortlist`, SIZE_BTN.TALK_DESIGNER],
       waToken, phoneNumberId);
   } else if (match.outcome === 'borderline') {
+    // S07 PDF v1.4 borderline: snugger vs roomier, "Which feels right?"
     await sendMessage(from,
-      `Your pup sits between two sizes ${PAW}\n\n` +
-      `*${match.size}* will fit snug. *${match.otherSize}* will be a touch roomy.\n${match.note}\n\nWhich would you like?`,
+      `Looks like a Size *${match.size}* for your pup ${PAW}\n\n` +
+      `Quick note — they're slightly over the ${match.size}. Could go either way:\n\n` +
+      `• *${match.size}* = snugger fit\n` +
+      `• *${match.otherSize}* = roomier fit\n\n` +
+      `Which feels right?`,
       waToken, phoneNumberId);
     await sendButtons(from, 'Choose:',
       [`Add ${match.size}`, `Add ${match.otherSize}`, SIZE_BTN.TALK_DESIGNER],
       waToken, phoneNumberId);
   } else {
+    // S07 PDF v1.4 no match: route to custom
     await sendMessage(from,
-      `Your pup's measurements are outside our standard sizes ${PAW}\n\n` +
-      `Back: ${parsed.back}", Chest: ${parsed.chest}", Neck: ${parsed.neck}"\n\n` +
-      `We can custom-make this for them. Would you like to go ahead?`,
+      `Hmm — your pup's measurements are outside our standard sizes ${PAW}\n\n` +
+      `But Anouttama can custom-make something pawfect for them.\n\n` +
+      `Want me to set that up?`,
       waToken, phoneNumberId);
     await sendButtons(from, 'Choose:',
-      [SIZE_BTN.YES_CUSTOM, SIZE_BTN.TALK_DESIGNER, PRODUCT_BTN.BACK_TO_MENU],
+      [SIZE_BTN.YES_CUSTOM, SIZE_BTN.TALK_DESIGNER],
       waToken, phoneNumberId);
   }
 
@@ -1433,14 +1437,21 @@ async function handleCheckoutConfirm(ctx) {
     console.error('[woofparade] saveOrder failed:', e.message);
   }
 
-  await sendMessage(from,
-    `✅ *Order placed!* ${PAW}\n\n` +
-    `*Order ID*: ${orderId}\n` +
-    `*Total*: ${formatPrice(co.grand)}\n` +
-    `*Payment*: ${co.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Pay now (link incoming)'}\n\n` +
-    `Estimated delivery: 4–8 days.\n` +
-    `Apurv will WhatsApp you shortly with tracking once it ships.`,
-    waToken, phoneNumberId);
+  // S10/S11 PDF v1.4: COD = "Order locked in for COD"; Paid = "Payment confirmed!"
+  const isPaid = co.paymentMethod !== 'cod';
+  if (isPaid) {
+    await sendMessage(from,
+      `Payment confirmed! 🎉\n` +
+      `Order #${orderId} is on its way to being a showstopper.\n` +
+      `Tracking link will land here once it ships (usually 1–2 days).`,
+      waToken, phoneNumberId);
+  } else {
+    await sendMessage(from,
+      `Thanks! Order locked in for COD ${PAW}\n` +
+      `Our team will confirm and dispatch within 1–2 days.\n` +
+      `You'll get a tracking link on WhatsApp once it ships.`,
+      waToken, phoneNumberId);
+  }
 
   if ((co.grand || 0) >= HIGH_VALUE_THRESHOLD) {
     await handleHighValueAlert(ctx, items, co, orderId);
@@ -1515,14 +1526,11 @@ async function handleNotifyMeBack(ctx) {
 
 async function handleCustomFitStart(ctx) {
   const { from, phoneNumberId, waToken } = ctx;
-  await sendMessage(from,
-    `Custom fits are our favourite ${PAW}\n\n` +
-    `Two ways to go ahead:\n` +
-    `1. *Fill our quick form* on the website (faster, has fabric swatches)\n` +
-    `2. *Chat it through here* — share pup name, measurements, and fabric preference`,
-    waToken, phoneNumberId);
-  await sendButtons(from, 'How would you like to start?',
-    ['Use website form', 'Chat it through', PRODUCT_BTN.BACK_TO_MENU],
+  // S12 PDF v1.4 intro
+  await sendButtons(from,
+    `Custom designs starting from ₹300+ over base price ${PAW}\n` +
+    `Two ways we can do this — pick what's easier:`,
+    ['Fill the form', 'Chat it through with me', PRODUCT_BTN.BACK_TO_MENU],
     waToken, phoneNumberId);
 }
 
@@ -1553,8 +1561,13 @@ async function handleCustomOrderFromWebsite(ctx) {
 // Branch when user taps "Chat it through" in handleCustomFitStart
 async function handleCustomChatStart(ctx) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  // S12 PDF v1.4 Branch B step 1: ask pup name + fit together
   await sendMessage(from,
-    `Lovely ${PAW} What's your pup's name?`,
+    `Pawfect ${PAW} Just two quick messages from me.\n\n` +
+    `First up:\n` +
+    `1. What's your pup's name?\n` +
+    `2. What kind of fit are you after? (Kurta, Frock, Lehenga, Bandana, or "not sure yet")\n\n` +
+    `Send both in one message — like: *Mochi, Kurta*`,
     waToken, phoneNumberId);
   await upsertConversation(tenant.id, from, [
     ...history,
@@ -1569,9 +1582,18 @@ async function handleCustomChatStart(ctx) {
 async function handleCustomPupNameMessage(ctx) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
   const pupName = (text || '').trim().slice(0, 60);
+  // S12 PDF v1.4 Branch B step 2: full intake in one message
   await sendMessage(from,
-    `Lovely name ${PAW} Now share *${pupName}*'s measurements in one message:\n\n` +
-    `*Back __, Chest __, Neck __, Armhole __* (inches)`,
+    `Lovely — *${pupName}*'s about to look like a showstopper ${PAW}\n\n` +
+    `Now pop in everything in one message:\n` +
+    `• Back length (neck base to tail base)\n` +
+    `• Chest (widest part behind front legs)\n` +
+    `• Neck (around the base)\n` +
+    `• Armhole (around the front leg)\n` +
+    `• Fabric / style preference (or 'not sure yet')\n` +
+    `• Occasion or theme (optional)\n` +
+    `• Weight in kg (optional)\n\n` +
+    `Like: *Back 14, Chest 18, Neck 12, Armhole 6, Red Banarasi, Diwali, 8kg*`,
     waToken, phoneNumberId);
 
   const c = cart.woofparade?.custom || {};
@@ -1644,13 +1666,9 @@ async function handleCustomMeasurementsMessage(ctx) {
 
 async function handleRefundComplaint(ctx) {
   const { from, phoneNumberId, waToken, history } = ctx;
+  // S18 PDF v1.4: no outcome promise, just empathy + escalation
   await sendMessage(from,
-    `I'm really sorry to hear that ${PAW} Let me get our team on this right away.\n\n` +
-    `Apurv will reach out within 1–2 hours to make this right. ` +
-    `Please share any photos or order ID you have — we'll need them.`,
-    waToken, phoneNumberId);
-  await sendButtons(from, 'While Apurv reaches out:',
-    [POSTPURCHASE_BTN.TRACK, PRODUCT_BTN.BACK_TO_MENU],
+    `I'm so sorry to hear that ${PAW} Let me get our team on it right away — they'll reach out to you shortly.`,
     waToken, phoneNumberId);
 
   const lastMsgs = formatRecentHistory(history);
@@ -1668,7 +1686,7 @@ async function handleRefundComplaint(ctx) {
 async function handleStopUnsubscribe(ctx) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
   await sendMessage(from,
-    `Got it — I'll step back ${PAW} If you ever want to chat again about your pup's wardrobe, just send "hi". Take care!`,
+    `Okay... I'll stop. *walks away slowly* ${PAW}\nYou're unsubscribed.\n\nBut if you change your mind, I'll be here.`,
     waToken, phoneNumberId);
 
   await upsertConversation(tenant.id, from, [
@@ -1685,12 +1703,10 @@ async function handleStopUnsubscribe(ctx) {
 
 async function handleTalkToHuman(ctx, reasonCode) {
   const { from, phoneNumberId, waToken, history } = ctx;
+  // S16 PDF v1.4: "Of course! Apurv from our team will be with you shortly..."
   await sendMessage(from,
-    `On it ${PAW} Apurv will WhatsApp you within the next hour or two.\n\n` +
-    `Meanwhile, anything else I can help with?`,
-    waToken, phoneNumberId);
-  await sendButtons(from, 'Or:',
-    [PRODUCT_BTN.BACK_TO_MENU, POSTPURCHASE_BTN.TRACK],
+    `Of course! Apurv from our team will be with you shortly ${PAW}\n\n` +
+    `What's the best time to reach out, and what should I tell them you'd like to chat about?`,
     waToken, phoneNumberId);
 
   const lastMsgs = formatRecentHistory(history);
@@ -1706,11 +1722,12 @@ async function handleTalkToHuman(ctx, reasonCode) {
 
 async function handleInternationalRequest(ctx) {
   const { from, phoneNumberId, waToken } = ctx;
-  await sendMessage(from,
-    `We currently ship only within India ${PAW}\n\n` +
-    `If you're abroad and want us to figure out international shipping for you, drop me your country and I'll loop our team in — they'll WhatsApp you with options.`,
-    waToken, phoneNumberId);
-  await sendButtons(from, 'Want our team to reach out?',
+  // S20 PDF v1.4: explicit opt-in language, scoped to international launch only
+  await sendButtons(from,
+    `Right now we ship pan-India only 🇮🇳\n\n` +
+    `We'll let you know the moment international shipping launches! ` +
+    `Want me to save your contact and WhatsApp you when international shipping goes live? ` +
+    `(We'll only message you about that — nothing else.)`,
     [ORDER_OPS_BTN.YES_WHATSAPP, ORDER_OPS_BTN.NO_THANKS],
     waToken, phoneNumberId);
 }
@@ -1733,9 +1750,10 @@ async function handleInternationalOptIn(ctx) {
 
 async function handleBulkInquiry(ctx) {
   const { from, phoneNumberId, waToken } = ctx;
+  // S21 PDF v1.4
   await sendMessage(from,
-    `Lovely — wholesale & bulk is its own conversation ${PAW}\n\n` +
-    `Apurv will reach out within a day with our trade pricing and minimums.`,
+    `For bulk orders, we'll reach out within a day, personally.\n\n` +
+    `Could you share your contact + a bit about your business? ${PAW}`,
     waToken, phoneNumberId);
 
   const body =
@@ -1750,9 +1768,10 @@ async function handleBulkInquiry(ctx) {
 
 async function handlePressInquiry(ctx) {
   const { from, phoneNumberId, waToken } = ctx;
+  // S22 PDF v1.4 — TODO: KASHMIRA CONFIRM press email (default: hello@thewoofparade.com)
   await sendMessage(from,
-    `Thanks for reaching out ${PAW}\n\n` +
-    `For press, collabs and interviews, please write to *${PRESS_EMAIL}* — Kashmira will get back personally.`,
+    `Lovely to hear from you! ${PAW}\n\n` +
+    `For press or collaborations, please email *${PRESS_EMAIL}* — our team will get right back to you.`,
     waToken, phoneNumberId);
 
   const body =
