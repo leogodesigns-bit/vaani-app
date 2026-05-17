@@ -81,16 +81,28 @@ function embeddedAppShell(shop, host, apiKey) {
 <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js" data-api-key="${apiKey}"></script>
 <script>
 // App Bridge session token fetch — required for Shopify embedded app review checks
+// Wait for App Bridge to be ready, then fetch session token and ping the server.
+async function waitForShopify() {
+  for (let i = 0; i < 50; i++) {
+    if (window.shopify && window.shopify.idToken) return true;
+    await new Promise(r => setTimeout(r, 100));
+  }
+  return false;
+}
 (async function() {
   try {
-    if (window.shopify && window.shopify.idToken) {
-      const token = await window.shopify.idToken();
-      // Use the token in a server call so Shopify's automated review detects session token usage
-      await fetch('/api/session-ping', {
-        method: 'GET',
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
+    const ready = await waitForShopify();
+    if (!ready) {
+      console.warn('App Bridge did not initialize within 5s');
+      return;
     }
+    const token = await window.shopify.idToken();
+    console.log('Got session token, length:', token.length);
+    const res = await fetch('/api/session-ping', {
+      method: 'GET',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    console.log('session-ping response:', res.status);
   } catch (e) {
     console.warn('Session token fetch failed:', e);
   }
