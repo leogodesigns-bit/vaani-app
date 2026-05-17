@@ -404,7 +404,7 @@ async function handle(ctx) {
     await sendCategoryResults(ctx, listReplyId, 0);
     return;
   }
-  if (listReplyId === WELCOME_ROW.CUSTOM || trimmed === 'Custom Fit') {
+  if (listReplyId === WELCOME_ROW.CUSTOM || /^custom\s*fit\b/i.test(trimmed) || /^custom\b/i.test(trimmed)) {
     await handleCustomFitStart(ctx);
     return;
   }
@@ -462,7 +462,7 @@ async function handle(ctx) {
     await handleSizePick(ctx, trimmed);
     return;
   }
-  if (trimmed === PRODUCT_BTN.HELP_SIZING || trimmed === 'Help me sizing') {
+  if (trimmed === PRODUCT_BTN.HELP_SIZING || /^(help\s*me\s*sizing|need\s+(help\s+)?sizing|sizing\s+help|i?\s*need\s+sizing)\b/i.test(trimmed)) {
     await handleSizingHelpStart(ctx);
     return;
   }
