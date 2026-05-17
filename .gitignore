@@ -6,3 +6,8 @@ db.js.bak-*
 routes/webhook.js.bak-*
 handlers/rajathee.js.bak-*
 .env.bak
+
+# Backup files
+*.bak
+*.bak[0-9]
+*.bak-*
