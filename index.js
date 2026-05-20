@@ -180,13 +180,16 @@ app.get('/', async (req, res, next) => {
   if (hmac && session) {
     const dbShop = SHOP_DOMAIN_MAP[shop] || shop;
     const existing = await getTenant(dbShop);
-    if (existing) {
-      // Already installed via OAuth — just render the embedded UI
+    if (existing && existing.shopify_token) {
+      // Already installed via OAuth with a working token — just render the embedded UI
       const apiKey = pickApiKeyForShop(dbShop);
       console.log(`[/] Embedded re-open for already-installed ${dbShop}`);
       return res.send(embeddedAppShell(shop, host || '', apiKey));
     }
-    // Not installed yet — try managed install token exchange
+    if (existing && !existing.shopify_token) {
+      console.log(`[/] Tenant row exists for ${dbShop} but token is NULL — running token exchange`);
+    }
+    // Not installed yet (or row exists without token) — try managed install token exchange
     const v = detectVariantByHmac(req);
     if (!v) {
       console.error('[/] HMAC verification failed for install landing on', shop);
@@ -194,8 +197,13 @@ app.get('/', async (req, res, next) => {
     }
     try {
       const accessToken = await tokenExchange(shop, session, v.apiKey, v.secret);
-      await createTenant(dbShop, accessToken);
-      console.log(`✅ ${v.variant} installed via managed install for ${dbShop}`);
+      if (existing) {
+        await updateTenant(dbShop, { shopifyToken: accessToken });
+        console.log(`✅ ${v.variant} re-installed (token refreshed) for ${dbShop}`);
+      } else {
+        await createTenant(dbShop, accessToken);
+        console.log(`✅ ${v.variant} installed via managed install for ${dbShop}`);
+      }
       return res.send(embeddedAppShell(shop, host || '', v.apiKey));
     } catch (err) {
       const detail = err.response ? JSON.stringify(err.response.data) : err.message;
@@ -213,11 +221,16 @@ app.get('/', async (req, res, next) => {
   if (host || embedded) {
     const dbShop = SHOP_DOMAIN_MAP[shop] || shop;
     const existing = await getTenant(dbShop);
-    if (!existing) {
-      // Not installed — send to OAuth install (use public app by default)
-      return res.redirect(`/shopify/install?shop=${encodeURIComponent(shop)}`);
+    if (!existing || !existing.shopify_token) {
+      // Not installed (or token missing) — send to OAuth install
+      console.log(`[/] Case B: ${!existing ? 'no tenant row' : 'token NULL'} for ${dbShop}, redirecting to OAuth`);
+      // Pick the right install path per shop
+      const installPath = dbShop === 'thewoofparade.com' ? 'install-woof'
+                        : dbShop === 'rajathee.myshopify.com' ? 'install-custom'
+                        : 'install';
+      return res.redirect(`/shopify/${installPath}?shop=${encodeURIComponent(shop)}`);
     }
-    // Installed — render embedded shell
+    // Installed with valid token — render embedded shell
     const apiKey = pickApiKeyForShop(dbShop);
     return res.send(embeddedAppShell(shop, host || '', apiKey));
   }
