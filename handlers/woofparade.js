@@ -26,6 +26,23 @@ const qa = require('./woofparade-qa');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const { getCollectionProducts, getProductByHandle, formatPrice, stripHtml , createCheckoutDraftOrder } = require('../shopify');
+
+// ─── S12 PDF v1.4: Custom Order fabrics ────────────────────────────────────
+// 8 fabrics in PDF order. photoUrl=null = text-only fallback (HEIC files not
+// accepted by WhatsApp Media API even with &format=jpg; or "Something Different"
+// which is a custom request by design). Swap URLs here if Shopify reorganizes.
+const WOOFPARADE_FABRICS = [
+  { id: 'fabric_red_banarasi',         name: 'Red Banarasi',         photoUrl: 'https://cdn.shopify.com/s/files/1/1000/6475/6006/files/swatch-red-banarasi_jpg.jpg?v=1773464065',                    description: 'Soft fabric with traditional gold weave — perfect for weddings and festive evenings.' },
+  { id: 'fabric_lavender_grace',       name: 'Lavender Grace',       photoUrl: 'https://cdn.shopify.com/s/files/1/1000/6475/6006/files/swatch-lavender-grace.jpg?v=1773464068',                       description: 'Delicate lavender Banarasi with gold accents — soft, regal, occasion-ready.' },
+  { id: 'fabric_black_assamese',       name: 'Black Assamese',       photoUrl: 'https://cdn.shopify.com/s/files/1/1000/6475/6006/files/swatch-black-assamese.jpg?v=1773464067',                       description: 'Classic Assamese weave in deep black with woven motifs — bold and festive.' },
+  { id: 'fabric_blue_leheriya',        name: 'Blue Leheriya',        photoUrl: null,                                                                                                                  description: 'Traditional Rajasthani leheriya in blue — playful wave pattern, light and festive. (Photo coming soon — Kashmira to re-upload as JPG.)' },
+  { id: 'fabric_multicolour_bandhani', name: 'Multicolour Bandhani', photoUrl: null,                                                                                                                  description: 'Vibrant bandhani tie-dye in multicolour — joyful, festive, eye-catching. (Photo coming soon — Kashmira to re-upload as JPG.)' },
+  { id: 'fabric_dazzling_yellow',      name: 'Dazzling Yellow',      photoUrl: 'https://cdn.shopify.com/s/files/1/1000/6475/6006/files/WhatsApp_Image_2026-03-30_at_14.56.58.jpg?v=1774864048',       description: 'Bright golden yellow weave — celebratory, perfect for haldi and festive shoots.' },
+  { id: 'fabric_pink_bandhani',        name: 'Pink Bandhani',        photoUrl: 'https://cdn.shopify.com/s/files/1/1000/6475/6006/files/pink_bandhani.jpg?v=1774860713',                                description: 'Classic pink bandhani — feminine, traditional, photographs beautifully.' },
+  { id: 'fabric_something_different',  name: 'Something Different',  photoUrl: null,                                                                                                                  description: "Want something not on this list? Tell Anouttama what you're imagining and they'll bring it to life." },
+];
+const FABRIC_BY_ID = Object.fromEntries(WOOFPARADE_FABRICS.map(f => [f.id, f]));
+
 const { getTenantSettings } = require('../settings-cache');
 
 // ─── BRAND CONSTANTS ──────────────────────────────────────────────────────
@@ -467,14 +484,50 @@ async function handle(ctx) {
       ctx.waToken, ctx.phoneNumberId);
     return;
   }
-  // Custom fabric pick (S12 Branch B step 3)
-  if (listReplyId && listReplyId.startsWith('fabric_')) {
-    const fabric = listReplyId.replace('fabric_', '');
+  // S12 PDF v1.4 Branch B step 3: fabric pick → send photo (if available)
+  // + description, then "All set" PDF-verbatim message + Anouttama notification.
+  if (listReplyId && FABRIC_BY_ID[listReplyId]) {
+    const fabric = FABRIC_BY_ID[listReplyId];
+    const r = ctx.cart?.woofparade || {};
+    const custom = r.custom || {};
+    const pupName = custom.pupName || 'your pup';
+
+    // Send fabric photo if available, else just description.
+    if (fabric.photoUrl) {
+      try {
+        await sendImage(ctx.from, fabric.photoUrl, `${fabric.name} ${PAW}\n${fabric.description}`, ctx.waToken, ctx.phoneNumberId);
+      } catch (e) {
+        console.error('[woofparade S12] sendImage failed for', fabric.name, e.message);
+        await sendMessage(ctx.from, `*${fabric.name}* ${PAW}\n${fabric.description}`, ctx.waToken, ctx.phoneNumberId);
+      }
+    } else {
+      await sendMessage(ctx.from, `*${fabric.name}* ${PAW}\n${fabric.description}`, ctx.waToken, ctx.phoneNumberId);
+    }
+
+    // PDF S12 verbatim closer
     await sendMessage(ctx.from,
-      `Perfect ${PAW} *${fabric}* it is. Anouttama will share swatches and the final quote within a day.`,
+      `All set ${PAW}\nAnouttama will sniff this out shortly and get back to you to take this forward ✨`,
       ctx.waToken, ctx.phoneNumberId);
+
+    // Anouttama notification with full measurements (incl. armhole per PDF S12)
+    const m2 = custom.measurements || {};
+    const measLine = [
+      m2.back && `Back: ${m2.back}"`,
+      m2.chest && `Chest: ${m2.chest}"`,
+      m2.neck && `Neck: ${m2.neck}"`,
+      m2.armhole && `Armhole: ${m2.armhole}"`,
+      m2.weight && `Weight: ${m2.weight}kg`,
+    ].filter(Boolean).join(', ') || '(not provided)';
+
     await pingTeam(ctx, 'designer',
-      `🎨 Fabric chosen: *${fabric}* by +${from} for their custom order.`);
+      `🎨 *Custom order — Woof Parade* (S12 via WhatsApp)\n\n` +
+      `Customer: +${from}\n` +
+      `Pup: ${pupName}\n` +
+      `Style: ${custom.style || '(not specified)'}\n` +
+      `Fabric: ${fabric.name}\n` +
+      `Measurements: ${measLine}\n` +
+      `Occasion: ${custom.occasion || '(not specified)'}\n\n` +
+      `Chat: https://wa.me/${from}`);
     return;
   }
   if (trimmed === WELCOME_BTN.VIEW_CATEGORIES || trimmed === 'View categories') {
@@ -1947,19 +2000,14 @@ async function handleCustomMeasurementsMessage(ctx) {
     return;
   }
 
-  // Send fabric list.
+  // S12 PDF v1.4: 8 fabrics in PDF order from WOOFPARADE_FABRICS config.
   await sendList(from, `Pick a fabric for ${cart.woofparade?.custom?.pupName || "your pup"} ${PAW}`, [{
-    title: 'Fabrics',
-    rows: [
-      { id: 'fabric_cotton',    title: 'Cotton',       description: 'Soft, breathable, daily wear' },
-      { id: 'fabric_linen',     title: 'Linen',        description: 'Light, summer-ready' },
-      { id: 'fabric_silk',      title: 'Silk',         description: 'Festive shimmer' },
-      { id: 'fabric_velvet',    title: 'Velvet',       description: 'Winter, formal' },
-      { id: 'fabric_brocade',   title: 'Brocade',      description: 'Heavy festive' },
-      { id: 'fabric_denim',     title: 'Denim',        description: 'Casual, durable' },
-      { id: 'fabric_print',     title: 'Printed',      description: 'Cotton with prints' },
-      { id: 'fabric_surprise',  title: 'Surprise me',  description: 'Designer picks' },
-    ],
+    title: 'View fabrics',
+    rows: WOOFPARADE_FABRICS.map(f => ({
+      id: f.id,
+      title: f.name.slice(0, 24),
+      description: (f.description || '').slice(0, 72),
+    })),
   }], waToken, phoneNumberId);
 
   // Ping team with full intake.
