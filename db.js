@@ -212,6 +212,98 @@ async function markOrderPaid(orderId) {
   return r.rows[0] || null;
 }
 
+// ─── SHOPIFY DRAFT / WEBHOOK HELPERS (Patch 11c) ───────────────────────────
+
+// Link our internal order to a Shopify draft order (when Pay now invoice is created).
+async function saveShopifyDraftRef(orderId, shopifyDraftId) {
+  await pool.query(
+    `UPDATE orders SET shopify_draft_id = $2, payment_link_sent_at = NOW() WHERE order_id = $1`,
+    [orderId, String(shopifyDraftId)]
+  );
+}
+
+// Find our internal order by Shopify draft id (used by orders/paid webhook).
+async function getOrderByShopifyDraftId(shopifyDraftId) {
+  const r = await pool.query(
+    `SELECT * FROM orders WHERE shopify_draft_id = $1 LIMIT 1`,
+    [String(shopifyDraftId)]
+  );
+  return r.rows[0] || null;
+}
+
+// Save the Shopify order id once it's known (e.g. from orders/paid webhook payload).
+async function saveShopifyOrderId(orderId, shopifyOrderId) {
+  await pool.query(
+    `UPDATE orders SET shopify_order_id = $2 WHERE order_id = $1`,
+    [orderId, String(shopifyOrderId)]
+  );
+}
+
+// Find our internal order by Shopify order id (used by orders/fulfilled webhook).
+async function getOrderByShopifyOrderId(shopifyOrderId) {
+  const r = await pool.query(
+    `SELECT * FROM orders WHERE shopify_order_id = $1 LIMIT 1`,
+    [String(shopifyOrderId)]
+  );
+  return r.rows[0] || null;
+}
+
+// Idempotent mark-paid that uses the draft id (Shopify webhook payload).
+// Returns the order row if state actually flipped (first time), null otherwise.
+async function markOrderPaidByDraft(shopifyDraftId, shopifyOrderId) {
+  // Atomic: only flip awaiting_payment → paid for this draft
+  const r = await pool.query(
+    `UPDATE orders
+     SET status = 'paid',
+         confirmed_at = NOW(),
+         shopify_order_id = COALESCE(shopify_order_id, $2)
+     WHERE shopify_draft_id = $1
+       AND status = 'awaiting_payment'
+     RETURNING *`,
+    [String(shopifyDraftId), shopifyOrderId ? String(shopifyOrderId) : null]
+  );
+  return r.rows[0] || null;
+}
+
+// Save tracking info from orders/fulfilled webhook.
+async function saveTracking(orderId, trackingUrl, trackingCompany) {
+  await pool.query(
+    `UPDATE orders SET tracking_url = $2, tracking_company = $3 WHERE order_id = $1`,
+    [orderId, trackingUrl || null, trackingCompany || null]
+  );
+}
+
+// Idempotency: record webhook event. Returns true if first time seen, false if duplicate.
+// Shopify retries failed webhooks — without this, "Payment confirmed!" could fire 5x.
+async function recordWebhookEvent(webhookId, topic, shopDomain, payload) {
+  try {
+    const r = await pool.query(
+      `INSERT INTO shopify_webhook_events (webhook_id, topic, shop_domain, payload)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (webhook_id) DO NOTHING
+       RETURNING id`,
+      [webhookId, topic, shopDomain, JSON.stringify(payload || {})]
+    );
+    return r.rows.length > 0;  // true if newly inserted, false if conflict (duplicate)
+  } catch (e) {
+    console.error('[webhook] recordWebhookEvent error:', e.message);
+    // Fail-safe: return false to skip processing rather than risk duplicate sends
+    return false;
+  }
+}
+
+// Mark a webhook event as processed (after successful handling).
+async function markWebhookProcessed(webhookId) {
+  await pool.query(
+    `UPDATE shopify_webhook_events SET processed = TRUE WHERE webhook_id = $1`,
+    [webhookId]
+  );
+}
+
 module.exports = { pool, initDB, getTenant, createTenant, updateTenant, getConversation, upsertConversation ,
   saveOrder, getOrder, markOrderPaid,
+  saveShopifyDraftRef, getOrderByShopifyDraftId,
+  saveShopifyOrderId, getOrderByShopifyOrderId,
+  markOrderPaidByDraft, saveTracking,
+  recordWebhookEvent, markWebhookProcessed,
 };

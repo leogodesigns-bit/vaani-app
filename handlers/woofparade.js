@@ -18,13 +18,14 @@
 //                            S36 paid elsewhere UPI, S37 rage-quit 3-strike
 
 const { sendMessage, sendButtons, sendList, sendImage } = require('../whatsapp');
-const { getConversation, upsertConversation, saveOrder, getOrder, markOrderPaid } = require('../db');
+const { getConversation, upsertConversation, saveOrder,
+  saveShopifyDraftRef, getOrder, markOrderPaid } = require('../db');
 const Anthropic = require('@anthropic-ai/sdk');
 const edge = require('./woofparade-edge');
 const qa = require('./woofparade-qa');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const { getCollectionProducts, getProductByHandle, formatPrice, stripHtml } = require('../shopify');
+const { getCollectionProducts, getProductByHandle, formatPrice, stripHtml , createCheckoutDraftOrder } = require('../shopify');
 const { getTenantSettings } = require('../settings-cache');
 
 // ─── BRAND CONSTANTS ──────────────────────────────────────────────────────
@@ -1662,15 +1663,80 @@ async function handleCheckoutConfirm(ctx) {
     console.error('[woofparade] saveOrder failed:', e.message);
   }
 
-  // S10/S11 PDF v1.4: COD = "Order locked in for COD"; Paid = "Payment confirmed!"
-  const isPaid = co.paymentMethod !== 'cod';
-  if (isPaid) {
-    await sendMessage(from,
-      `Payment confirmed! 🎉\n` +
-      `Order #${orderId} is on its way to being a showstopper.\n` +
-      `Tracking link will land here once it ships (usually 1–2 days).`,
-      waToken, phoneNumberId);
+  // S10/S11 PDF v1.4: COD = locked in immediately; Pay now = real Shopify checkout link, wait for webhook
+  const isPayNow = co.paymentMethod !== 'cod';
+
+  if (isPayNow) {
+    // PAY NOW PATH (S11) — generate real Shopify draft order, send invoice_url, wait for webhook
+    let checkoutLinkSent = false;
+
+    if (tenant.shopify_token && tenant.shop_domain) {
+      try {
+        // Mark order as awaiting payment (default status from saveOrder is 'awaiting_payment'-friendly)
+        // Then create the Shopify draft order
+        const draftResult = await createCheckoutDraftOrder(tenant.shop_domain, tenant.shopify_token, {
+          items: items,
+          customerPhone: from,
+          customerName: co.name,
+          address1: co.address1,
+          city: co.city,
+          state: co.state,
+          pin: co.pin,
+          altPhone: co.altPhone,
+          subtotal: co.subtotal || 0,
+          discountAmount: co.discountAmount || 0,
+          discountLabel: co.discountLabel || '',
+          grandTotal: co.grand || 0,
+          internalOrderId: orderId,
+          sourceTag: 'vaani-woofparade',
+        });
+
+        if (draftResult && draftResult.invoice_url) {
+          // Link our internal order to Shopify draft for webhook matching
+          try {
+            await saveShopifyDraftRef(orderId, draftResult.shopify_draft_id);
+          } catch (e) {
+            console.error('[woofparade S11] saveShopifyDraftRef failed:', e.message);
+          }
+
+          // PDF S11 verbatim: secure payment link + confirmation wait message
+          await sendMessage(from,
+            `Here's your secure payment link:\n${draftResult.invoice_url}\n\n` +
+            `Once payment is in, I'll send confirmation here ${PAW}`,
+            waToken, phoneNumberId);
+          checkoutLinkSent = true;
+          console.log(`[woofparade S11] Shopify draft created: ${draftResult.shopify_draft_id}, invoice_url sent for order ${orderId}`);
+        } else {
+          console.error('[woofparade S11] createCheckoutDraftOrder returned null/no invoice_url for order', orderId);
+        }
+      } catch (e) {
+        console.error('[woofparade S11] Shopify checkout creation failed:', e.message);
+      }
+    } else {
+      console.error('[woofparade S11] No Shopify token/domain for tenant', tenant.id, '- falling back to manual');
+    }
+
+    if (!checkoutLinkSent) {
+      // Fallback: Shopify call failed. Don't pretend payment is confirmed.
+      // Tell customer team will reach out + alert Apurv to handle manually.
+      await sendMessage(from,
+        `Got your order ${PAW}\n` +
+        `Apurv from our team will send you a payment link shortly — usually within an hour.\n` +
+        `Sorry for the small delay!`,
+        waToken, phoneNumberId);
+      try {
+        await pingTeam(ctx, 'ops',
+          `⚠️ Vaani: Shopify draft order creation FAILED for order ${orderId}\n` +
+          `Customer: ${co.name} (+${from})\n` +
+          `Address: ${co.address1}, ${co.city}, ${co.state} ${co.pin}\n` +
+          `Items: ${items.length}, Total: ${formatPrice(co.grand || 0)}\n` +
+          `Please send manual payment link.`);
+      } catch (e) {
+        console.error('[woofparade S11] ops alert failed:', e.message);
+      }
+    }
   } else {
+    // COD PATH (S10) — confirm immediately, no payment wait
     await sendMessage(from,
       `Thanks! Order locked in for COD ${PAW}\n` +
       `Our team will confirm and dispatch within 1–2 days.\n` +

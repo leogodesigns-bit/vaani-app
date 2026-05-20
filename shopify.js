@@ -89,6 +89,8 @@ async function getOrders(shopDomain, accessToken, customerId) {
 }
 
 async function createDraftOrder(shopDomain, accessToken, lineItems, customerPhone) {
+  // BACKWARD-COMPAT signature: when called as createDraftOrder(domain, token, items, phone)
+  // just creates a minimal draft order (used by Rajathee + legacy paths).
   try {
     const formattedItems = lineItems.map(item => {
       if (item.variant_id) {
@@ -113,6 +115,126 @@ async function createDraftOrder(shopDomain, accessToken, lineItems, customerPhon
     return res.data.draft_order;
   } catch (err) {
     console.error('❌ createDraftOrder error:', err.message);
+    return null;
+  }
+}
+
+// ─── createCheckoutDraftOrder ─────────────────────────────────────────────
+// Full draft order builder for S11 Pay now path. Sets shipping address, customer,
+// discount, and tagged note. Returns { id, invoice_url, name, total_price } or null.
+// `cart` is the woofparade cart shape (items[], discountAmount, discountLabel, address).
+async function createCheckoutDraftOrder(shopDomain, accessToken, opts) {
+  const {
+    items,            // [{ variantId, productTitle, size, price, kind: 'product' }]
+    customerPhone,    // '919371730196'
+    customerName,     // 'Shweta Phansalkar'
+    address1,         // '123 Main Rd'
+    city, state, pin,
+    altPhone,         // optional alternate phone
+    subtotal,
+    discountAmount,   // ₹
+    discountLabel,    // e.g. 'WOOF15 15%' or 'Buy 2+ 20%'
+    grandTotal,
+    internalOrderId,  // our WOOF-XXXXXX-XXX
+    sourceTag,        // 'vaani-woofparade'
+  } = opts;
+
+  try {
+    const formattedItems = items.map(it => {
+      if (it.variantId) {
+        return { variant_id: parseInt(it.variantId, 10), quantity: it.quantity || 1 };
+      }
+      // Fallback to custom line item (e.g. for accessories without variant id)
+      return {
+        title: it.productTitle || it.title || 'Item',
+        quantity: it.quantity || 1,
+        price: String(it.price || 0),
+      };
+    });
+
+    // Convert phone like '919371730196' to '+91 93717 30196' for Shopify
+    const formattedPhone = customerPhone && customerPhone.length >= 10
+      ? `+${customerPhone}`
+      : customerPhone;
+
+    // Split customer name into first/last for Shopify
+    const nameParts = (customerName || '').trim().split(/\s+/);
+    const firstName = nameParts[0] || 'Customer';
+    const lastName = nameParts.slice(1).join(' ') || 'WhatsApp';
+
+    const draftBody = {
+      draft_order: {
+        line_items: formattedItems,
+        customer: {
+          first_name: firstName,
+          last_name: lastName,
+          phone: formattedPhone,
+        },
+        shipping_address: {
+          first_name: firstName,
+          last_name: lastName,
+          address1: address1,
+          city: city,
+          province: state,
+          zip: pin,
+          country: 'India',
+          phone: altPhone ? `+${altPhone}` : formattedPhone,
+        },
+        billing_address: {
+          first_name: firstName,
+          last_name: lastName,
+          address1: address1,
+          city: city,
+          province: state,
+          zip: pin,
+          country: 'India',
+          phone: altPhone ? `+${altPhone}` : formattedPhone,
+        },
+        note: `Vaani WhatsApp order — ${internalOrderId}\nCustomer: ${customerName}\nWhatsApp: +${customerPhone}`,
+        note_attributes: [
+          { name: 'vaani_internal_order_id', value: internalOrderId || '' },
+          { name: 'vaani_source', value: sourceTag || 'vaani-woofparade' },
+          { name: 'vaani_customer_phone', value: `+${customerPhone}` },
+        ],
+        tags: `vaani, whatsapp, ${sourceTag || 'woofparade'}`,
+        use_customer_default_address: false,
+      },
+    };
+
+    // Apply discount as a draft-order-level discount line, not a coupon code.
+    // Use fixed_amount so we don't have to maintain a Shopify discount code.
+    if (discountAmount && discountAmount > 0) {
+      draftBody.draft_order.applied_discount = {
+        description: discountLabel || 'Vaani Discount',
+        value_type: 'fixed_amount',
+        value: String(discountAmount.toFixed ? discountAmount.toFixed(2) : discountAmount),
+        amount: String(discountAmount.toFixed ? discountAmount.toFixed(2) : discountAmount),
+        title: discountLabel || 'Discount',
+      };
+    }
+
+    const res = await axios.post(
+      `https://${shopDomain}/admin/api/2024-01/draft_orders.json`,
+      draftBody,
+      {
+        headers: {
+          'X-Shopify-Access-Token': accessToken,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const draft = res.data.draft_order;
+    return {
+      id: draft.id,
+      invoice_url: draft.invoice_url,
+      name: draft.name,
+      total_price: draft.total_price,
+      subtotal_price: draft.subtotal_price,
+      shopify_draft_id: String(draft.id),
+    };
+  } catch (err) {
+    const detail = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error('❌ createCheckoutDraftOrder error:', detail);
     return null;
   }
 }
@@ -168,6 +290,7 @@ module.exports = {
   getProducts,
   getOrders,
   createDraftOrder,
+  createCheckoutDraftOrder,
   formatPrice,
   stripHtml,
 };
