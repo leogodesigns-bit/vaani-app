@@ -66,10 +66,10 @@ const CATEGORY_HANDLES = {
 };
 
 const CATEGORY_LABEL = {
-  [WELCOME_ROW.CASUAL]:      'Casual Wear',
-  [WELCOME_ROW.FESTIVE]:     'Festive Wear',
+  [WELCOME_ROW.CASUAL]:      'Clothes',
+  [WELCOME_ROW.FESTIVE]:     'Festive Fits',
   [WELCOME_ROW.ACCESSORIES]: 'Accessories',
-  [WELCOME_ROW.IPL]:         'IPL Jerseys',
+  [WELCOME_ROW.IPL]:         'Jerseys',
   [WELCOME_ROW.CUSTOM]:      'Custom Fit',
   [WELCOME_ROW.BESTSELLERS]: 'Bestsellers',
 };
@@ -713,10 +713,10 @@ async function sendShowstopperWelcome(ctx) {
   await sendList(from, body, [{
     title: 'View categories',
     rows: [
-      { id: WELCOME_ROW.CASUAL,      title: 'Casual Wear',     description: 'Daily outfits & kurtas' },
-      { id: WELCOME_ROW.FESTIVE,     title: 'Festive Wear',    description: 'Sherwanis, lehengas, more' },
+      { id: WELCOME_ROW.CASUAL,      title: 'Clothes',         description: 'Tees, hoodies, kurtas' },
+      { id: WELCOME_ROW.FESTIVE,     title: 'Festive Fits',    description: 'Diwali, weddings, more' },
       { id: WELCOME_ROW.ACCESSORIES, title: 'Accessories',     description: 'Bandanas, collars, bowties' },
-      { id: WELCOME_ROW.IPL,         title: 'IPL Jerseys',     description: 'Match-day fits for pups' },
+      { id: WELCOME_ROW.IPL,         title: 'Jerseys',         description: 'IPL & match-day fits' },
       { id: WELCOME_ROW.CUSTOM,      title: 'Custom Fit',      description: "Made to your pup's size" },
       { id: WELCOME_ROW.BESTSELLERS, title: 'Bestsellers',     description: 'What other pups love' },
     ],
@@ -800,10 +800,10 @@ async function sendWelcome(ctx) {
   await sendList(from, baseBody, [{
     title: 'Browse',
     rows: [
-      { id: WELCOME_ROW.CASUAL,      title: 'Casual Wear',     description: 'Daily outfits & kurtas' },
-      { id: WELCOME_ROW.FESTIVE,     title: 'Festive Wear',    description: 'Sherwanis, lehengas, more' },
+      { id: WELCOME_ROW.CASUAL,      title: 'Clothes',         description: 'Tees, hoodies, kurtas' },
+      { id: WELCOME_ROW.FESTIVE,     title: 'Festive Fits',    description: 'Diwali, weddings, more' },
       { id: WELCOME_ROW.ACCESSORIES, title: 'Accessories',     description: 'Bandanas, collars, bowties' },
-      { id: WELCOME_ROW.IPL,         title: 'IPL Jerseys',     description: 'Match-day fits for pups' },
+      { id: WELCOME_ROW.IPL,         title: 'Jerseys',         description: 'IPL & match-day fits' },
       { id: WELCOME_ROW.CUSTOM,      title: 'Custom Fit',      description: "Made to your pup's size" },
       { id: WELCOME_ROW.BESTSELLERS, title: 'Bestsellers',     description: 'What other pups love' },
     ],
