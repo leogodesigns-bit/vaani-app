@@ -37,6 +37,12 @@ const PAW = '🐾';
 
 const GREETING_RE = edge.GREETING_RE;
 
+// S03 Branch A.1 — detect positive response from returning customer
+const POSITIVE_RESPONSE_RE = /\b(love(d|s|ly)?|loves it|great fit|fits great|fits well|fits perfectly|perfect fit|looks (great|amazing|cute|beautiful|stunning|fab|fabulous|gorgeous)|adore|obsessed|happy|thrilled|delighted|amazing|wonderful|fantastic|brilliant|so cute|sooo cute|too cute|awesome|fab)\b/i;
+
+// S03 Branch A.1 — detect neutral/negative response (DO NOT ask for review)
+const NEGATIVE_RESPONSE_RE = /\b(not great|didn't fit|doesn'?t fit|too (tight|loose|small|big)|return|refund|disappointed|unhappy|wrong|bad|terrible|awful|hate|defective|damaged|torn)\b/i;
+
 // ─── WELCOME (S01, S04) ────────────────────────────────────────────────────
 
 const WELCOME_BTN = {
@@ -142,14 +148,14 @@ const CHECKOUT_STEP = {
 };
 
 const ADDRESS_PROMPT =
-  // S10 PDF v1.4: "Sure! I'll need a delivery address..."
-  `Sure! I'll need a delivery address.\n\n` +
+  // S10 PDF v1.4 verbatim: "Sure! I'll need a delivery address.\nCould you share:..."
+  `Sure! I'll need a delivery address.\n` +
   `Could you share:\n` +
   `1. Full name\n` +
-  `2. Address (house/flat, street, area)\n` +
+  `2. Address\n` +
   `3. City + State\n` +
   `4. PIN code\n` +
-  `5. Alternate phone (different from WhatsApp, optional)`;
+  `5. Phone (different from WhatsApp, if any)`;
 
 // Shipping (PDF S17: free on ₹899+).
 const SHIPPING_FREE_THRESHOLD = 899;
@@ -322,6 +328,48 @@ async function handle(ctx) {
     ctx.cart.woofparade = ctx.cart.woofparade || {};
     delete ctx.cart.woofparade.unsubscribed;
     console.log(`[woofparade] re-engaged ${from} after unsubscribe`);
+  }
+
+  // ─── S03 BRANCH A.1 — positive response after returning customer welcome ─
+  // If customer just received returning-welcome (Branch A) and their reply is positive,
+  // Rio asks for a photo/review. Negative → silent route to Apurv (no review push).
+  if (ctx.cart?.woofparade?.lastBranchA && !isInteractive && trimmed.length > 0) {
+    if (NEGATIVE_RESPONSE_RE.test(trimmed)) {
+      ctx.cart = ctx.cart || {}; ctx.cart.woofparade = ctx.cart.woofparade || {};
+      delete ctx.cart.woofparade.lastBranchA;
+      await sendMessage(from,
+        `Oh — I'm sorry to hear that ${PAW} Apurv from our team will reach out shortly to make this right.`,
+        ctx.waToken, ctx.phoneNumberId);
+      const body = `⚠️ *RETURNING CUSTOMER ISSUE*\nFrom: +${from}\nLast product feedback was negative.\n\nRecent chat:\n${formatRecentHistory(ctx.history)}`;
+      await pingTeam(ctx, 'apurv', body);
+      await upsertConversation(ctx.tenant.id, from, [
+        ...ctx.history,
+        { role: 'user', content: trimmed },
+        { role: 'assistant', content: '[woofparade S03A.1 negative — routed to Apurv]' },
+      ], ctx.cart);
+      return;
+    }
+    if (POSITIVE_RESPONSE_RE.test(trimmed)) {
+      ctx.cart = ctx.cart || {}; ctx.cart.woofparade = ctx.cart.woofparade || {};
+      const pupName = ctx.cart.woofparade.lastBranchAPupName || 'them';
+      delete ctx.cart.woofparade.lastBranchA;
+      await sendMessage(from,
+        `That just made my tail wag ${PAW}\n` +
+        `Would you mind sharing a quick photo or a review?\n` +
+        `It helps other pup parents — and we'd love to feature ${pupName} on our page (with your permission, of course).`,
+        ctx.waToken, ctx.phoneNumberId);
+      await sendButtons(from, 'Choose:',
+        [POSTPURCHASE_BTN.SHARE_PHOTO, POSTPURCHASE_BTN.LEAVE_REVIEW, POSTPURCHASE_BTN.MAYBE_LATER],
+        ctx.waToken, ctx.phoneNumberId);
+      await upsertConversation(ctx.tenant.id, from, [
+        ...ctx.history,
+        { role: 'user', content: trimmed },
+        { role: 'assistant', content: '[woofparade S03A.1 positive — asked for photo/review]' },
+      ], ctx.cart);
+      return;
+    }
+    // Neither positive nor negative — clear the flag, fall through to normal dispatch
+    delete ctx.cart.woofparade.lastBranchA;
   }
 
   // ─── TALK TO HUMAN (S16) ─────────────────────────────────────────────────
@@ -535,6 +583,23 @@ async function handle(ctx) {
     await sendWelcome(ctx);
     return;
   }
+  if (trimmed === 'Browse another category') {
+    await sendWelcome(ctx);
+    return;
+  }
+  if (trimmed === 'Talk to designer') {
+    await handleTalkToDesigner(ctx);
+    return;
+  }
+  if (trimmed === 'See full on website') {
+    const r = ctx.cart?.woofparade || {};
+    const lastHandle = r.categoryRowId ? CATEGORY_HANDLES[r.categoryRowId] : null;
+    const url = lastHandle
+      ? `https://${ctx.tenant.shop_domain || 'thewoofparade.com'}/collections/${lastHandle}`
+      : `https://${ctx.tenant.shop_domain || 'thewoofparade.com'}/collections/all`;
+    await sendMessage(ctx.from, `Tap to browse the full collection on our site ${PAW}\n${url}`, ctx.waToken, ctx.phoneNumberId);
+    return;
+  }
 
   // Order help submenu
   if (trimmed === 'Track order' || trimmed === POSTPURCHASE_BTN.TRACK || /^where('?s| is) my order/i.test(trimmed) || /^tracking/i.test(trimmed)) {
@@ -741,7 +806,10 @@ async function sendReturningWelcome(ctx) {
 
   let body;
   if (pupName && lastProduct) {
-    // Branch A
+    // Branch A — flag so we can detect positive/negative follow-up (S03 Branch A.1)
+    cart.woofparade = cart.woofparade || {};
+    cart.woofparade.lastBranchA = true;
+    cart.woofparade.lastBranchAPupName = pupName;
     body =
       `Welcome back, ${pupName}'s parent! ${PAW}\n` +
       `How's ${pupName} doing in the ${lastProduct}?\n\n` +
@@ -770,6 +838,49 @@ async function sendReturningWelcome(ctx) {
   ], cart);
 }
 
+// S03 Branch C: chatted but never purchased — has product context
+async function sendBranchCWelcome(ctx, lastProduct) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const body =
+    `Welcome back ${PAW}\n` +
+    `Last time you were checking out the ${lastProduct}. Want to:`;
+  await sendButtons(from, body,
+    ['Continue where I left off', 'Browse fresh', 'Order help'],
+    waToken, phoneNumberId);
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: `[woofparade S03C welcome lastProduct=${lastProduct}]` },
+  ], cart);
+}
+
+// S03 Branch C variant: chatted but never purchased — no product context yet
+async function sendBranchCWelcomeNoProduct(ctx) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const body =
+    `Welcome back ${PAW}\n` +
+    `Good to see you again. What's your pup after today?`;
+  await sendList(from, body, [{
+    title: 'Browse',
+    rows: [
+      { id: WELCOME_ROW.CASUAL,      title: 'Clothes',         description: 'Tees, hoodies, kurtas' },
+      { id: WELCOME_ROW.FESTIVE,     title: 'Festive Fits',    description: 'Diwali, weddings, more' },
+      { id: WELCOME_ROW.ACCESSORIES, title: 'Accessories',     description: 'Bandanas, collars, bowties' },
+      { id: WELCOME_ROW.IPL,         title: 'Jerseys',         description: 'IPL & match-day fits' },
+      { id: WELCOME_ROW.CUSTOM,      title: 'Custom Fit',      description: "Made to your pup's size" },
+      { id: WELCOME_ROW.BESTSELLERS, title: 'Bestsellers',     description: 'What other pups love' },
+    ],
+  }], waToken, phoneNumberId);
+  await sendButtons(from, 'Or:',
+    [WELCOME_BTN.ORDER_HELP, 'Just saying hi 🧡'],
+    waToken, phoneNumberId);
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: '[woofparade S03C welcome no-product]' },
+  ], cart);
+}
+
 async function sendWelcome(ctx) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
   const purchased = await hasPurchasedBefore(ctx);
@@ -786,15 +897,28 @@ async function sendWelcome(ctx) {
 
   if (!baseBody) {
     if (purchased) {
-      // S03: returning customer — branch on whether pup name is on file
+      // S03 Branch A/B: returning customer who purchased
       await sendReturningWelcome(ctx);
       return;
-    } else {
-      // S04 PDF v1.4: "Hey there! I'm Rio, Woof Parade's golden-furred greeter 🐾 What's your pup looking for today?"
-      baseBody =
-        `Hey there! I'm ${getBotName(ctx)}, ${BRAND_NAME}'s golden-furred greeter ${PAW}\n` +
-        `What's your pup looking for today?`;
     }
+
+    // S03 Branch C: chatted before but never purchased — look at conversation history
+    const hasChatHistory = Array.isArray(history) && history.length > 2;
+    const lastProduct = cart?.woofparade?.product?.title || null;
+    if (hasChatHistory && lastProduct) {
+      await sendBranchCWelcome(ctx, lastProduct);
+      return;
+    }
+    if (hasChatHistory && !lastProduct) {
+      // Chatted but no product context — softer welcome
+      await sendBranchCWelcomeNoProduct(ctx);
+      return;
+    }
+
+    // S04: first-time customer — random hi/hello
+    baseBody =
+      `Hey there! I'm ${getBotName(ctx)}, ${BRAND_NAME}'s golden-furred greeter ${PAW}\n` +
+      `What's your pup looking for today?`;
   }
 
   await sendList(from, baseBody, [{
@@ -857,17 +981,55 @@ async function sendCategoryResults(ctx, rowId, page) {
   const slice = products.slice(start, start + PAGE_SIZE);
 
   if (!slice.length) {
+    // S05 PDF v1.4 end-of-12 fallback — show 4 specific options
     await sendMessage(from,
-      `That's all I've got for ${label} ${PAW} Want to peek at another category?`,
+      `That's our full lineup in ${label} for now ${PAW}\n` +
+      `Want to see more? Here's what we can do:`,
+      waToken, phoneNumberId);
+    const fullCollectionUrl = `https://${tenant.shop_domain || 'thewoofparade.com'}/collections/${handle}`;
+    await sendButtons(from, 'Choose:',
+      [`See full on website`, 'Browse another category', 'Custom Fit'],
+      waToken, phoneNumberId);
+    await sendButtons(from, 'Or:',
+      ['Talk to designer', PRODUCT_BTN.BACK_TO_MENU],
+      waToken, phoneNumberId);
+    // Send the link as a separate message so customers can tap it
+    await sendMessage(from,
+      `Browse the full ${label} collection on our site:\n${fullCollectionUrl}`,
       waToken, phoneNumberId);
     return;
   }
 
-  for (const p of slice) {
+  // S05 PDF v1.4 — each product card has:
+  //   numbered badge (1️⃣/2️⃣/3️⃣), title
+  //   price + Sale tag (if compare_at_price > price) + In Stock ✅
+  //   ⚡ Only N left! (if total inventory ≤ 3)
+  //   product URL
+  const NUMBER_BADGES = ['1️⃣', '2️⃣', '3️⃣'];
+  for (let i = 0; i < slice.length; i++) {
+    const p = slice[i];
     const v0 = p.variants?.[0];
     const img = p.images?.[0]?.src || v0?.featured_image?.src;
     const price = formatPrice(v0?.price);
-    const caption = `${p.title}\n${price}`;
+    const compareAt = v0?.compare_at_price ? parseFloat(v0.compare_at_price) : null;
+    const currentPrice = v0?.price ? parseFloat(v0.price) : null;
+    const onSale = compareAt && currentPrice && compareAt > currentPrice;
+    const totalInventory = (p.variants || []).reduce((sum, v) => {
+      const qty = (v.inventory_quantity !== undefined && v.inventory_quantity !== null)
+        ? parseInt(v.inventory_quantity, 10) : null;
+      return sum + (qty !== null && !isNaN(qty) ? qty : 0);
+    }, 0);
+    const lowStock = totalInventory > 0 && totalInventory <= 3;
+    const url = `https://${tenant.shop_domain || 'thewoofparade.com'}/products/${p.handle}`;
+
+    const badge = NUMBER_BADGES[i] || `${i + 1}.`;
+    let caption = `${badge} ${p.title}\n`;
+    caption += `${price}`;
+    if (onSale) caption += ` 🏷 Sale`;
+    caption += ` • In Stock ✅\n`;
+    if (lowStock) caption += `⚡ Only ${totalInventory} left!\n`;
+    caption += url;
+
     if (img) await sendImage(from, img, caption, waToken, phoneNumberId);
     else await sendMessage(from, caption, waToken, phoneNumberId);
   }
@@ -946,11 +1108,19 @@ async function sendProductDetail(ctx, productHandle) {
 
   const v0 = product.variants?.[0];
   const price = formatPrice(v0?.price);
+  const compareAt = v0?.compare_at_price ? parseFloat(v0.compare_at_price) : null;
+  const currentPrice = v0?.price ? parseFloat(v0.price) : null;
+  const onSale = compareAt && currentPrice && compareAt > currentPrice;
   const desc = stripHtml(product.body_html || '').slice(0, 200).trim();
   const ellipsis = stripHtml(product.body_html || '').length > 200 ? '...' : '';
-  await sendMessage(from,
-    `*${product.title}* — ${price}\n\n${desc}${ellipsis}`,
-    waToken, phoneNumberId);
+
+  // S06 PDF v1.4 format:
+  //   "${product.title} ✨\n${price} (was ${compareAt})\n\n${desc}\n\nWhich size for your pup?"
+  let detailMsg = `${product.title} ✨\n${price}`;
+  if (onSale) detailMsg += ` (was ${formatPrice(compareAt)})`;
+  detailMsg += `\n\n${desc}${ellipsis}`;
+  detailMsg += `\n\nWhich size for your pup?`;
+  await sendMessage(from, detailMsg, waToken, phoneNumberId);
 
   const sizesInStock = detectInStockSizes(product);
 
@@ -974,14 +1144,13 @@ async function sendProductDetail(ctx, productHandle) {
     return;
   }
 
+  // S06 PDF v1.4: just send size buttons split into two rows + helper button row
   const firstThree = sizesInStock.slice(0, 3);
-  await sendButtons(from,
-    `Available sizes: ${sizesInStock.join(', ')}\nTap a size to add to your shortlist:`,
-    firstThree, waToken, phoneNumberId);
+  await sendButtons(from, 'Pick a size:', firstThree, waToken, phoneNumberId);
 
   if (sizesInStock.length > 3) {
     const nextThree = sizesInStock.slice(3, 6);
-    await sendButtons(from, 'More sizes:', nextThree, waToken, phoneNumberId);
+    await sendButtons(from, 'Or:', nextThree, waToken, phoneNumberId);
   }
 
   await sendButtons(from, 'Not sure of the size?',
@@ -1066,11 +1235,12 @@ async function handleSizePick(ctx, size) {
     variantId, size, price: variantPrice,
   });
 
+  // S06 PDF v1.4: "Added Size S to your shortlist 🛒\nAnything you'd like to pair with this?"
   await sendMessage(from,
-    `✅ Added *${product.title}* (${size}) to your shortlist ${PAW}`,
+    `Added Size ${size} to your shortlist 🛒`,
     waToken, phoneNumberId);
 
-  await sendButtons(from, "Want to add some accessories or keep browsing?",
+  await sendButtons(from, `Anything you'd like to pair with this?`,
     [PICKED_BTN.ACCESSORIES, PICKED_BTN.CONTINUE, PICKED_BTN.CHECKOUT],
     waToken, phoneNumberId);
 
@@ -1096,6 +1266,15 @@ async function handleCrossSell(ctx) {
     return;
   }
 
+  // S08 PDF v1.4: "This kurta looks gorgeous with these 🐾"
+  // Reference the most recent shortlisted product type if known.
+  const lastProductTitle = ctx.cart?.woofparade?.product?.title || null;
+  const productNoun = lastProductTitle ? lastProductTitle.split(/\s+/).pop().toLowerCase() : 'this';
+  const intro = lastProductTitle
+    ? `This ${productNoun} looks gorgeous with these ${PAW}`
+    : `This looks gorgeous with these ${PAW}`;
+  await sendMessage(from, intro, waToken, phoneNumberId);
+
   for (const p of inStock) {
     const v0 = p.variants?.[0];
     const img = p.images?.[0]?.src || v0?.featured_image?.src;
@@ -1105,9 +1284,6 @@ async function handleCrossSell(ctx) {
     else await sendMessage(from, caption, waToken, phoneNumberId);
   }
 
-  await sendMessage(from,
-    `These pair nicely with what you've picked ${PAW} Tap any to see details.`,
-    waToken, phoneNumberId);
   await sendProductPickerList(ctx, inStock);
   await sendButtons(from, 'Or:',
     [PICKED_BTN.CHECKOUT, PRODUCT_BTN.BACK_TO_MENU],
@@ -1164,6 +1340,18 @@ async function handleSizingHaveMeasurements(ctx) {
 
 async function handleSizingRemind(ctx, when) {
   const { from, phoneNumberId, waToken } = ctx;
+
+  // S07 PDF v1.4 Branch B: first tap = "All good! When should I nudge you? 🐾"
+  // then [In 2 hours] [Tomorrow morning] [Pick a time]
+  if (when === SIZE_BTN.REMIND || when === 'No, remind me later') {
+    await sendButtons(from,
+      `All good! When should I nudge you? ${PAW}`,
+      [SIZE_BTN.IN_2_HOURS, SIZE_BTN.TOMORROW, SIZE_BTN.PICK_TIME],
+      waToken, phoneNumberId);
+    return;
+  }
+
+  // Subsequent tap = actually schedule
   const note =
     when === 'In 2 hours' ? "Got it — I'll nudge you in 2 hours." :
     when === 'Tomorrow morning' ? "Got it — catch you tomorrow morning." :
@@ -1203,10 +1391,15 @@ async function handleMeasurementsMessage(ctx) {
       [`Add ${match.size} to shortlist`, SIZE_BTN.TALK_DESIGNER],
       waToken, phoneNumberId);
   } else if (match.outcome === 'borderline') {
-    // S07 PDF v1.4 borderline: snugger vs roomier, "Which feels right?"
+    // S07 PDF v1.4 borderline: quote specific over-measurement
+    // "Quick note — their length (22 in) is slightly over the M (20 in). Could go either way:"
+    let overLine = `Quick note — they're slightly over the ${match.size}. Could go either way:`;
+    if (match.overLabel && match.overValue !== null && match.overMax !== null) {
+      overLine = `Quick note — their ${match.overLabel} (${match.overValue} in) is slightly over the ${match.size} (${match.overMax} in). Could go either way:`;
+    }
     await sendMessage(from,
       `Looks like a Size *${match.size}* for your pup ${PAW}\n\n` +
-      `Quick note — they're slightly over the ${match.size}. Could go either way:\n\n` +
+      `${overLine}\n\n` +
       `• *${match.size}* = snugger fit\n` +
       `• *${match.otherSize}* = roomier fit\n\n` +
       `Which feels right?`,
@@ -1255,21 +1448,32 @@ function matchSizeFromChart(m) {
       return { outcome: 'clean', size: row.size };
     }
   }
+  // Borderline: identify which size 2-of-3 measurements fit, and which measurement is over
   for (let i = 0; i < SIZE_CHART.length; i++) {
     const row = SIZE_CHART[i];
     const next = SIZE_CHART[i + 1];
     if (!next) continue;
-    const hits = [
-      m.back >= row.back[0] && m.back <= row.back[1],
-      m.chest >= row.chest[0] && m.chest <= row.chest[1],
-      m.neck >= row.neck[0] && m.neck <= row.neck[1],
-    ].filter(Boolean).length;
+    const backFit = m.back >= row.back[0] && m.back <= row.back[1];
+    const chestFit = m.chest >= row.chest[0] && m.chest <= row.chest[1];
+    const neckFit = m.neck >= row.neck[0] && m.neck <= row.neck[1];
+    const hits = [backFit, chestFit, neckFit].filter(Boolean).length;
     if (hits === 2) {
+      // Find the over-dimension and its size-row max
+      let overLabel = null, overValue = null, overMax = null;
+      if (!backFit && m.back > row.back[1]) {
+        overLabel = 'length'; overValue = m.back; overMax = row.back[1];
+      } else if (!chestFit && m.chest > row.chest[1]) {
+        overLabel = 'chest'; overValue = m.chest; overMax = row.chest[1];
+      } else if (!neckFit && m.neck > row.neck[1]) {
+        overLabel = 'neck'; overValue = m.neck; overMax = row.neck[1];
+      }
       return {
         outcome: 'borderline',
         size: row.size,
         otherSize: next.size,
-        note: `If you'd rather room to grow, go with ${next.size}.`,
+        overLabel,
+        overValue,
+        overMax,
       };
     }
   }
@@ -1309,21 +1513,42 @@ async function handleCheckout(ctx) {
   const shipping = calcShipping(afterDiscount);
   const grand = afterDiscount + shipping;
 
-  let summary = `*Your shortlist ${PAW}*\n\n`;
-  summary += formatCartSummary(items) + '\n';
-  if (discount.amount > 0) {
-    summary += `Discount (${discount.label}): -${formatPrice(discount.amount)}\n`;
+  // S09 PDF v1.4 format:
+  // "Here's your order 🐾
+  //  • Item1 (size) — ₹X
+  //  • Item2 — ₹Y
+  //  Subtotal: ₹X+Y
+  //
+  //  [transparency line about discount]
+  //
+  //  Discount: -₹X
+  //  Total: ₹Z"
+  let summary = `Here's your order ${PAW}\n`;
+  for (const it of items) {
+    if (it.kind === 'product') {
+      const sz = it.size ? ` (${it.size})` : '';
+      summary += `• ${it.productTitle}${sz} — ${formatPrice(it.price)}\n`;
+    } else {
+      summary += `• ${it.title || 'Item'} — ${formatPrice(it.price)}\n`;
+    }
   }
-  summary += `Shipping: ${shipping === 0 ? 'Free' : formatPrice(shipping)}\n`;
-  summary += `*Grand total: ${formatPrice(grand)}*\n\n`;
-  if (discount.amount > 0) {
-    summary += `_${discount.transparency}_\n`;
+  summary += `Subtotal: ${formatPrice(subtotal)}\n`;
+  if (discount.amount > 0 && discount.transparency) {
+    summary += `\n${discount.transparency}\n\n`;
+    summary += `Discount: -${formatPrice(discount.amount)}\n`;
   }
+  if (shipping > 0) {
+    summary += `Shipping: ${formatPrice(shipping)}\n`;
+  } else if (afterDiscount >= SHIPPING_FREE_THRESHOLD) {
+    summary += `Shipping: Free 🚚\n`;
+  }
+  summary += `Total: ${formatPrice(grand)}`;
 
   await sendMessage(from, summary, waToken, phoneNumberId);
 
-  await sendButtons(from, "How would you like to pay?",
-    [CHECKOUT_BTN.PAY_NOW, CHECKOUT_BTN.COD, CHECKOUT_BTN.EDIT_CART],
+  // PDF: [Pay now] [Edit shortlist] [Cash on delivery]
+  await sendButtons(from, "How would you like to go ahead?",
+    [CHECKOUT_BTN.PAY_NOW, CHECKOUT_BTN.EDIT_CART, CHECKOUT_BTN.COD],
     waToken, phoneNumberId);
 
   await upsertConversation(tenant.id, from, [
@@ -1535,26 +1760,59 @@ async function handleCustomFitStart(ctx) {
 }
 
 async function handleCustomOrderFromWebsite(ctx) {
-  // Customer arrived from website form with pre-filled measurements.
+  // S02 PDF v1.4: read back pup name + measurements + design choice, route to Anouttama.
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
-  await sendMessage(from,
-    `Got your custom order details ${PAW} Anouttama will reach out shortly with fabric swatches and the final quote.\n\n` +
-    `Meanwhile, anything to add — special detail, embroidery, pup's nickname for the tag?`,
-    waToken, phoneNumberId);
+
+  // Try to extract pup name, fabric/style, occasion, and measurements from the auto-typed message.
+  const t = text || '';
+  const pupMatch = t.match(/(?:pup'?s?\s+name|pup|dog|name)\s*[:=]\s*([A-Za-z][A-Za-z\s]{0,30})/i);
+  const fabricMatch = t.match(/(?:fabric|design|style)\s*[:=]\s*([A-Za-z][A-Za-z\s]{0,50})/i);
+  const occasionMatch = t.match(/occasion\s*[:=]\s*([A-Za-z][A-Za-z\s]{0,30})/i);
+  const backMatch = t.match(/back\s*[:=]?\s*(\d+(?:\.\d+)?)/i);
+  const chestMatch = t.match(/chest\s*[:=]?\s*(\d+(?:\.\d+)?)/i);
+  const neckMatch = t.match(/neck\s*[:=]?\s*(\d+(?:\.\d+)?)/i);
+  const styleMatch = t.match(/style\s*[:=]\s*([A-Za-z][A-Za-z\s]{0,30})/i);
+
+  const pupName = pupMatch ? pupMatch[1].trim().split(/\s+/)[0] : null;
+  const fabric = fabricMatch ? fabricMatch[1].trim() : null;
+  const style = styleMatch ? styleMatch[1].trim() : null;
+  const occasion = occasionMatch ? occasionMatch[1].trim() : null;
+
+  // Build readback message per PDF S02
+  let msg = pupName
+    ? `Hi! Got ${pupName}'s custom order details — `
+    : `Hi! Got your custom order details — `;
+  msg += fabric ? `gorgeous choice with the ${fabric} ${PAW}\n` : `${PAW}\n`;
+  msg += `Here's what we have:\n`;
+  if (backMatch) msg += `• Back: ${backMatch[1]}"\n`;
+  if (chestMatch) msg += `• Chest: ${chestMatch[1]}"\n`;
+  if (neckMatch) msg += `• Neck: ${neckMatch[1]}"\n`;
+  if (style) msg += `• Style: ${style}\n`;
+  if (occasion) msg += `• Occasion: ${occasion}\n`;
+  msg += `\nOur designer will sniff this out shortly and get back to you ✨`;
+
+  await sendMessage(from, msg, waToken, phoneNumberId);
 
   const alertBody =
     `🎨 *CUSTOM ORDER FROM WEBSITE*\n` +
-    `From: +${from}\n\n` +
-    `Auto-message content:\n${text.slice(0, 800)}`;
+    `From: +${from}\n` +
+    (pupName ? `Pup: ${pupName}\n` : '') +
+    (fabric ? `Fabric: ${fabric}\n` : '') +
+    (style ? `Style: ${style}\n` : '') +
+    (occasion ? `Occasion: ${occasion}\n` : '') +
+    (backMatch ? `Back: ${backMatch[1]}"\n` : '') +
+    (chestMatch ? `Chest: ${chestMatch[1]}"\n` : '') +
+    (neckMatch ? `Neck: ${neckMatch[1]}"\n` : '') +
+    `\nAuto-message content:\n${text.slice(0, 800)}`;
   await pingTeam(ctx, 'designer', alertBody);
 
   await upsertConversation(tenant.id, from, [
     ...history,
     { role: 'user', content: text },
-    { role: 'assistant', content: '[woofparade custom_from_website]' },
+    { role: 'assistant', content: `[woofparade S02 custom_from_website pup=${pupName||'-'}]` },
   ], {
     ...cart,
-    woofparade: { ...(cart.woofparade || {}), custom: { source: 'website', stage: 'team_notified' } },
+    woofparade: { ...(cart.woofparade || {}), custom: { source: 'website', stage: 'team_notified', pupName, fabric, style, occasion } },
   });
 }
 
@@ -2512,10 +2770,11 @@ function applyDiscount(subtotal, itemCount) {
     };
   }
   if (festAmt > 0) {
+    // S09 PDF v1.4 transparency line — names the specific live sale tier
     return {
       amount: Math.round(festAmt),
       label: festLabel,
-      transparency: `There's a live sale running, already auto-applied for you (better than my secret WOOF15, so I've put the bigger one on) 🎉`,
+      transparency: `There's a live sale running — ${festLabel}, already auto-applied for you (better than my secret WOOF15, so I've put the bigger one on) 🎉`,
     };
   }
   return { amount: 0, label: '', transparency: '' };
