@@ -19,7 +19,7 @@
 
 const { sendMessage, sendButtons, sendList, sendImage } = require('../whatsapp');
 const { getConversation, upsertConversation, saveOrder,
-  saveShopifyDraftRef, getOrder, markOrderPaid } = require('../db');
+  saveShopifyDraftRef, getOrder, markOrderPaid, saveNotifyRequest } = require('../db');
 const Anthropic = require('@anthropic-ai/sdk');
 const edge = require('./woofparade-edge');
 const qa = require('./woofparade-qa');
@@ -1275,9 +1275,70 @@ async function handleSizePick(ctx, size) {
   } catch (e) { console.error('[woofparade] variant resolve failed:', e.message); }
 
   if (!variantId) {
+    // S13 PDF v1.4 — per-size OOS: show 2-3 similar products in customer's size, then offer notify-me
     await sendMessage(from,
-      `That size just went out of stock ${PAW} Pick another, or tap *Need help sizing*.`,
+      `Aw — this one's currently sold out in ${size} 😔\n` +
+      `But here are similar products available in your size ${PAW}`,
       waToken, phoneNumberId);
+
+    // Find similar products in the same category that have `size` in stock
+    let similarShown = 0;
+    try {
+      const categoryRowId = r.categoryRowId;
+      const categoryHandle = categoryRowId ? CATEGORY_HANDLES[categoryRowId] : null;
+      if (categoryHandle) {
+        const candidatesRaw = await getCollectionProducts(tenant, categoryHandle);
+        const candidates = (candidatesRaw || [])
+          .filter(p => p.handle !== product.handle)
+          .filter(p => {
+            // Has the requested size in stock?
+            return (p.variants || []).some(v => {
+              const opt = String(v.option1 || v.title || '').toUpperCase().trim();
+              return v.available !== false && opt === size;
+            });
+          })
+          .slice(0, 3);
+
+        for (let i = 0; i < candidates.length; i++) {
+          const p = candidates[i];
+          const v0 = p.variants?.[0];
+          const img = p.images?.[0]?.src || v0?.featured_image?.src;
+          const price = formatPrice(v0?.price);
+          const productUrl = `https://${tenant.shop_domain || 'thewoofparade.com'}/products/${p.handle}`;
+          const caption =
+            `${i + 1}. ${p.title}\n` +
+            `${price}  •  In Stock ✅ (${size})\n` +
+            `${productUrl}`;
+          if (img) await sendImage(from, img, caption, waToken, phoneNumberId);
+          else await sendMessage(from, caption, waToken, phoneNumberId);
+          await new Promise(rs => setTimeout(rs, 500));
+        }
+        similarShown = candidates.length;
+      }
+    } catch (e) {
+      console.error('[woofparade S13] similar-products fetch failed:', e.message);
+    }
+
+    // Always offer notify-me + back to menu (PDF S13 exact buttons)
+    await sendMessage(from,
+      `Or I can ping you when this one's back in stock.`,
+      waToken, phoneNumberId);
+    await sendButtons(from, 'What next?',
+      [ORDER_OPS_BTN.NOTIFY_BACK, PRODUCT_BTN.BACK_TO_MENU],
+      waToken, phoneNumberId);
+
+    // Remember which product+size to notify for, so the button handler can persist it
+    await upsertConversation(tenant.id, from, [
+      ...history,
+      { role: 'user', content: text },
+      { role: 'assistant', content: `[woofparade S13 size_oos handle=${product.handle} size=${size} similar=${similarShown}]` },
+    ], {
+      ...cart,
+      woofparade: {
+        ...(cart.woofparade || {}),
+        pendingNotify: { handle: product.handle, title: product.title, size },
+      },
+    });
     return;
   }
 
@@ -1851,12 +1912,39 @@ async function handleEditShortlist(ctx) {
 }
 
 async function handleNotifyMeBack(ctx) {
-  const { from, phoneNumberId, waToken, cart } = ctx;
-  const handle = cart.woofparade?.product?.handle || '(unknown)';
+  // S13 PDF v1.4 — persist notify request to DB so a future stock-check job can fire it.
+  // Prefers `pendingNotify` (set by per-size OOS path in handleSizePick) with handle+title+size;
+  // falls back to `product` (set by fully-OOS path in sendProductDetail) with handle+title only.
+  const { tenant, from, phoneNumberId, waToken, cart } = ctx;
+  const r = cart.woofparade || {};
+  const pending = r.pendingNotify || null;
+  const product = r.product || null;
+
+  const handle = pending?.handle || product?.handle || null;
+  const title  = pending?.title  || product?.title  || null;
+  const size   = pending?.size   || null;
+
+  if (!handle) {
+    await sendMessage(from,
+      `I'll need a product first ${PAW} Pick something and I'll watch its stock for you.`,
+      waToken, phoneNumberId);
+    return;
+  }
+
+  try {
+    await saveNotifyRequest(tenant.id, from, handle, title, size);
+    console.log(`[woofparade S13] notify-back saved: tenant=${tenant.id} phone=${from} handle=${handle} size=${size || '-'}`);
+  } catch (e) {
+    console.error('[woofparade S13] saveNotifyRequest failed:', e.message);
+  }
+
+  // PDF-verbatim confirmation, naming product (title preferred) + size if known.
+  const productLabel = title || handle;
+  const sizeLabel = size ? ` in ${size}` : '';
   await sendMessage(from,
-    `Got it ${PAW} I'll WhatsApp you the moment *${handle}* is back in stock.`,
+    `Got it ${PAW} I'll WhatsApp you the moment *${productLabel}* is back${sizeLabel}.`,
     waToken, phoneNumberId);
-  console.log(`[woofparade] OOS notify-back: ${from} → ${handle}`);
+
   await sendButtons(from, 'Meanwhile:',
     [PRODUCT_BTN.BACK_TO_MENU, SIZE_BTN.YES_CUSTOM],
     waToken, phoneNumberId);

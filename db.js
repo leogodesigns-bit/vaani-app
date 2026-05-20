@@ -300,10 +300,37 @@ async function markWebhookProcessed(webhookId) {
   );
 }
 
+
+// ─── NOTIFY-ME WHEN BACK IN STOCK (S13) ────────────────────────────────────
+async function saveNotifyRequest(tenantId, customerPhone, productHandle, productTitle, variantSize) {
+  const r = await pool.query(
+    `INSERT INTO notify_requests (tenant_id, customer_phone, product_handle, product_title, variant_size)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [tenantId, customerPhone, productHandle, productTitle || null, variantSize || null]
+  );
+  return r.rows[0];
+}
+
+async function getPendingNotifyRequests(tenantId, productHandle, variantSize) {
+  const r = await pool.query(
+    `SELECT * FROM notify_requests
+     WHERE tenant_id = $1 AND product_handle = $2
+       AND ($3::text IS NULL OR variant_size = $3)
+       AND notified_at IS NULL`,
+    [tenantId, productHandle, variantSize || null]
+  );
+  return r.rows;
+}
+
+async function markNotifyRequestSent(id) {
+  await pool.query(`UPDATE notify_requests SET notified_at = NOW() WHERE id = $1`, [id]);
+}
+
 module.exports = { pool, initDB, getTenant, createTenant, updateTenant, getConversation, upsertConversation ,
   saveOrder, getOrder, markOrderPaid,
   saveShopifyDraftRef, getOrderByShopifyDraftId,
   saveShopifyOrderId, getOrderByShopifyOrderId,
   markOrderPaidByDraft, saveTracking,
   recordWebhookEvent, markWebhookProcessed,
+  saveNotifyRequest, getPendingNotifyRequests, markNotifyRequestSent,
 };
