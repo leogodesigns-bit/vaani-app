@@ -79,13 +79,18 @@ async function handleCallback(req, res, variant) {
     });
 
     const accessToken = response.data.access_token;
-    const existing = await getTenant({ shopDomain: shop });
+    const SHOP_DOMAIN_MAP = {
+      'udhuxy-pc.myshopify.com': 'rajathee.myshopify.com',
+      'vs6xap-uz.myshopify.com': 'thewoofparade.com',
+    };
+    const dbShop = SHOP_DOMAIN_MAP[shop] || shop;
+    const existing = await getTenant({ shopDomain: dbShop });
     if (existing) {
-      await updateTenant(shop, { shopifyToken: accessToken });
+      await updateTenant(dbShop, { shopifyToken: accessToken });
     } else {
-      await createTenant({ shopDomain: shop, shopifyToken: accessToken });
+      await createTenant({ shopDomain: dbShop, shopifyToken: accessToken });
     }
-    console.log(`${c.label} installed on ${shop}`);
+    console.log(`${c.label} installed on ${dbShop} (oauth shop=${shop})`);
 
     const hostParam = host ? `&host=${encodeURIComponent(host)}` : '';
     return res.redirect(`https://${shop}/admin/apps/${c.apiKey}?shop=${encodeURIComponent(shop)}${hostParam}`);
