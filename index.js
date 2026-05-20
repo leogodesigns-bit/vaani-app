@@ -14,6 +14,7 @@ app.use(express.urlencoded({ extended: true }));
 // ── Shop domain remap (legacy dev → prod) ───────────────────
 const SHOP_DOMAIN_MAP = {
   'udhuxy-pc.myshopify.com': 'rajathee.myshopify.com',
+  'vs6xap-uz.myshopify.com': 'thewoofparade.com',
 };
 
 // ── HMAC verification using RAW query string ────────────────
@@ -46,12 +47,20 @@ function detectVariantByHmac(req) {
   const variants = [
     { variant: 'public', apiKey: process.env.SHOPIFY_API_KEY, secret: process.env.SHOPIFY_API_SECRET },
     { variant: 'custom', apiKey: process.env.SHOPIFY_API_KEY_CUSTOM, secret: process.env.SHOPIFY_API_SECRET_CUSTOM },
+    { variant: 'woof', apiKey: process.env.SHOPIFY_API_KEY_WOOF, secret: process.env.SHOPIFY_API_SECRET_WOOF },
   ];
   for (const v of variants) {
     if (!v.secret) continue;
     if (verifyShopifyHmacFromRawUrl(req.originalUrl, v.secret)) return v;
   }
   return null;
+}
+
+// ── Pick the right client_id per shop for embedded shell rendering ───
+function pickApiKeyForShop(dbShop) {
+  if (dbShop === 'thewoofparade.com') return process.env.SHOPIFY_API_KEY_WOOF;
+  if (dbShop === 'rajathee.myshopify.com') return process.env.SHOPIFY_API_KEY_CUSTOM;
+  return process.env.SHOPIFY_API_KEY || process.env.SHOPIFY_API_KEY_CUSTOM;
 }
 
 // ── Token exchange (session token → offline access token) ───
@@ -173,7 +182,7 @@ app.get('/', async (req, res, next) => {
     const existing = await getTenant(dbShop);
     if (existing) {
       // Already installed via OAuth — just render the embedded UI
-      const apiKey = process.env.SHOPIFY_API_KEY || process.env.SHOPIFY_API_KEY_CUSTOM;
+      const apiKey = pickApiKeyForShop(dbShop);
       console.log(`[/] Embedded re-open for already-installed ${dbShop}`);
       return res.send(embeddedAppShell(shop, host || '', apiKey));
     }
@@ -209,7 +218,7 @@ app.get('/', async (req, res, next) => {
       return res.redirect(`/shopify/install?shop=${encodeURIComponent(shop)}`);
     }
     // Installed — render embedded shell
-    const apiKey = process.env.SHOPIFY_API_KEY || process.env.SHOPIFY_API_KEY_CUSTOM;
+    const apiKey = pickApiKeyForShop(dbShop);
     return res.send(embeddedAppShell(shop, host || '', apiKey));
   }
 

@@ -14,6 +14,15 @@ function getCreds(variant) {
       label: 'Vaani Custom',
     };
   }
+  if (variant === 'woof') {
+    return {
+      apiKey: process.env.SHOPIFY_API_KEY_WOOF,
+      apiSecret: process.env.SHOPIFY_API_SECRET_WOOF,
+      scopes: process.env.SHOPIFY_SCOPES_WOOF,
+      callbackPath: '/shopify/callback-woof',
+      label: 'Vaani Woof',
+    };
+  }
   return {
     apiKey: process.env.SHOPIFY_API_KEY,
     apiSecret: process.env.SHOPIFY_API_SECRET,
@@ -110,5 +119,14 @@ router.get('/install-custom', (req, res) => {
 });
 
 router.get('/callback-custom', (req, res) => handleCallback(req, res, 'custom'));
+
+router.get('/install-woof', (req, res) => {
+  const shop = req.query.shop;
+  if (!shop) return res.status(400).send('Missing shop parameter');
+  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(shop)) return res.status(400).send('Invalid shop');
+  res.redirect(buildInstallRedirect(shop, 'woof'));
+});
+
+router.get('/callback-woof', (req, res) => handleCallback(req, res, 'woof'));
 
 module.exports = router;
