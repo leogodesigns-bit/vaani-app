@@ -887,10 +887,14 @@ async function sendProductDetail(ctx, productHandle) {
 
   await sendMessage(from, detailText, waToken, phoneNumberId);
 
-  // Single-variant product: skip colour picker.
+  // Identify real colour variants (excludes Shopify default-title dummy).
+  // `realVariants` = all colour variants regardless of stock — used to decide
+  // single vs multi-variant branch and to show "X of Y" counts.
+  // `availableVariants` = in-stock subset — used to build the picker rows.
   const realVariants = (product.variants || []).filter(
-    v => v.option1 && v.option1.toLowerCase() !== 'default title' && v.available !== false
+    v => v.option1 && v.option1.toLowerCase() !== 'default title'
   );
+  const availableVariants = realVariants.filter(v => v.available !== false);
 
   if (realVariants.length === 0) {
     // No real variants — just ask Add to cart.
@@ -922,22 +926,61 @@ async function sendProductDetail(ctx, productHandle) {
     return;
   }
 
-  // Multi-variant branch below.
-  const colourRows = realVariants.slice(0, 10).map(v => ({
+  // Multi-variant but ALL sold out — graceful fallback (no empty picker).
+  if (availableVariants.length === 0) {
+    await sendMessage(from,
+      `This one's sold out in all ${realVariants.length} colours right now. Would you like to see something similar?`,
+      waToken, phoneNumberId);
+    await sendButtons(from,
+      'What would you like to do?',
+      [PRODUCT_BTN.SEE_MORE_PICS, PRODUCT_BTN.MORE_OPTIONS,
+       { id: 'back_to_browse', title: 'Browse other sarees' }],
+      waToken, phoneNumberId);
+
+    await upsertConversation(tenant.id, from, [
+      ...history,
+      { role: 'user', content: text },
+      { role: 'assistant', content: `[rajathee product_detail handle=${productHandle} variants=0/${realVariants.length} all_sold_out]` },
+    ], {
+      ...cart,
+      rajathee: {
+        ...(cart.rajathee || {}),
+        browseMode: 'product_detail',
+        priorBrowseMode: (cart.rajathee?.browseMode === 'fabric' || cart.rajathee?.browseMode === 'colour') ? cart.rajathee.browseMode : (cart.rajathee?.priorBrowseMode || null),
+        priorFabric: cart.rajathee?.fabric || cart.rajathee?.priorFabric || null,
+        priorColour: cart.rajathee?.colour || cart.rajathee?.priorColour || null,
+        product: {
+          handle: productHandle,
+          id: product.id,
+          currentVariantId: null,
+          picsShownCount: 2,
+        },
+      },
+    });
+    return;
+  }
+
+  // Multi-variant branch below — show only in-stock colours in the picker.
+  const colourRows = availableVariants.slice(0, 10).map(v => ({
     id: `product_variant_${v.id}`,
     title: v.option1.length > 24 ? v.option1.slice(0, 21) + '...' : v.option1,
     description: formatPrice(v.price),
   }));
 
+  // Header reflects "X of Y" when some are sold out, else just "X colours".
+  const headerText = availableVariants.length < realVariants.length
+    ? `Available in ${availableVariants.length} of ${realVariants.length} colours:`
+    : `Available in ${availableVariants.length} ${availableVariants.length === 1 ? 'colour' : 'colours'}:`;
+
   await sendList(from,
-    `Available in ${realVariants.length} ${realVariants.length === 1 ? 'colour' : 'colours'}:`,
+    headerText,
     [{ title: 'Choose a colour', rows: colourRows }],
     waToken, phoneNumberId);
 
   await upsertConversation(tenant.id, from, [
     ...history,
     { role: 'user', content: text },
-    { role: 'assistant', content: `[rajathee product_detail handle=${productHandle} variants=${realVariants.length}]` },
+    { role: 'assistant', content: `[rajathee product_detail handle=${productHandle} variants=${availableVariants.length}/${realVariants.length}]` },
   ], {
     ...cart,
     rajathee: {
