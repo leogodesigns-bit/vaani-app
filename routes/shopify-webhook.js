@@ -21,6 +21,7 @@ const {
   getOrderByShopifyDraftId,
   getOrderByShopifyOrderId,
   markOrderPaidByDraft,
+  cancelNudges,
   saveShopifyOrderId,
   saveTracking,
   recordWebhookEvent,
@@ -219,6 +220,11 @@ async function handleOrderPaid(tenant, payload) {
     console.log(`[orders/paid] order ${ourOrder.order_id} already paid, skipping send`);
     return;
   }
+
+  // S15 — cancel any pending 24-hr unpaid checkout nudge for this customer.
+  // Fire-and-forget; if it fails, customer just gets an extra nudge — not fatal.
+  cancelNudges(tenant.id, ourOrder.customer_phone, 's15_unpaid_checkout', 'paid')
+    .catch(e => console.error('[orders/paid S15] cancelNudges failed:', e.message));
 
   // Send "Payment confirmed! 🎉" message (PDF S11)
   const creds = getTenantWhatsAppCreds(tenant);

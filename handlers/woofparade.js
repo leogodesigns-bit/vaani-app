@@ -19,7 +19,8 @@
 
 const { sendMessage, sendButtons, sendList, sendImage } = require('../whatsapp');
 const { getConversation, upsertConversation, saveOrder,
-  saveShopifyDraftRef, getOrder, markOrderPaid, saveNotifyRequest } = require('../db');
+  saveShopifyDraftRef, getOrder, markOrderPaid, saveNotifyRequest,
+  scheduleNudge, cancelNudges } = require('../db');
 const Anthropic = require('@anthropic-ai/sdk');
 const edge = require('./woofparade-edge');
 const qa = require('./woofparade-qa');
@@ -244,6 +245,20 @@ const MAX_PRODUCTS_PER_CAT = 12;
 
 async function handle(ctx) {
   const { tenant, message, from, text } = ctx;
+
+  // S14 — user is active again, kill any pending silence-nudges for them.
+  // Fire-and-forget; failures shouldn't block the message flow.
+  cancelNudges(tenant.id, from, null, 'user_active')
+    .catch(e => console.error('[woofparade S14] cancelNudges failed:', e.message));
+
+  // S16 mute window: if a team member is currently dealing with this customer,
+  // stay quiet so Vaani doesn't talk over them. Window is 30min from when
+  // handleTalkToHuman was last called.
+  const handoffUntil = ctx.cart?.woofparade?.humanHandoffUntil;
+  if (handoffUntil && Date.now() < handoffUntil) {
+    console.log(`[woofparade S16] human handoff active until ${new Date(handoffUntil).toISOString()} — suppressing auto-reply for ${from}`);
+    return;
+  }
 
   if (tenant.flow_template !== 'woofparade') {
     console.error(
@@ -939,6 +954,19 @@ async function sendWelcome(ctx) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
   const purchased = await hasPurchasedBefore(ctx);
 
+  // S14 — schedule Branch A pre-shortlist nudge 30min out. Cancelled if user
+  // shortlists (handleSizePick) or sends any message (top of handle()).
+  // Fire-and-forget; cancelNudges inside scheduleNudge handles the supersede.
+  const _r14 = cart?.woofparade || {};
+  const _hasShortlist = Array.isArray(_r14.items) && _r14.items.length > 0;
+  if (!_hasShortlist) {
+    const _fireAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();  // +30min
+    const _pupName = _r14.lastBranchAPupName || _r14.custom?.pupName || null;
+    scheduleNudge(tenant.id, from, 's14_branch_a_pre_shortlist', _fireAt, { pupName: _pupName })
+      .catch(e => console.error('[woofparade S14] schedule branch_a failed:', e.message));
+  }
+
+
   let baseBody;
   try {
     const s = await getTenantSettings(tenant.id);
@@ -1349,6 +1377,16 @@ async function handleSizePick(ctx, size) {
     productTitle: product.title,
     variantId, size, price: variantPrice,
   });
+
+  // S14 — Branch A is moot once they've shortlisted; schedule Branch B 2hr instead.
+  // Both calls are fire-and-forget; failures shouldn't block checkout.
+  cancelNudges(tenant.id, from, 's14_branch_a_pre_shortlist', 'shortlisted')
+    .catch(e => console.error('[woofparade S14] cancel branch_a failed:', e.message));
+  const branchBFireAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();  // +2h
+  const pupName = r.lastBranchAPupName || r.custom?.pupName || null;
+  scheduleNudge(tenant.id, from, 's14_branch_b_post_shortlist', branchBFireAt, {
+    productTitle: product.title, size, pupName,
+  }).catch(e => console.error('[woofparade S14] schedule branch_b failed:', e.message));
 
   // S06 PDF v1.4: "Added Size S to your shortlist 🛒\nAnything you'd like to pair with this?"
   await sendMessage(from,
@@ -1820,6 +1858,17 @@ async function handleCheckoutConfirm(ctx) {
             waToken, phoneNumberId);
           checkoutLinkSent = true;
           console.log(`[woofparade S11] Shopify draft created: ${draftResult.shopify_draft_id}, invoice_url sent for order ${orderId}`);
+
+          // S15 — 24-hr unpaid checkout nudge. Cancelled by orders/paid webhook
+          // when payment lands (see routes/shopify-webhook.js + cancelNudges in
+          // markOrderPaidByDraft path — wired in Patch 15).
+          const unpaidFireAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();  // +24h
+          scheduleNudge(tenant.id, from, 's15_unpaid_checkout', unpaidFireAt, {
+            orderId,
+            invoiceUrl: draftResult.invoice_url,
+            shopifyDraftId: draftResult.shopify_draft_id,
+            productTitle: items[0]?.productTitle || 'your order',
+          }).catch(e => console.error('[woofparade S15] schedule unpaid failed:', e.message));
         } else {
           console.error('[woofparade S11] createCheckoutDraftOrder returned null/no invoice_url for order', orderId);
         }
@@ -2162,12 +2211,27 @@ async function handleStopUnsubscribe(ctx) {
 // ─── S16 — TALK TO HUMAN ──────────────────────────────────────────────────
 
 async function handleTalkToHuman(ctx, reasonCode) {
-  const { from, phoneNumberId, waToken, history } = ctx;
+  const { tenant, from, phoneNumberId, waToken, history, cart } = ctx;
   // S16 PDF v1.4: "Of course! Apurv from our team will be with you shortly..."
   await sendMessage(from,
     `Of course! Apurv from our team will be with you shortly ${PAW}\n\n` +
     `What's the best time to reach out, and what should I tell them you'd like to chat about?`,
     waToken, phoneNumberId);
+
+  // S16 mute window: suppress Vaani auto-replies for 30min so Apurv can take over
+  // without bot interference. Stored in cart.woofparade.humanHandoffUntil (epoch ms).
+  // Checked at top of handle() — if not yet expired, handler returns silently.
+  try {
+    const r = cart?.woofparade || {};
+    r.humanHandoffUntil = Date.now() + 30 * 60 * 1000;  // +30min
+    await upsertConversation(tenant.id, from, { ...(cart || {}), woofparade: r });
+  } catch (e) {
+    console.error('[woofparade S16] failed to set humanHandoffUntil:', e.message);
+  }
+
+  // Kill any pending nudges so we don't WhatsApp them while Apurv is dealing with it
+  cancelNudges(tenant.id, from, null, 'human_handoff')
+    .catch(e => console.error('[woofparade S16] cancelNudges failed:', e.message));
 
   const lastMsgs = formatRecentHistory(history);
   const tag = reasonCode ? ` (${reasonCode})` : '';
