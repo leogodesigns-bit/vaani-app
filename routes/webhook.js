@@ -133,6 +133,32 @@ router.post('/', async (req, res) => {
 
     const from = message.from;
 
+    // ─── DEDUP GUARD: prevent Meta webhook retries from re-processing ────────
+    // Meta retries webhook delivery if the server is slow or returns non-200.
+    // Without this, the same message can run handle() twice — causing the bot
+    // to re-greet the customer or duplicate sends mid-flow.
+    // (tenant_id, wamid) is a primary key; INSERT ... ON CONFLICT DO NOTHING
+    // is atomic, so concurrent webhook arrivals also dedupe correctly.
+    if (message.id) {
+      try {
+        const dedup = await pool.query(
+          `INSERT INTO processed_messages (tenant_id, wamid)
+           VALUES ($1, $2)
+           ON CONFLICT (tenant_id, wamid) DO NOTHING
+           RETURNING wamid`,
+          [tenant.id, message.id]
+        );
+        if (dedup.rowCount === 0) {
+          console.log(`[dedup] ${tenant.shop_domain} skipped duplicate wamid=${message.id} from ${from}`);
+          return;
+        }
+      } catch (e) {
+        // If the dedup table is missing or DB is down, log + proceed
+        // (better to risk a duplicate than to drop the message entirely)
+        console.error('[dedup] check failed (non-fatal):', e.message);
+      }
+    }
+
     // ─── PHASE 2 + 4: usage tracking + threshold alerts ─────────────────
     // Track this conversation. If a new conversation, also check thresholds
     // and fire any 70/90/100% alerts that just crossed. All errors are
