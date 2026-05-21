@@ -115,7 +115,7 @@ const PRODUCT_BTN = {
 const ALL_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL'];
 
 const PICKED_BTN = {
-  ACCESSORIES:    'Our accessories',
+  ACCESSORIES:    'Accessories',
   CONTINUE:       'Continue this section',
   CHECKOUT:       'Checkout',
 };
@@ -623,7 +623,7 @@ async function handle(ctx) {
   }
 
   // Cross-sell
-  if (trimmed === PICKED_BTN.ACCESSORIES) {
+  if (trimmed === PICKED_BTN.ACCESSORIES || trimmed === 'Our accessories') {
     await handleCrossSell(ctx);
     return;
   }
