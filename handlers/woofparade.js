@@ -1086,9 +1086,14 @@ async function sendCategoryResults(ctx, rowId, page) {
     return;
   }
 
+  // Bug #10 (Kashmira): Jerseys = 4 products total, show all in one batch.
+  // Per-category page size: defaults to PAGE_SIZE (3), but IPL/Jerseys gets 4
+  // so the customer sees CSK + RCB + MI x 2 without needing 'Show more'.
+  const pageSize = (rowId === WELCOME_ROW.IPL) ? 4 : PAGE_SIZE;
+
   const totalAvailable = Math.min(products.length, MAX_PRODUCTS_PER_CAT);
-  const start = page * PAGE_SIZE;
-  const slice = products.slice(start, start + PAGE_SIZE);
+  const start = page * pageSize;
+  const slice = products.slice(start, start + pageSize);
 
   if (!slice.length) {
     // S05 PDF v1.4 end-of-12 fallback — show 4 specific options
@@ -1152,7 +1157,7 @@ async function sendCategoryResults(ctx, rowId, page) {
 
   await sendProductPickerList(ctx, slice);
 
-  const totalShownAfter = Math.min((page + 1) * PAGE_SIZE, totalAvailable);
+  const totalShownAfter = Math.min((page + 1) * pageSize, totalAvailable);
   const moreAvailable = totalShownAfter < totalAvailable;
   const buttons = moreAvailable
     ? [PRODUCT_BTN.SHOW_3_MORE, PRODUCT_BTN.BACK_TO_MENU]
