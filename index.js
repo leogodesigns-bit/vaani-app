@@ -243,27 +243,48 @@ body{font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-seri
 <script>
 // Fetch and render dashboard data using the same session token App Bridge gives us.
 async function loadDashboard() {
+  console.log('[dash] loadDashboard called');
+  let token = null;
   try {
     const ready = await waitForShopify();
-    if (!ready) {
-      document.getElementById('bot-status-pill').textContent = '● Loading failed';
-      return;
+    console.log('[dash] shopify ready =', ready);
+    if (ready) {
+      try {
+        token = await window.shopify.idToken();
+        console.log('[dash] got token, len=', token ? token.length : 0);
+      } catch (e) {
+        console.warn('[dash] idToken() threw:', e.message);
+      }
     }
-    const token = await window.shopify.idToken();
-    const res = await fetch('/api/dashboard-data?shop=' + encodeURIComponent('${shop}'), {
-      method: 'GET',
-      headers: { 'Authorization': 'Bearer ' + token }
-    });
+  } catch (e) {
+    console.warn('[dash] waitForShopify threw:', e.message);
+  }
+
+  // Build fetch headers — include token if we have one, otherwise plain
+  const headers = {};
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+
+  try {
+    const url = '/api/dashboard-data?shop=' + encodeURIComponent('${shop}');
+    console.log('[dash] fetching', url, 'with auth=', !!token);
+    const res = await fetch(url, { method: 'GET', headers });
+    console.log('[dash] response status:', res.status);
     if (!res.ok) {
-      document.getElementById('bot-status-pill').textContent = '● Loading failed';
-      console.error('dashboard-data:', res.status);
+      const body = await res.text();
+      console.error('[dash] non-ok response:', res.status, body);
+      document.getElementById('bot-status-pill').textContent = '● Error ' + res.status;
+      document.getElementById('bot-status-pill').style.background = '#FBE8E4';
+      document.getElementById('bot-status-pill').style.color = '#C75A4D';
       return;
     }
     const d = await res.json();
+    console.log('[dash] got data:', d);
     renderDashboard(d);
   } catch (e) {
-    console.error('Dashboard load error:', e);
-    document.getElementById('bot-status-pill').textContent = '● Error';
+    console.error('[dash] fetch error:', e);
+    document.getElementById('bot-status-pill').textContent = '● Network error';
+    document.getElementById('bot-status-pill').style.background = '#FBE8E4';
+    document.getElementById('bot-status-pill').style.color = '#C75A4D';
   }
 }
 
