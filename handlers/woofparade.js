@@ -337,10 +337,21 @@ async function handle(ctx) {
   // ─── MUTE (S27 / S28 first strike) ───────────────────────────────────────
   const isMuted = ctx.cart?.woofparade?.muted === true;
   if (isMuted) {
-    if (isInteractive || qa.isDogRelated(trimmed)) {
+    // PATCH 19: 24hr auto-expire — stale mute clears unconditionally
+    const MUTE_TTL_MS = 24 * 60 * 60 * 1000;
+    const mutedAt = ctx.cart?.woofparade?.mutedAt || 0;
+    if (mutedAt > 0 && (Date.now() - mutedAt) >= MUTE_TTL_MS) {
       ctx.cart = ctx.cart || {};
       ctx.cart.woofparade = ctx.cart.woofparade || {};
       delete ctx.cart.woofparade.muted;
+      delete ctx.cart.woofparade.mutedAt;
+      delete ctx.cart.woofparade.offTopicCount;
+      console.log(`[woofparade] mute auto-expired (24h) for ${from}`);
+    } else if (isInteractive || qa.isDogRelated(trimmed)) {
+      ctx.cart = ctx.cart || {};
+      ctx.cart.woofparade = ctx.cart.woofparade || {};
+      delete ctx.cart.woofparade.muted;
+      delete ctx.cart.woofparade.mutedAt;
       delete ctx.cart.woofparade.offTopicCount;
       console.log(`[woofparade] unmuted ${from}`);
     } else {
@@ -817,6 +828,7 @@ async function handle(ctx) {
       await sendWelcome(ctx);
     } else if (count === 2) {
       ctx.cart.woofparade.muted = true;
+      ctx.cart.woofparade.mutedAt = Date.now();
       await qa.sendOffTopicMute(ctx);
       await upsertConversation(ctx.tenant.id, ctx.from, [
         ...(ctx.history || []),
