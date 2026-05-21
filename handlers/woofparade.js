@@ -1452,7 +1452,15 @@ async function handleCrossSell(ctx) {
   // S08 PDF v1.4: "This kurta looks gorgeous with these 🐾"
   // Reference the most recent shortlisted product type if known.
   const lastProductTitle = ctx.cart?.woofparade?.product?.title || null;
-  const productNoun = lastProductTitle ? lastProductTitle.split(/\s+/).pop().toLowerCase() : 'this';
+  // Bug fix #3 (Kashmira): titles like "Bone Bandana for dogs & cats" used to grab
+  // the last word ("cats") as the noun. Match against known product types instead.
+  const PRODUCT_NOUNS = ['bandana', 'kurta', 'frock', 'lehenga', 'jersey', 'harness', 'bowtie', 'collar', 'leash', 'raincoat', 'shirt', 'hoodie', 'tee', 'tshirt', 'tutu'];
+  let productNoun = 'one';
+  if (lastProductTitle) {
+    const titleLower = lastProductTitle.toLowerCase();
+    const matched = PRODUCT_NOUNS.find(n => titleLower.includes(n));
+    if (matched) productNoun = matched;
+  }
   const intro = lastProductTitle
     ? `This ${productNoun} looks gorgeous with these ${PAW}`
     : `This looks gorgeous with these ${PAW}`;
