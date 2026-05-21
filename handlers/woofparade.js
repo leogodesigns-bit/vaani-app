@@ -18,6 +18,7 @@
 //                            S36 paid elsewhere UPI, S37 rage-quit 3-strike
 
 const { sendMessage, sendButtons, sendList, sendImage } = require('../whatsapp');
+const { sendTemplateOrFreeform } = require('../templates');
 const { getConversation, upsertConversation, saveOrder,
   saveShopifyDraftRef, getOrder, markOrderPaid, saveNotifyRequest,
   scheduleNudge, cancelNudges } = require('../db');
@@ -385,7 +386,7 @@ async function handle(ctx) {
         `Oh — I'm sorry to hear that ${PAW} Apurv from our team will reach out shortly to make this right.`,
         ctx.waToken, ctx.phoneNumberId);
       const body = `⚠️ *RETURNING CUSTOMER ISSUE*\nFrom: +${from}\nLast product feedback was negative.\n\nRecent chat:\n${formatRecentHistory(ctx.history)}`;
-      await pingTeam(ctx, 'apurv', body);
+      await pingTeam(ctx, 'apurv', body, { sosType: 'RETURNING CUSTOMER ISSUE', summary: 'Negative feedback after returning-welcome' });
       await upsertConversation(ctx.tenant.id, from, [
         ...ctx.history,
         { role: 'user', content: trimmed },
@@ -553,7 +554,8 @@ async function handle(ctx) {
       `Fabric: ${fabric.name}\n` +
       `Measurements: ${measLine}\n` +
       `Occasion: ${custom.occasion || '(not specified)'}\n\n` +
-      `Chat: https://wa.me/${from}`);
+      `Chat: https://wa.me/${from}`,
+      { sosType: 'CUSTOM ORDER', summary: 'Custom order intake from S12 chat flow' });
     return;
   }
   if (trimmed === WELCOME_BTN.VIEW_CATEGORIES || trimmed === 'View categories') {
@@ -1653,7 +1655,7 @@ async function handleTalkToDesigner(ctx) {
     `From: +${ctx.from}\n` +
     (sizing ? `Measurements: Back ${sizing.back}", Chest ${sizing.chest}", Neck ${sizing.neck}"\n` : '') +
     `Recent context: customer wants designer input before custom-making.`;
-  await pingTeam(ctx, 'designer', msg);
+  await pingTeam(ctx, 'designer', msg, { sosType: 'DESIGNER REQUEST', summary: 'Customer wants designer input before custom-making' });
   await sendMessage(ctx.from,
     `Our designer Anouttama will reach out shortly ${PAW} Meanwhile, feel free to keep browsing.`,
     ctx.waToken, ctx.phoneNumberId);
@@ -1905,7 +1907,8 @@ async function handleCheckoutConfirm(ctx) {
           `Customer: ${co.name} (+${from})\n` +
           `Address: ${co.address1}, ${co.city}, ${co.state} ${co.pin}\n` +
           `Items: ${items.length}, Total: ${formatPrice(co.grand || 0)}\n` +
-          `Please send manual payment link.`);
+          `Please send manual payment link.`,
+          { sosType: 'SHOPIFY DRAFT FAILED', summary: `Order ${orderId} — draft creation failed, manual payment link needed` });
       } catch (e) {
         console.error('[woofparade S11] ops alert failed:', e.message);
       }
@@ -2072,7 +2075,7 @@ async function handleCustomOrderFromWebsite(ctx) {
     (chestMatch ? `Chest: ${chestMatch[1]}"\n` : '') +
     (neckMatch ? `Neck: ${neckMatch[1]}"\n` : '') +
     `\nAuto-message content:\n${text.slice(0, 800)}`;
-  await pingTeam(ctx, 'designer', alertBody);
+  await pingTeam(ctx, 'designer', alertBody, { sosType: 'CUSTOM ORDER', summary: 'Auto-detected custom-fit intake from chat' });
 
   await upsertConversation(tenant.id, from, [
     ...history,
@@ -2168,7 +2171,7 @@ async function handleCustomMeasurementsMessage(ctx) {
     `Back: ${m.back}", Chest: ${m.chest}", Neck: ${m.neck}"` +
     (armhole !== null ? `, Armhole: ${armhole}"` : '') + `\n` +
     `Awaiting fabric pick.`;
-  await pingTeam(ctx, 'designer', intake);
+  await pingTeam(ctx, 'designer', intake, { sosType: 'CUSTOM ORDER', summary: 'Custom order intake awaiting fabric pick' });
 
   await upsertConversation(tenant.id, from, [
     ...history,
@@ -2198,8 +2201,8 @@ async function handleRefundComplaint(ctx) {
     `From: +${from}\n\n` +
     `Recent chat:\n${lastMsgs}\n\n` +
     `Reply directly to customer's WhatsApp. No outcome promised yet.`;
-  await pingTeam(ctx, 'apurv', body);
-  await pingTeam(ctx, 'kashmira', body);
+  await pingTeam(ctx, 'apurv', body, { sosType: 'REFUND COMPLAINT', summary: 'Customer reports problem with product/delivery' });
+  await pingTeam(ctx, 'kashmira', body, { sosType: 'REFUND COMPLAINT', summary: 'Customer reports problem with product/delivery' });
 }
 
 // ─── S19 — STOP / UNSUBSCRIBE ─────────────────────────────────────────────
@@ -2257,7 +2260,7 @@ async function handleTalkToHuman(ctx, reasonCode) {
     `👤 *HUMAN HELP REQUESTED${tag}*\n` +
     `From: +${from}\n\n` +
     `Recent chat:\n${lastMsgs}`;
-  await pingTeam(ctx, 'apurv', body);
+  await pingTeam(ctx, 'apurv', body, { sosType: 'HUMAN HELP', summary: `Customer asked to speak with human${tag}` });
 }
 
 // ─── S20 — INTERNATIONAL ──────────────────────────────────────────────────
@@ -2284,7 +2287,7 @@ async function handleInternationalOptIn(ctx) {
     `🌍 *INTERNATIONAL INQUIRY*\n` +
     `From: +${from}\n` +
     `Customer opted in for international shipping options.`;
-  await pingTeam(ctx, 'apurv', body);
+  await pingTeam(ctx, 'apurv', body, { sosType: 'INTERNATIONAL', summary: 'Customer opted in for international shipping options' });
   console.log(`[woofparade] international opt-in: ${from}`);
 }
 
@@ -2302,8 +2305,8 @@ async function handleBulkInquiry(ctx) {
     `📦 *BULK / WHOLESALE INQUIRY*\n` +
     `From: +${from}\n\n` +
     `Recent chat: ${formatRecentHistory(ctx.history)}`;
-  await pingTeam(ctx, 'apurv', body);
-  await pingTeam(ctx, 'kashmira', body);
+  await pingTeam(ctx, 'apurv', body, { sosType: 'BULK WHOLESALE', summary: 'Bulk/wholesale inquiry from customer' });
+  await pingTeam(ctx, 'kashmira', body, { sosType: 'BULK WHOLESALE', summary: 'Bulk/wholesale inquiry from customer' });
 }
 
 // ─── S22 — PRESS ──────────────────────────────────────────────────────────
@@ -2321,8 +2324,8 @@ async function handlePressInquiry(ctx) {
     `From: +${from}\n` +
     `Pointed customer to ${PRESS_EMAIL}.\n\n` +
     `Recent chat: ${formatRecentHistory(ctx.history)}`;
-  await pingTeam(ctx, 'apurv', body);
-  await pingTeam(ctx, 'kashmira', body);
+  await pingTeam(ctx, 'apurv', body, { sosType: 'PRESS COLLAB', summary: 'Press/collab inquiry — pointed to email' });
+  await pingTeam(ctx, 'kashmira', body, { sosType: 'PRESS COLLAB', summary: 'Press/collab inquiry — pointed to email' });
 }
 
 // ─── S26 — DISCOUNT PRESSURE (PDF v1.4 = 2-strike → Apurv) ───────────────
@@ -2379,7 +2382,7 @@ async function handleAbusive(ctx) {
     `🚫 *ABUSIVE CUSTOMER BLOCKED*\n` +
     `From: +${from}\n\n` +
     `Bot will no longer respond. To unblock, run "unblock ${from}" in founder commands.`;
-  await pingTeam(ctx, 'kashmira', body);
+  await pingTeam(ctx, 'kashmira', body, { sosType: 'ABUSIVE BLOCKED', summary: 'Customer auto-blocked after 2nd abuse strike' });
 }
 
 // ─── S37 — RAGE-QUIT ──────────────────────────────────────────────────────
@@ -2395,7 +2398,7 @@ async function handleRageQuit(ctx) {
     `From: +${from}\n\n` +
     `Recent chat:\n${formatRecentHistory(ctx.history)}\n\n` +
     `Customer is frustrated. Take over warmly.`;
-  await pingTeam(ctx, 'apurv', body);
+  await pingTeam(ctx, 'apurv', body, { sosType: 'RAGE QUIT', summary: 'Customer frustrated — take over warmly' });
   console.log(`[woofparade] rage_quit handoff: ${from}`);
 }
 
@@ -2437,7 +2440,7 @@ async function handleHighValueAlert(ctx, items, checkout, orderId) {
     `Total: ${formatPrice(checkout.grand)}\n` +
     `Items: ${items.length}\n\n` +
     `Consider a personal call from Kashmira within 24 hrs.`;
-  await pingTeam(ctx, 'kashmira', body);
+  await pingTeam(ctx, 'kashmira', body, { sosType: 'HIGH VALUE ORDER', summary: `High-value order ${orderId} — ${formatPrice(checkout.grand)}` });
 }
 
 async function sendOwnerAlertWoof(ctx, items, checkout, orderId) {
@@ -2452,7 +2455,7 @@ async function sendOwnerAlertWoof(ctx, items, checkout, orderId) {
     `Shipping: ${(checkout.shipping || 0) === 0 ? 'Free' : formatPrice(checkout.shipping)}\n` +
     `*Total: ${formatPrice(checkout.grand)}*\n\n` +
     `*Delivery*\n${checkout.address1}\n${checkout.city}, ${checkout.state} — ${checkout.pin}`;
-  await pingTeam(ctx, 'apurv', body);
+  await pingTeam(ctx, 'apurv', body, { sosType: 'NEW ORDER', summary: `New order ${orderId} — ${formatPrice(checkout.grand)}` });
 }
 
 // ─── S30 — PUP PROFILE FLOW ───────────────────────────────────────────────
@@ -2589,7 +2592,7 @@ async function handlePhotoFromCustomer(ctx) {
     `📸 *PHOTO FROM CUSTOMER*\n` +
     `From: +${from}\n` +
     `Asked permission to feature. Awaiting reply.`;
-  await pingTeam(ctx, 'kashmira', body);
+  await pingTeam(ctx, 'kashmira', body, { sosType: 'PHOTO RECEIVED', summary: 'Customer sent photo — awaiting feature permission' });
 }
 
 async function handlePhotoPermission(ctx, status) {
@@ -2606,7 +2609,7 @@ async function handlePhotoPermission(ctx, status) {
       `✅ *PHOTO PERMISSION GRANTED*\n` +
       `From: +${from}\n` +
       `Cleared to feature on Insta/website. Tag the pup if known.`;
-    await pingTeam(ctx, 'kashmira', body);
+    await pingTeam(ctx, 'kashmira', body, { sosType: 'PHOTO PERMISSION', summary: 'Customer granted permission to feature pup' });
   }
 }
 
@@ -2659,7 +2662,7 @@ async function handleTrackOrder(ctx) {
     const body =
       `⚠️ *UNFULFILLED >2 DAYS*\n` +
       `Order: ${orderId}\nCustomer: +${from}\nAge: ${ageInDays.toFixed(1)} days\nStatus: paid, not shipped`;
-    await pingTeam(ctx, 'apurv', body);
+    await pingTeam(ctx, 'apurv', body, { sosType: 'UNFULFILLED ORDER', summary: `Order ${orderId} unfulfilled >${ageInDays.toFixed(1)}d` });
   } else {
     // awaiting_payment
     await sendMessage(from,
@@ -2701,7 +2704,7 @@ async function handleOrderModMessage(ctx) {
   const body =
     `✏️ *${tag}*\n` +
     `Order: ${orderId}\nCustomer: +${from}\n\nRequested change:\n${text.slice(0, 500)}`;
-  await pingTeam(ctx, 'apurv', body);
+  await pingTeam(ctx, 'apurv', body, { sosType: 'ORDER MOD', summary: `Mod request for ${orderId}: ${text.slice(0, 80)}` });
 
   await upsertConversation(tenant.id, from, [
     ...history,
@@ -2750,7 +2753,7 @@ async function handleAddressChangeMessage(ctx) {
     `${tag}\n` +
     `Order: ${orderId}\nCustomer: +${from}\n\n` +
     `OLD: ${oldAddr}\nNEW:\n${text.slice(0, 500)}`;
-  await pingTeam(ctx, 'apurv', body);
+  await pingTeam(ctx, 'apurv', body, { sosType: 'ADDRESS CHANGE', summary: `Address change for ${orderId}${shipped ? ' (URGENT in-transit)' : ''}` });
 
   await upsertConversation(tenant.id, from, [
     ...history,
@@ -2793,7 +2796,7 @@ async function handleUpiPaidMessage(ctx) {
     `💸 *UPI PAYMENT CLAIMED*\n` +
     `Customer: +${from}\n\nProof:\n${text.slice(0, 600)}\n\n` +
     `To confirm: reply "mark paid WOOF-XXXXXX-XXX" once you've verified.`;
-  await pingTeam(ctx, 'apurv', body);
+  await pingTeam(ctx, 'apurv', body, { sosType: 'UPI PAYMENT', summary: 'UPI payment claim from customer — verify and confirm' });
 
   await upsertConversation(tenant.id, from, [
     ...history,
@@ -3081,8 +3084,11 @@ function formatRecentHistory(history) {
   }).join('\n') || '(no history)';
 }
 
-async function pingTeam(ctx, role, body) {
-  // role: 'apurv' | 'designer' (anouttama) | 'kashmira'
+async function pingTeam(ctx, role, body, meta) {
+  // role: 'apurv' | 'designer' (anouttama) | 'kashmira' | 'ops'
+  // meta: optional { sosType, summary } — if provided AND vaani_team_sos
+  //       template is approved for this tenant, sends via template so
+  //       delivery survives outside the 24h freeform window.
   // Suppresses send when in test mode.
   if (ctx?.testMode) {
     console.log(`[woofparade testMode] would have pinged ${role}:\n${body}`);
@@ -3091,14 +3097,43 @@ async function pingTeam(ctx, role, body) {
   const phone = role === 'apurv' ? APURV_PHONE
               : role === 'designer' ? ANOUTTAMA_PHONE
               : role === 'kashmira' ? KASHMIRA_PHONE
+              : role === 'ops' ? APURV_PHONE  // 'ops' alias → Apurv
               : null;
   if (!phone) {
     console.log(`[woofparade] ${role.toUpperCase()}_PHONE not set — would have sent:\n${body}`);
     return;
   }
+
+  // Template-or-freeform path: only when caller passed meta + tenant is provisioned.
+  // Falls back transparently to current freeform behaviour when template not approved.
+  if (meta && meta.sosType) {
+    try {
+      const result = await sendTemplateOrFreeform({
+        to: phone,
+        templateName: 'vaani_team_sos',
+        params: {
+          sosType: meta.sosType,
+          customerPhone: '+' + (ctx.from || 'unknown'),
+          summary: (meta.summary || body.split('\n').slice(0, 3).join(' ')).slice(0, 180),
+        },
+        tenant: ctx.tenant,
+        waToken: ctx.waToken,
+        phoneNumberId: ctx.phoneNumberId,
+        freeformText: body,
+        sendMessage,
+      });
+      console.log(`[woofparade] pinged ${role} (${phone}) via=${result.via} ok=${result.ok}`);
+      return;
+    } catch (e) {
+      console.error(`[woofparade] template/freeform ping ${role} failed:`, e.message);
+      return;
+    }
+  }
+
+  // Legacy path: freeform only (used by non-SOS pings without meta).
   try {
     await sendMessage(phone, body, ctx.waToken, ctx.phoneNumberId);
-    console.log(`[woofparade] pinged ${role} (${phone})`);
+    console.log(`[woofparade] pinged ${role} (${phone}) via=freeform-legacy`);
   } catch (e) {
     console.error(`[woofparade] ping ${role} failed:`, e.message);
   }

@@ -57,6 +57,10 @@ const TEMPLATES = {
     language: 'en',
     paramOrder: ['brandName'],
   },
+  vaani_team_sos: {
+    language: 'en',
+    paramOrder: ['sosType', 'customerPhone', 'summary'],
+  },
 };
 
 // ─── isTemplateApproved ─────────────────────────────────────────────────
