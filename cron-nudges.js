@@ -14,7 +14,7 @@
 // Template sends are stubbed until Meta approval lands. Until then they log
 // "[cron-nudges] template not yet approved" and skip without erroring.
 
-const { pool, getDueNudges, markNudgeSent, markNudgeError } = require('./db');
+const { pool, getDueNudges, markNudgeSent, markNudgeError, getConversation } = require('./db');
 const { sendMessage } = require('./whatsapp');
 
 const POLL_INTERVAL_MS = 30 * 1000;  // 30s
@@ -102,6 +102,19 @@ async function dispatchOne(nudge) {
 
   const phone = nudge.customer_phone;
   const payload = nudge.payload || {};
+
+  // S19 — respect unsubscribe: if customer opted out between schedule and tick,
+  // skip this nudge silently. Conversation cart holds the flag.
+  try {
+    const conv = await getConversation(nudge.tenant_id, phone);
+    if (conv?.cart?.woofparade?.unsubscribed === true) {
+      console.log(`[cron-nudges] ⏭️  skipping id=${nudge.id} kind=${nudge.kind} phone=${phone} — customer unsubscribed`);
+      return { skipped: true, reason: 'unsubscribed' };
+    }
+  } catch (e) {
+    // Conversation lookup failure shouldn't block the dispatch — log and proceed
+    console.error('[cron-nudges] unsubscribe check failed (proceeding):', e.message);
+  }
 
   switch (nudge.kind) {
     case 's14_branch_a_pre_shortlist':

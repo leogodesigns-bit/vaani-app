@@ -2194,6 +2194,12 @@ async function handleRefundComplaint(ctx) {
 
 async function handleStopUnsubscribe(ctx) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+
+  // S19 — kill any pending nudges immediately so they don't fire after goodbye.
+  // Fire-and-forget; cron-side check (cron-nudges.js) is the second line of defense.
+  cancelNudges(tenant.id, from, null, 'unsubscribed')
+    .catch(e => console.error('[woofparade S19] cancelNudges failed:', e.message));
+
   await sendMessage(from,
     `Okay... I'll stop. *walks away slowly* ${PAW}\nYou're unsubscribed.\n\nBut if you change your mind, I'll be here.`,
     waToken, phoneNumberId);
