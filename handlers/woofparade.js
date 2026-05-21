@@ -103,7 +103,7 @@ const CATEGORY_LABEL = {
 // ─── PRODUCT CARD / DETAIL BUTTONS ────────────────────────────────────────
 
 const PRODUCT_BTN = {
-  SHOW_3_MORE:    'Show 3 more',
+  SHOW_3_MORE:    'Show more',
   BACK_TO_MENU:   'Back to menu',
   BACK:           'Back',
   ADD_S:    'XS', ADD_S2: 'S', ADD_M: 'M',
@@ -657,7 +657,7 @@ async function handle(ctx) {
   }
 
   // Show 3 more / pagination
-  if (trimmed === PRODUCT_BTN.SHOW_3_MORE || trimmed === 'Show 3 more') {
+  if (trimmed === PRODUCT_BTN.SHOW_3_MORE || trimmed === 'Show more' || trimmed === 'Show 3 more') {
     await handleShow3More(ctx);
     return;
   }
