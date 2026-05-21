@@ -369,3 +369,4 @@ app.listen(PORT, async () => {
   startScheduler();
 });
 require('./cron-alerts').start();
+require('./cron-nudges').start();

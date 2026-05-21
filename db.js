@@ -326,6 +326,71 @@ async function markNotifyRequestSent(id) {
   await pool.query(`UPDATE notify_requests SET notified_at = NOW() WHERE id = $1`, [id]);
 }
 
+
+// ─── SCHEDULED NUDGES (S14 silence-nudges + S15 24hr unpaid + future Day-14) ──
+async function scheduleNudge(tenantId, customerPhone, kind, fireAt, payload = {}) {
+  // Cancels any existing pending nudge of the same kind for this phone before scheduling.
+  // Idempotent: safe to call repeatedly.
+  await pool.query(
+    `UPDATE scheduled_nudges
+       SET cancelled_at = NOW(), cancel_reason = 'superseded'
+     WHERE tenant_id = $1 AND customer_phone = $2 AND kind = $3
+       AND sent_at IS NULL AND cancelled_at IS NULL`,
+    [tenantId, customerPhone, kind]
+  );
+  const r = await pool.query(
+    `INSERT INTO scheduled_nudges (tenant_id, customer_phone, kind, fire_at, payload)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [tenantId, customerPhone, kind, fireAt, payload]
+  );
+  return r.rows[0];
+}
+
+async function cancelNudges(tenantId, customerPhone, kindOrNull, reason = 'cancelled') {
+  // Cancel one kind (if kindOrNull provided) or all pending nudges for this phone.
+  const params = [tenantId, customerPhone, reason];
+  let sql = `UPDATE scheduled_nudges
+               SET cancelled_at = NOW(), cancel_reason = $3
+             WHERE tenant_id = $1 AND customer_phone = $2
+               AND sent_at IS NULL AND cancelled_at IS NULL`;
+  if (kindOrNull) {
+    params.push(kindOrNull);
+    sql += ` AND kind = $4`;
+  }
+  sql += ` RETURNING id, kind`;
+  const r = await pool.query(sql, params);
+  return r.rows;
+}
+
+async function getDueNudges(limit = 50) {
+  // Fetch due nudges and atomically mark them with attempts++ to avoid double-fire.
+  const r = await pool.query(
+    `UPDATE scheduled_nudges
+        SET attempts = attempts + 1
+      WHERE id IN (
+        SELECT id FROM scheduled_nudges
+         WHERE fire_at <= NOW()
+           AND sent_at IS NULL
+           AND cancelled_at IS NULL
+           AND attempts < 3
+         ORDER BY fire_at ASC
+         LIMIT $1
+         FOR UPDATE SKIP LOCKED
+      )
+      RETURNING *`,
+    [limit]
+  );
+  return r.rows;
+}
+
+async function markNudgeSent(id) {
+  await pool.query(`UPDATE scheduled_nudges SET sent_at = NOW() WHERE id = $1`, [id]);
+}
+
+async function markNudgeError(id, err) {
+  await pool.query(`UPDATE scheduled_nudges SET last_error = $2 WHERE id = $1`, [id, String(err).slice(0, 500)]);
+}
+
 module.exports = { pool, initDB, getTenant, createTenant, updateTenant, getConversation, upsertConversation ,
   saveOrder, getOrder, markOrderPaid,
   saveShopifyDraftRef, getOrderByShopifyDraftId,
@@ -333,4 +398,5 @@ module.exports = { pool, initDB, getTenant, createTenant, updateTenant, getConve
   markOrderPaidByDraft, saveTracking,
   recordWebhookEvent, markWebhookProcessed,
   saveNotifyRequest, getPendingNotifyRequests, markNotifyRequestSent,
+  scheduleNudge, cancelNudges, getDueNudges, markNudgeSent, markNudgeError,
 };
