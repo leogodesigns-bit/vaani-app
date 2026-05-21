@@ -88,9 +88,11 @@ function getWebhookSecret(tenant) {
 // To send "Payment confirmed!" we need the tenant's WhatsApp token + phone_number_id.
 function getTenantWhatsAppCreds(tenant) {
   if (!tenant) return null;
+  // Tenants table columns: `whatsapp_token` (token) + `whatsapp_number` (phone_number_id).
+  // Legacy fallbacks kept for any rows still using older naming.
   return {
-    waToken: tenant.wa_token || process.env.WHATSAPP_TOKEN,
-    phoneNumberId: tenant.phone_number_id || tenant.wa_phone_number_id,
+    waToken: tenant.whatsapp_token || tenant.wa_token || process.env.WHATSAPP_TOKEN,
+    phoneNumberId: tenant.whatsapp_number || tenant.phone_number_id || tenant.wa_phone_number_id,
   };
 }
 
