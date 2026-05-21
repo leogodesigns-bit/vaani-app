@@ -49,7 +49,7 @@ const { getTenantSettings } = require('../settings-cache');
 
 // ─── BRAND CONSTANTS ──────────────────────────────────────────────────────
 
-const BRAND_NAME = 'Woof Parade';
+const BRAND_NAME = 'The Woof Parade';
 const DEFAULT_BOT_NAME = 'Rio';     // golden retriever co-founder
 const ALT_BOT_NAME     = 'Biscuit'; // sub-persona when customer's pup is also named Rio
 const ORDER_PREFIX = 'WOOF';        // WOOF-XXXXXX-XXX
@@ -867,10 +867,10 @@ async function handle(ctx) {
 
 async function sendShowstopperWelcome(ctx) {
   // S01 PDF v1.4: when customer taps "Make my pet a showstopper" CTA on website.
-  // "Hey there! I'm Rio, the woofy face of Woof Parade 🐾 Showstopper mode activated — where shall we start?"
+  // "Hey there! I'm Rio, co-founder of The Woof Parade 🐾 Showstopper mode activated — where shall we start?"
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
   const body =
-    `Hey there! I'm ${getBotName(ctx)}, the woofy face of ${BRAND_NAME} ${PAW}\n` +
+    `Hey there! I'm ${getBotName(ctx)}, co-founder of ${BRAND_NAME} ${PAW}\n` +
     `Showstopper mode activated — where shall we start?`;
   await sendList(from, body, [{
     title: 'View categories',
@@ -1027,7 +1027,7 @@ async function sendWelcome(ctx) {
 
     // S04: first-time customer — random hi/hello
     baseBody =
-      `Hey there! I'm ${getBotName(ctx)}, ${BRAND_NAME}'s golden-furred greeter ${PAW}\n` +
+      `Hey there! I'm ${getBotName(ctx)}, co-founder of ${BRAND_NAME} ${PAW}\n` +
       `What's your pup looking for today?`;
   }
 
@@ -2234,13 +2234,20 @@ async function handleRefundComplaint(ctx) {
 async function handleStopUnsubscribe(ctx) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
 
+  // Bug #18 (Kashmira): if already unsubscribed, don't re-send the goodbye.
+  // Guards against double-fires (network retries, customer typing 'stop' twice, etc).
+  if (cart?.woofparade?.unsubscribed === true) {
+    console.log(`[woofparade S19] ${from} already unsubscribed — skipping duplicate goodbye`);
+    return;
+  }
+
   // S19 — kill any pending nudges immediately so they don't fire after goodbye.
   // Fire-and-forget; cron-side check (cron-nudges.js) is the second line of defense.
   cancelNudges(tenant.id, from, null, 'unsubscribed')
     .catch(e => console.error('[woofparade S19] cancelNudges failed:', e.message));
 
   await sendMessage(from,
-    `Okay... I'll stop. *walks away slowly* ${PAW}\nYou're unsubscribed.\n\nBut if you change your mind, I'll be here.`,
+    `Okay... I'll stop. _walks away slowly_ ${PAW}\nYou're unsubscribed.\n\nBut if you change your mind, I'll be here.`,
     waToken, phoneNumberId);
 
   await upsertConversation(tenant.id, from, [
