@@ -118,39 +118,72 @@ async function waitForShopify() {
 })();
 </script>
 <style>
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;padding:0;background:#f6f6f7;color:#202223}
-.wrap{max-width:720px;margin:0 auto;padding:40px 24px}
-.card{background:white;border:1px solid #e1e3e5;border-radius:12px;padding:32px;box-shadow:0 1px 0 rgba(0,0,0,0.05)}
-h1{margin:0 0 8px;font-size:24px;color:#1a1a2e}
-.sub{color:#6d7175;margin:0 0 24px}
-.ok{display:inline-block;background:#e3f1df;color:#108043;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:500;margin-bottom:16px}
-.row{display:flex;justify-content:space-between;padding:14px 0;border-bottom:1px solid #f1f1f1;font-size:14px}
-.row:last-child{border-bottom:none}
-.label{color:#6d7175}
-.val{color:#202223;font-weight:500}
-.btn{display:inline-block;background:#008060;color:white;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:500;font-size:14px;margin-top:20px;margin-right:8px}
-.btn.secondary{background:white;color:#202223;border:1px solid #c9cccf}
-.note{background:#fff8e1;border-left:3px solid #f5a623;padding:12px 16px;margin-top:20px;font-size:13px;color:#6d4f00;border-radius:4px}
-.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;gap:16px;flex-wrap:wrap}
-.header-actions{display:flex;gap:8px;flex-wrap:wrap}
-.header-actions .btn{margin-top:0}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px}
-.card-title{font-size:13px;font-weight:600;color:#6d7175;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px}
-.big-stat{font-size:28px;font-weight:700;color:#1a1a2e;margin-bottom:12px}
-.muted{color:#6d7175}
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+:root{
+  --cream:#F8F2EA;
+  --cream-warm:#FBF6EE;
+  --ink:#1A1A2E;
+  --ink-soft:#3A3A4E;
+  --muted:#7A7388;
+  --line:#EAE2D2;
+  --sage:#5C8244;
+  --sage-soft:#E8EFE1;
+  --gold:#C29838;
+  --gold-soft:#FFF4DC;
+  --rose:#C75A4D;
+  --rose-soft:#FBE8E4;
+  --card:#FFFFFF;
+}
+*{box-sizing:border-box}
+body{font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;padding:0;background:var(--cream);color:var(--ink);font-size:14px;line-height:1.5;
+  background-image:radial-gradient(circle at 20% 10%,rgba(194,152,56,0.04),transparent 40%),radial-gradient(circle at 80% 80%,rgba(92,130,68,0.04),transparent 40%);
+}
+.wrap{max-width:1100px;margin:0 auto;padding:28px 24px 60px}
+.brand{font-family:'Playfair Display',Georgia,serif;font-weight:700;font-size:22px;letter-spacing:-0.02em;color:var(--ink);text-decoration:none;display:inline-block;margin-bottom:18px}
+.brand::after{content:'.';color:var(--sage)}
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;gap:16px;flex-wrap:wrap;padding-bottom:20px;border-bottom:1px solid var(--line)}
+.header h1{font-family:'Playfair Display',Georgia,serif;font-weight:600;font-size:30px;margin:6px 0 4px;letter-spacing:-0.01em;color:var(--ink)}
+.sub{color:var(--muted);margin:0;font-size:14px}
+.header-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.ok{display:inline-block;background:var(--sage-soft);color:var(--sage);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;letter-spacing:0.02em;margin-bottom:8px;font-family:'DM Sans',sans-serif}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-bottom:24px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px;box-shadow:0 1px 0 rgba(26,26,46,0.02),0 4px 16px rgba(26,26,46,0.03);transition:transform 0.15s ease,box-shadow 0.15s ease}
+.card:hover{box-shadow:0 1px 0 rgba(26,26,46,0.02),0 6px 22px rgba(26,26,46,0.06)}
+.card-title{font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px}
+.big-stat{font-family:'Playfair Display',Georgia,serif;font-weight:600;font-size:32px;color:var(--ink);margin-bottom:14px;letter-spacing:-0.01em;line-height:1.1}
+.muted{color:var(--muted)}
 .small{font-size:13px}
-.progress{height:8px;background:#f1f1f1;border-radius:4px;overflow:hidden;margin-bottom:14px}
-.progress-bar{height:100%;background:#008060;transition:width 0.4s ease}
+.row{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line);font-size:13px;align-items:center}
+.row:last-child{border-bottom:none}
+.label{color:var(--muted);font-weight:500}
+.val{color:var(--ink);font-weight:500;text-align:right}
+.progress{height:6px;background:var(--cream);border-radius:4px;overflow:hidden;margin-bottom:14px}
+.progress-bar{height:100%;background:var(--sage);transition:width 0.6s ease,background 0.3s ease;border-radius:4px}
 .convo-list{display:flex;flex-direction:column;gap:10px}
-.convo-item{padding:10px;background:#fafbfc;border-radius:6px;border:1px solid #f1f1f1}
-.convo-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
-.convo-phone{font-weight:500;font-size:13px;color:#202223;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-.convo-snippet{line-height:1.4}
-.wrap{max-width:1100px}
+.convo-item{padding:12px 14px;background:var(--cream-warm);border-radius:8px;border:1px solid var(--line)}
+.convo-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px}
+.convo-phone{font-weight:600;font-size:13px;color:var(--ink);font-family:'DM Sans',sans-serif;letter-spacing:0.01em}
+.convo-time{white-space:nowrap}
+.convo-snippet{line-height:1.45;color:var(--ink-soft)}
+.btn{display:inline-block;background:var(--ink);color:white;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:500;font-size:13px;font-family:'DM Sans',sans-serif;border:none;cursor:pointer;transition:opacity 0.15s ease}
+.btn:hover{opacity:0.85}
+.btn.secondary{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.secondary:hover{background:var(--cream-warm)}
+.note{background:var(--gold-soft);border-left:3px solid var(--gold);padding:14px 18px;margin-top:8px;font-size:13px;color:#6d4f00;border-radius:6px;line-height:1.5}
+.refresh-pill{position:fixed;bottom:20px;right:20px;background:white;border:1px solid var(--line);border-radius:24px;padding:6px 14px;font-size:11px;color:var(--muted);box-shadow:0 4px 16px rgba(26,26,46,0.08);font-family:'DM Sans',sans-serif;opacity:0.8;pointer-events:none;transition:opacity 0.3s ease}
+.refresh-pill.flash{opacity:1;color:var(--sage);border-color:var(--sage-soft);background:var(--sage-soft)}
+@media(max-width:640px){
+  .wrap{padding:20px 16px 40px}
+  .header h1{font-size:24px}
+  .big-stat{font-size:26px}
+  .grid{gap:14px}
+  .card{padding:20px}
+}
 </style>
 </head>
 <body>
 <div class="wrap">
+  <a class="brand" href="https://www.vaani.website" target="_blank" rel="noopener">vaani</a>
   <div class="header">
     <div>
       <div class="ok" id="bot-status-pill">● Loading</div>
@@ -204,6 +237,8 @@ h1{margin:0 0 8px;font-size:24px;color:#1a1a2e}
 
   <div class="note">Vaani runs on WhatsApp — your customers chat with the bot on your business number. This dashboard shows live activity.</div>
 </div>
+
+<div class="refresh-pill" id="refresh-pill">Live · updates every 30s</div>
 
 <script>
 // Fetch and render dashboard data using the same session token App Bridge gives us.
@@ -307,6 +342,22 @@ function escapeHTML(s) {
 
 // Run after the existing session-ping logic completes
 setTimeout(loadDashboard, 600);
+
+// Auto-refresh every 30 seconds
+setInterval(async () => {
+  const pill = document.getElementById('refresh-pill');
+  if (pill) {
+    pill.classList.add('flash');
+    pill.textContent = 'Updating…';
+  }
+  await loadDashboard();
+  if (pill) {
+    setTimeout(() => {
+      pill.classList.remove('flash');
+      pill.textContent = 'Live · updates every 30s';
+    }, 800);
+  }
+}, 30000);
 </script>
 </body>
 </html>`;
