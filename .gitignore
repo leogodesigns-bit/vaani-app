@@ -11,3 +11,9 @@ handlers/rajathee.js.bak-*
 *.bak
 *.bak[0-9]
 *.bak-*
+patch-*.js
+
+# Local backup files
+*.backup*
+handlers/*.backup*
+routes/*.backup*
