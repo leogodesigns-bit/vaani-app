@@ -2298,7 +2298,7 @@ async function handleBulkInquiry(ctx) {
 
 async function handlePressInquiry(ctx) {
   const { from, phoneNumberId, waToken } = ctx;
-  // S22 PDF v1.4 — TODO: KASHMIRA CONFIRM press email (default: hello@thewoofparade.com)
+  // S22 PDF v1.4 — SOS to BOTH Apurv + Kashmira. Press email defaults to hello@thewoofparade.com.
   await sendMessage(from,
     `Lovely to hear from you! ${PAW}\n\n` +
     `For press or collaborations, please email *${PRESS_EMAIL}* — our team will get right back to you.`,
@@ -2309,10 +2309,11 @@ async function handlePressInquiry(ctx) {
     `From: +${from}\n` +
     `Pointed customer to ${PRESS_EMAIL}.\n\n` +
     `Recent chat: ${formatRecentHistory(ctx.history)}`;
+  await pingTeam(ctx, 'apurv', body);
   await pingTeam(ctx, 'kashmira', body);
 }
 
-// ─── S26 — DISCOUNT PRESSURE (3-strike) ───────────────────────────────────
+// ─── S26 — DISCOUNT PRESSURE (PDF v1.4 = 2-strike → Apurv) ───────────────
 
 async function handleDiscountPressure(ctx) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
@@ -2325,16 +2326,9 @@ async function handleDiscountPressure(ctx) {
       line = `No public sale running right now ${PAW} But you'll get our best price at checkout — promise.`;
     }
     await sendMessage(from, line, waToken, phoneNumberId);
-  } else if (strikes === 2) {
-    await sendMessage(from,
-      `Wish I could budge more ${PAW} For special asks, Apurv has more flexibility than I do — want me to loop him in?`,
-      waToken, phoneNumberId);
-    await sendButtons(from, 'Choose:',
-      ['Yes, talk to Apurv', "No, that's okay"],
-      waToken, phoneNumberId);
   } else {
-    // 3+ strikes — auto-route to Apurv
-    await handleTalkToHuman(ctx, 'discount-pressure-x3');
+    // PDF v1.4: after 2 declines, AUTO-route to Apurv (no opt-in prompt).
+    await handleTalkToHuman(ctx, 'discount-pressure-x2');
   }
 
   await upsertConversation(tenant.id, from, [
