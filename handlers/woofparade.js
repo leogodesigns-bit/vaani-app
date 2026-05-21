@@ -3119,7 +3119,7 @@ async function pingTeam(ctx, role, body, meta) {
     return;
   }
   const phone = role === 'apurv' ? APURV_PHONE
-              : role === 'designer' ? ANOUTTAMA_PHONE
+              : role === 'designer' ? APURV_PHONE  // Anouttama removed 21 May — all designer SOS -> Apurv
               : role === 'kashmira' ? KASHMIRA_PHONE
               : role === 'ops' ? APURV_PHONE  // 'ops' alias → Apurv
               : null;
