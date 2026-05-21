@@ -1512,8 +1512,7 @@ async function handleSizingHaveMeasurements(ctx) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
   // S07 PDF v1.4: ask for back/chest/neck only (armhole is custom-only — see S12)
   await sendMessage(from,
-    `Here's our size chart ${PAW}\nTap to zoom in — measurements you'll need below.\n\n` +
-    `Pop them in here:\n` +
+    `Pop your pup's measurements in here ${PAW}\n\n` +
     `• Back length (neck base to tail base)\n` +
     `• Chest (widest part behind front legs)\n` +
     `• Neck (around the base)\n\n` +
