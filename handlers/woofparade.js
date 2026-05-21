@@ -656,6 +656,20 @@ async function handle(ctx) {
     return;
   }
 
+  // PDF v1.4 Bug #2 (Kashmira): customer types a number to pick a product from the cumulative list.
+  // Numbers are global across all browsed pages within the session (resets on checkout).
+  // e.g. customer browsed Jerseys 1-3 then Clothes 4-6, types "5" → pick handle at index 4.
+  if (/^[1-9]\d*$/.test(trimmed)) {
+    const handles = cart.woofparade?.productHandles || [];
+    const idx = parseInt(trimmed, 10) - 1;
+    if (idx >= 0 && idx < handles.length) {
+      await sendProductDetail(ctx, handles[idx]);
+      return;
+    }
+    // Number was a digit but out of range — fall through to normal handling
+    // (could be a size measurement, weight, address pincode, etc.)
+  }
+
   // Show 3 more / pagination
   if (trimmed === PRODUCT_BTN.SHOW_3_MORE || trimmed === 'Show more' || trimmed === 'Show 3 more') {
     await handleShow3More(ctx);
@@ -1101,7 +1115,8 @@ async function sendCategoryResults(ctx, rowId, page) {
   //   price + Sale tag (if compare_at_price > price) + In Stock ✅
   //   ⚡ Only N left! (if total inventory ≤ 3)
   //   product URL
-  const NUMBER_BADGES = ['1️⃣', '2️⃣', '3️⃣'];
+  // PDF v1.4 Bug #2: cumulative global numbering across pages so customer can type '4', '7' etc.
+  const NUMBER_BADGES = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
   for (let i = 0; i < slice.length; i++) {
     const p = slice[i];
     const v0 = p.variants?.[0];
@@ -1118,7 +1133,8 @@ async function sendCategoryResults(ctx, rowId, page) {
     const lowStock = totalInventory > 0 && totalInventory <= 3;
     const url = `https://${tenant.shop_domain || 'thewoofparade.com'}/products/${p.handle}`;
 
-    const badge = NUMBER_BADGES[i] || `${i + 1}.`;
+    const globalIdx = start + i;  // PDF v1.4 Bug #2: cumulative across pages
+    const badge = NUMBER_BADGES[globalIdx] || `${globalIdx + 1}.`;
     let caption = `${badge} ${p.title}\n`;
     caption += `${price}`;
     if (onSale) caption += ` 🏷 Sale`;
