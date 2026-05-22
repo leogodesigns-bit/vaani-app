@@ -525,6 +525,12 @@ async function handle(ctx) {
     await handleCustomMeasurementsMessage(ctx);
     return;
   }
+
+  // PATCH 26 — "Pick a time" free-text reply for sizing reminder
+  if (ctx.cart?.woofparade?.sizing?.awaitingRemindTime && !isInteractive) {
+    await handleSizingRemindTimeMessage(ctx);
+    return;
+  }
   if (ctx.cart?.woofparade?.custom?.awaitingPupName && !isInteractive) {
     await handleCustomPupNameMessage(ctx);
     return;
@@ -1813,7 +1819,7 @@ async function handleSizingHaveMeasurements(ctx) {
 }
 
 async function handleSizingRemind(ctx, when) {
-  const { from, phoneNumberId, waToken } = ctx;
+  const { tenant, from, phoneNumberId, waToken, history, cart } = ctx;
 
   // S07 PDF v1.4 Branch B: first tap = "All good! When should I nudge you? 🐾"
   // then [In 2 hours] [Tomorrow morning] [Pick a time]
@@ -1825,13 +1831,159 @@ async function handleSizingRemind(ctx, when) {
     return;
   }
 
-  // Subsequent tap = actually schedule
-  const note =
-    when === 'In 2 hours' ? "Got it — I'll nudge you in 2 hours." :
-    when === 'Tomorrow morning' ? "Got it — catch you tomorrow morning." :
-    when === 'Pick a time' ? "Send me a time (e.g. 'tomorrow 6pm') and I'll remind you." :
-    "Got it — I'll remind you later.";
-  await sendMessage(from, `${note} ${PAW}`, waToken, phoneNumberId);
+  // PATCH 26 — Actually schedule a reminder.
+  // Compute fireAt based on which button they tapped.
+  let fireAt = null;
+  let note = null;
+  const now = new Date();
+
+  if (when === 'In 2 hours') {
+    fireAt = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    note = "Got it — I'll nudge you in 2 hours.";
+  } else if (when === 'Tomorrow morning') {
+    // Tomorrow at 9:00 AM IST (in customer's local context; we just store UTC).
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    fireAt = tomorrow;
+    note = "Got it — catch you tomorrow morning.";
+  } else if (when === 'Pick a time') {
+    // Flag conversation so the next free-text message is parsed as a time.
+    ctx.cart = ctx.cart || {};
+    ctx.cart.woofparade = ctx.cart.woofparade || {};
+    ctx.cart.woofparade.sizing = {
+      ...(ctx.cart.woofparade.sizing || {}),
+      awaitingRemindTime: true,
+    };
+    await upsertConversation(tenant.id, from, [
+      ...(history || []),
+      { role: 'assistant', content: '[woofparade sizing_awaiting_remind_time]' },
+    ], ctx.cart);
+    await sendMessage(from,
+      `Send me a time (e.g. "tomorrow 6pm" or "in 4 hours") and I'll remind you. ${PAW}`,
+      waToken, phoneNumberId);
+    return;
+  }
+
+  if (fireAt) {
+    // Cancel any prior sizing reminder for this customer (supersede)
+    try { await cancelNudges(tenant.id, from, 's07_sizing_remind'); } catch (e) {}
+    // Stash the product context so the reminder copy can mention it
+    const productTitle = cart?.woofparade?.product?.title || null;
+    try {
+      await scheduleNudge(tenant.id, from, 's07_sizing_remind', fireAt, {
+        productTitle,
+        pupName: cart?.woofparade?.pupName || null,
+      });
+      console.log(`[woofparade S07] scheduled sizing remind for ${from} at ${fireAt.toISOString()}`);
+    } catch (e) {
+      console.error('[woofparade S07] scheduleNudge failed:', e.message);
+    }
+  }
+
+  await sendMessage(from, `${note || "Got it — I'll remind you later."} ${PAW}`, waToken, phoneNumberId);
+  await sendButtons(from, 'Meanwhile:',
+    [SIZE_BTN.SKIP_BROWSE, SIZE_BTN.HERE_THEY_ARE, SIZE_BTN.HOOMAN],
+    waToken, phoneNumberId);
+}
+
+// PATCH 26 — Parse free-text time string from 'Pick a time' branch.
+// Accepts forms:
+//   "in 2 hours" / "in 30 minutes" / "in 4h" / "in 90 min"
+//   "tomorrow 6pm" / "tomorrow at 9am" / "tomorrow morning"
+//   "6pm" / "9:30am" / "18:00"  (today, or tomorrow if past)
+// Returns Date or null.
+function parseRemindTime(text) {
+  if (!text) return null;
+  const t = String(text).toLowerCase().trim();
+  const now = new Date();
+
+  // "in N hours" / "in N minutes"
+  let m = t.match(/in\s+(\d+)\s*(hour|hr|h|minute|min|m)s?\b/);
+  if (m) {
+    const n = parseInt(m[1], 10);
+    const unit = m[2];
+    const ms = (unit.startsWith('h') ? n * 60 * 60 : n * 60) * 1000;
+    return new Date(now.getTime() + ms);
+  }
+
+  // "tomorrow [at] HH[:MM][ ]am/pm"  or  "tomorrow morning"
+  if (/\btomorrow\b/.test(t)) {
+    const tm = new Date(now); tm.setDate(tm.getDate() + 1);
+    if (/morning/.test(t))         { tm.setHours(9, 0, 0, 0);  return tm; }
+    if (/afternoon|noon/.test(t))  { tm.setHours(14, 0, 0, 0); return tm; }
+    if (/evening/.test(t))         { tm.setHours(18, 0, 0, 0); return tm; }
+    if (/night/.test(t))           { tm.setHours(20, 0, 0, 0); return tm; }
+    const tt = t.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/);
+    if (tt) {
+      let h = parseInt(tt[1], 10);
+      const mi = tt[2] ? parseInt(tt[2], 10) : 0;
+      const ap = tt[3];
+      if (ap === 'pm' && h < 12) h += 12;
+      if (ap === 'am' && h === 12) h = 0;
+      tm.setHours(h, mi, 0, 0);
+      return tm;
+    }
+    // Default tomorrow → 9am
+    tm.setHours(9, 0, 0, 0); return tm;
+  }
+
+  // "HH[:MM][ ]am/pm"  or  "HH:MM" (24h) — today, or tomorrow if past
+  m = t.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/);
+  if (m) {
+    let h = parseInt(m[1], 10);
+    const mi = m[2] ? parseInt(m[2], 10) : 0;
+    const ap = m[3];
+    if (ap === 'pm' && h < 12) h += 12;
+    if (ap === 'am' && h === 12) h = 0;
+    if (!ap && h <= 12 && h !== 0) {
+      // ambiguous "6" → assume next 6 (today if future, else tomorrow)
+    }
+    const candidate = new Date(now);
+    candidate.setHours(h, mi, 0, 0);
+    if (candidate.getTime() <= now.getTime()) candidate.setDate(candidate.getDate() + 1);
+    return candidate;
+  }
+
+  return null;
+}
+
+// PATCH 26 — Handle the free-text reply after 'Pick a time'.
+// Reads the parsed time, schedules the reminder, confirms.
+async function handleSizingRemindTimeMessage(ctx) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const fireAt = parseRemindTime(text);
+
+  if (!fireAt || fireAt.getTime() <= Date.now()) {
+    await sendMessage(from,
+      `Couldn't catch that time ${PAW} Try "tomorrow 6pm" or "in 2 hours".`,
+      waToken, phoneNumberId);
+    return;
+  }
+
+  try { await cancelNudges(tenant.id, from, 's07_sizing_remind'); } catch (e) {}
+  try {
+    await scheduleNudge(tenant.id, from, 's07_sizing_remind', fireAt, {
+      productTitle: cart?.woofparade?.product?.title || null,
+      pupName: cart?.woofparade?.pupName || null,
+    });
+  } catch (e) {
+    console.error('[woofparade S07] scheduleNudge failed:', e.message);
+  }
+
+  // Clear the awaiting flag
+  const updatedCart = { ...cart, woofparade: { ...(cart.woofparade || {}) } };
+  if (updatedCart.woofparade.sizing) {
+    updatedCart.woofparade.sizing = { ...updatedCart.woofparade.sizing, awaitingRemindTime: false };
+  }
+  await upsertConversation(tenant.id, from, [
+    ...(history || []),
+    { role: 'user', content: text },
+    { role: 'assistant', content: `[woofparade s07_remind_scheduled at=${fireAt.toISOString()}]` },
+  ], updatedCart);
+
+  const when = fireAt.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' });
+  await sendMessage(from, `Done — I'll nudge you on *${when}* ${PAW}`, waToken, phoneNumberId);
   await sendButtons(from, 'Meanwhile:',
     [SIZE_BTN.SKIP_BROWSE, SIZE_BTN.HERE_THEY_ARE, SIZE_BTN.HOOMAN],
     waToken, phoneNumberId);
@@ -1847,6 +1999,10 @@ async function handleMeasurementsMessage(ctx) {
       waToken, phoneNumberId);
     return;
   }
+
+  // PATCH 26 — Customer is actively answering. Cancel any pending sizing reminder.
+  try { await cancelNudges(tenant.id, from, 's07_sizing_remind'); } catch (e) {}
+
 
   // PATCH 24 — Read category set during handleSizingHaveMeasurements (or
   // re-derive from current product). Used to pick the right chart.

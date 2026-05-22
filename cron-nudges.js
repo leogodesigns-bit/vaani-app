@@ -70,6 +70,23 @@ async function sendBranchB(creds, phone, payload) {
 }
 
 // ─── Out-of-window nudge senders (templates — dormant until Meta approves) ─
+// PATCH 26 — Sizing reminder send (in-window, freeform).
+// Customer tapped "In 2 hours" / "Tomorrow morning" / "Pick a time" during S07.
+// Fires whenever they asked. Freeform is safe because they explicitly opted-in
+// via button tap within the last 24h (well within WA service window).
+async function sendSizingRemind(creds, phone, payload) {
+  const sig = nudgeSignature(payload);
+  const productPart = payload?.productTitle
+    ? `*${payload.productTitle}*`
+    : 'that fit';
+  const text =
+    `Hey ${PAW} Circling back on those measurements for ${productPart}.\n\n` +
+    `If you grabbed them, send: *Back X, Chest Y, Neck Z* and I'll suggest a size.\n` +
+    `If not, no stress — happy to help when you're ready.\n\n` +
+    `— ${sig}`;
+  await sendMessage(phone, text, creds.waToken, creds.phoneNumberId);
+}
+
 async function sendDay14Template(tenant, creds, phone, payload) {
   // PATCH 23 — S14 day-14 final.
   // Template: woof_day14_final, 1 param (pup name or "there").
@@ -151,6 +168,12 @@ async function dispatchOne(nudge) {
       return await sendDay14Template(tenant, creds, phone, payload);
     case 's15_unpaid_checkout':
       return await sendUnpaidCheckoutTemplate(tenant, creds, phone, payload);
+    case 's07_sizing_remind':
+      // PATCH 26 — Customer asked to be reminded about sizing.
+      // In-window freeform send (no template required because customer
+      // explicitly opted-in by tapping a reminder button).
+      await sendSizingRemind(creds, phone, payload);
+      return { sent: true };
     default:
       throw new Error(`unknown nudge kind: ${nudge.kind}`);
   }
