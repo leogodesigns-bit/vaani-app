@@ -1296,13 +1296,14 @@ async function sendCategoryResults(ctx, rowId, page) {
   // so the customer sees CSK + RCB + MI x 2 without needing 'Show more'.
   const pageSize = (rowId === WELCOME_ROW.IPL) ? 4 : PAGE_SIZE;
 
-  // PATCH 41: rotate products per customer so casual/festive don't always show
-  // the same first 3. Use phone hash as a stable per-customer seed.
+  // PATCH 41 + 44: rotate products per customer so the customer sees a different
+  // first 3 than the next customer. Rotation MUST apply on every page so
+  // 'Show more' continues from the rotated order — not the original Shopify order.
   const phoneSeed = String(from || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
   const rotated = [...products];
-  if (page === 0 && rotated.length > pageSize) {
+  if (rotated.length > pageSize) {
     const offset = phoneSeed % rotated.length;
-    rotated.unshift(...rotated.splice(offset));  // rotate by offset
+    rotated.unshift(...rotated.splice(offset));
   }
   const totalAvailable = Math.min(rotated.length, MAX_PRODUCTS_PER_CAT);
   const start = page * pageSize;
