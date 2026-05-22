@@ -306,7 +306,7 @@ async function createCustomOrderDraft(shopDomain, accessToken, opts) {
     const titleBits = ['Custom Order'];
     if (designName) titleBits.push('— ' + designName);
     if (pupName)    titleBits.push('for ' + pupName);
-    const lineTitle = titleBits.join(' ');
+    const lineTitle = titleBits.join(' ').replace(/[\r\n]+/g, ' ').slice(0, 250);
 
     const draftBody = {
       draft_order: {
@@ -315,11 +315,8 @@ async function createCustomOrderDraft(shopDomain, accessToken, opts) {
           quantity: 1,
           price: '0.00',
         }],
-        customer: formattedPhone ? {
-          first_name: pupName ? (pupName + "'s parent") : 'Custom',
-          last_name:  'Order',
-          phone: formattedPhone,
-        } : undefined,
+        // customer object intentionally omitted — Shopify will collect at checkout
+        // (phone is preserved in note_attributes for our DB join + Apurv visibility)
         note: 'Vaani S02 custom-order intake\n' + (summary || ''),
         note_attributes: [
           { name: 'vaani_source', value: 'woofparade-s02' },
