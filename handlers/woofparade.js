@@ -1696,7 +1696,9 @@ async function handleSizePick(ctx, size) {
 
   // S06 PDF v1.4: "Added Size S to your shortlist 🛒\nAnything you'd like to pair with this?"
   await sendMessage(from,
-    `Added Size ${size} to your shortlist 🛒`,
+    size === '__NO_SIZE__'
+      ? `Added to your shortlist 🛒`
+      : `Added Size ${size} to your shortlist 🛒`,
     waToken, phoneNumberId);
 
   await sendButtons(from, `Anything you'd like to pair with this?`,
