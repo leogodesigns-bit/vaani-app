@@ -1275,7 +1275,14 @@ async function sendCategoryResults(ctx, rowId, page) {
   let productsRaw = [];
   try { productsRaw = await getCollectionProducts(tenant, handle); }
   catch (e) { console.error('[woofparade] collection fetch failed:', e.message); }
-  const products = filterInStock(productsRaw);
+  let products = filterInStock(productsRaw);
+
+  // PATCH 43 bug #1: Shopify has festive kurtas double-tagged into pet-clothes.
+  // For Casual category, exclude items whose title screams festive (kurta, lehenga, banarasi, etc.)
+  if (rowId === WELCOME_ROW.CASUAL) {
+    const FESTIVE_KEYWORDS = /\b(kurta|lehenga|lehariya|banarasi|bandhani|assamese|festive|frock|ethnic)\b/i;
+    products = products.filter(p => !FESTIVE_KEYWORDS.test(p.title || ''));
+  }
 
   if (!products.length) {
     await sendMessage(from,
@@ -1361,7 +1368,10 @@ async function sendCategoryResults(ctx, rowId, page) {
     `That's our top ${slice.length} in ${label} ${PAW}\nReply with the number to pick, or tap any link to view.`,
     waToken, phoneNumberId);
 
-  await sendProductPickerList(ctx, slice);
+  // PATCH 43 bug #2: picker list shows ALL products seen so far, not just current page.
+  // So tapping "Pick a product" after 3+3+3 = 9 products gives all 9 in the list.
+  const accumulated = rotated.slice(0, start + pageSize);
+  await sendProductPickerList(ctx, accumulated);
 
   const totalShownAfter = Math.min((page + 1) * pageSize, totalAvailable);
   const moreAvailable = totalShownAfter < totalAvailable;
@@ -3512,8 +3522,9 @@ async function handlePupProfileMessage(ctx) {
     : `Lovely name ${PAW} *${pupName}* it is. I'll remember next time.`;
 
   await sendMessage(from, greeting, waToken, phoneNumberId);
-  await sendButtons(from, "Would you like to share a photo of them in our outfit when it arrives?",
-    [POSTPURCHASE_BTN.YES_FEATURE, POSTPURCHASE_BTN.JUST_REVIEW, POSTPURCHASE_BTN.MAYBE_LATER],
+  // PATCH 43 bug #4: don't ask about photos until after delivery. Just ack here.
+  await sendButtons(from, `Anything else for ${pupName}? ${PAW}`,
+    [POSTPURCHASE_BTN.TRACK, POSTPURCHASE_BTN.BROWSE_MORE, PRODUCT_BTN.BACK_TO_MENU],
     waToken, phoneNumberId);
 
   await upsertConversation(tenant.id, from, [

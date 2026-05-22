@@ -225,7 +225,7 @@ async function createCheckoutDraftOrder(shopDomain, accessToken, opts) {
     }
 
     const res = await axios.post(
-      `https://${shopDomain}/admin/api/2024-01/draft_orders.json`,
+      `https://${shopDomain}/admin/api/2025-07/draft_orders.json`,
       draftBody,
       {
         headers: {
