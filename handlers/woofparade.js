@@ -816,7 +816,7 @@ async function handle(ctx) {
     return;
   }
   // Patch 29 — Lehenga request (festive category trailing button)
-  if (trimmed === 'Looking for a Lehenga?') {
+  if (trimmed === 'Looking for a Lehenga?' || trimmed === 'View Lehengas') {
     await handleLehengaRequest(ctx);
     return;
   }
@@ -1283,9 +1283,17 @@ async function sendCategoryResults(ctx, rowId, page) {
   // so the customer sees CSK + RCB + MI x 2 without needing 'Show more'.
   const pageSize = (rowId === WELCOME_ROW.IPL) ? 4 : PAGE_SIZE;
 
-  const totalAvailable = Math.min(products.length, MAX_PRODUCTS_PER_CAT);
+  // PATCH 41: rotate products per customer so casual/festive don't always show
+  // the same first 3. Use phone hash as a stable per-customer seed.
+  const phoneSeed = String(from || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  const rotated = [...products];
+  if (page === 0 && rotated.length > pageSize) {
+    const offset = phoneSeed % rotated.length;
+    rotated.unshift(...rotated.splice(offset));  // rotate by offset
+  }
+  const totalAvailable = Math.min(rotated.length, MAX_PRODUCTS_PER_CAT);
   const start = page * pageSize;
-  const slice = products.slice(start, start + pageSize);
+  const slice = rotated.slice(start, start + pageSize);
 
   if (!slice.length) {
     // S05 PDF v1.4 end-of-12 fallback — show 4 specific options
@@ -1359,7 +1367,7 @@ async function sendCategoryResults(ctx, rowId, page) {
   // Patch 29 — category-specific trailing buttons
   if (rowId === WELCOME_ROW.FESTIVE) {
     await sendButtons(from, 'Looking for something extra special?',
-      ['Looking for a Lehenga?'], waToken, phoneNumberId);
+      ['View Lehengas'], waToken, phoneNumberId);
   } else if (rowId === WELCOME_ROW.IPL) {
     await sendButtons(from, 'Raincoats are on the way 🍃',
       ['Notify me — Raincoat'], waToken, phoneNumberId);
@@ -1437,10 +1445,14 @@ async function sendProductDetail(ctx, productHandle) {
   let detailMsg = `${product.title} ✨\n${price}`;
   if (onSale) detailMsg += ` (was ${formatPrice(compareAt)})`;
   detailMsg += `\n\n${desc}${ellipsis}`;
-  detailMsg += `\n\nWhich size for your pup?`;
-  await sendMessage(from, detailMsg, waToken, phoneNumberId);
-
   const sizesInStock = detectInStockSizes(product);
+  const isNoSizeProduct = sizesInStock.length === 1 && sizesInStock[0] === '__NO_SIZE__';
+
+  // PATCH 41: skip "Which size?" for sizeless products (accessories — leash, bandana, etc.)
+  if (!isNoSizeProduct) {
+    detailMsg += `\n\nWhich size for your pup?`;
+  }
+  await sendMessage(from, detailMsg, waToken, phoneNumberId);
 
   if (sizesInStock.length === 0) {
     // S13 — fully OOS
@@ -1448,9 +1460,11 @@ async function sendProductDetail(ctx, productHandle) {
       `This one's sold out across all sizes right now ${PAW} ` +
       `Want me to notify you when it's back, or shall we look at something similar?`,
       waToken, phoneNumberId);
-    await sendButtons(from, 'What next?',
-      [ORDER_OPS_BTN.NOTIFY_BACK, PRODUCT_BTN.BACK_TO_MENU, SIZE_BTN.YES_CUSTOM],
-      waToken, phoneNumberId);
+    // PATCH 41: for accessories (sizeless), don't offer custom-make (clothing only)
+    const oosBtns = isNoSizeProduct
+      ? [ORDER_OPS_BTN.NOTIFY_BACK, PRODUCT_BTN.BACK_TO_MENU]
+      : [ORDER_OPS_BTN.NOTIFY_BACK, PRODUCT_BTN.BACK_TO_MENU, SIZE_BTN.YES_CUSTOM];
+    await sendButtons(from, 'What next?', oosBtns, waToken, phoneNumberId);
     await upsertConversation(tenant.id, from, [
       ...history,
       { role: 'user', content: text },
@@ -1462,18 +1476,25 @@ async function sendProductDetail(ctx, productHandle) {
     return;
   }
 
-  // S06 PDF v1.4: just send size buttons split into two rows + helper button row
-  const firstThree = sizesInStock.slice(0, 3);
-  await sendButtons(from, 'Pick a size:', firstThree, waToken, phoneNumberId);
+  // PATCH 41: sizeless products (accessories) → "Add to cart" directly, no size prompt
+  if (isNoSizeProduct) {
+    await sendButtons(from, 'Like it?',
+      ['Add to cart', PRODUCT_BTN.BACK_TO_MENU],
+      waToken, phoneNumberId);
+  } else {
+    // S06 PDF v1.4: just send size buttons split into two rows + helper button row
+    const firstThree = sizesInStock.slice(0, 3);
+    await sendButtons(from, 'Pick a size:', firstThree, waToken, phoneNumberId);
 
-  if (sizesInStock.length > 3) {
-    const nextThree = sizesInStock.slice(3, 6);
-    await sendButtons(from, 'Or:', nextThree, waToken, phoneNumberId);
+    if (sizesInStock.length > 3) {
+      const nextThree = sizesInStock.slice(3, 6);
+      await sendButtons(from, 'Or:', nextThree, waToken, phoneNumberId);
+    }
+
+    await sendButtons(from, 'Not sure of the size?',
+      [PRODUCT_BTN.HELP_SIZING, PRODUCT_BTN.BACK],
+      waToken, phoneNumberId);
   }
-
-  await sendButtons(from, 'Not sure of the size?',
-    [PRODUCT_BTN.HELP_SIZING, PRODUCT_BTN.BACK],
-    waToken, phoneNumberId);
 
   await upsertConversation(tenant.id, from, [
     ...history,
@@ -1496,6 +1517,20 @@ async function sendProductDetail(ctx, productHandle) {
 
 function detectInStockSizes(product) {
   const variants = product.variants || [];
+  // PATCH 41: detect if this product even uses S/M/L sizing
+  const hasAnySizeVariant = variants.some(v => {
+    const opt = String(v.option1 || v.title || '').toUpperCase().trim();
+    return ALL_SIZES.includes(opt);
+  });
+
+  // Sizeless product (accessory with Color/Material variants, or single variant)
+  // Return special marker so the caller can skip the size prompt and go straight
+  // to add-to-cart. ANY available variant means the product is in stock.
+  if (!hasAnySizeVariant) {
+    const anyAvailable = variants.some(v => v.available !== false);
+    return anyAvailable ? ['__NO_SIZE__'] : [];
+  }
+
   const found = [];
   for (const sz of ALL_SIZES) {
     const match = variants.find(v => {
@@ -1509,9 +1544,14 @@ function detectInStockSizes(product) {
 }
 
 function filterInStock(products) {
-  return (products || []).filter(p =>
-    (p.variants || []).some(v => v.available !== false)
-  );
+  return (products || []).filter(p => {
+    // PATCH 41: exclude drafts and archived (admin API returns `status`)
+    if (p.status && p.status !== 'active') return false;
+    // PATCH 41: exclude unpublished (no published_at means not on Online Store)
+    if (p.published_at === null) return false;
+    // Need at least one in-stock variant
+    return (p.variants || []).some(v => v.available !== false);
+  });
 }
 
 async function handleSizePick(ctx, size) {
