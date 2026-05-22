@@ -618,6 +618,7 @@ app.use('/webhooks', require('./routes/gdpr'));
 app.use('/dashboard', require('./routes/dashboard'));
 app.use('/embedded-bridge', require('./routes/embedded-bridge'));
 app.use('/admin', require('./routes/admin'));
+app.use('/team-timeline', require('./routes/team-timeline'));
 
 // ── BILLING ROUTES ──────────────────────────────────────────
 app.get('/terms', (req, res) => {

@@ -128,6 +128,44 @@ router.post('/', async (req, res) => {
     }
     const waToken = tenant.whatsapp_token;
 
+    // ─── Patch B: team_messages delivery status capture ─────────────────
+    // Meta sends statuses[] webhooks separate from messages[]. Update
+    // team_messages by wamid so the dashboard can show ✓/✓✓/👁/⚠ icons.
+    const statuses = entry?.statuses || [];
+    if (statuses.length > 0) {
+      for (const st of statuses) {
+        const wamid = st.id;
+        const stStatus = st.status; // 'sent' | 'delivered' | 'read' | 'failed'
+        if (!wamid || !stStatus) continue;
+        try {
+          let setClause = null;
+          if (stStatus === 'delivered') setClause = 'delivered_at = COALESCE(delivered_at, NOW())';
+          else if (stStatus === 'read') setClause = 'read_at = COALESCE(read_at, NOW())';
+          else if (stStatus === 'failed') setClause = "failed_at = NOW(), failure_reason = $2";
+          else if (stStatus === 'sent') continue; // already recorded at insert
+          else continue;
+
+          if (stStatus === 'failed') {
+            const reason = st.errors?.[0]?.title || st.errors?.[0]?.message || 'unknown';
+            await pool.query(
+              `UPDATE team_messages SET ${setClause} WHERE wamid = $1`,
+              [wamid, String(reason).slice(0, 500)]
+            );
+          } else {
+            await pool.query(
+              `UPDATE team_messages SET ${setClause} WHERE wamid = $1`,
+              [wamid]
+            );
+          }
+          console.log(`[team_messages] ${stStatus} wamid=${wamid}`);
+        } catch (e) {
+          console.error('[team_messages] status update failed (non-fatal):', e.message);
+        }
+      }
+      // statuses-only webhooks have no message; nothing more to process.
+      if (!entry?.messages) return;
+    }
+
     const message = entry?.messages?.[0];
     if (!message) return;
 
@@ -157,6 +195,32 @@ router.post('/', async (req, res) => {
         // (better to risk a duplicate than to drop the message entirely)
         console.error('[dedup] check failed (non-fatal):', e.message);
       }
+    }
+
+    // ─── Patch B: capture inbound team replies → team_messages.replied_at ───
+    // If the inbound message is from a team phone (Apurv/Kashmira) and there's
+    // a pending team_messages row for that recipient, mark it replied so the
+    // dashboard timeline shows the response.
+    try {
+      const TEAM_PHONES = [process.env.APURV_PHONE, process.env.KASHMIRA_PHONE].filter(Boolean);
+      if (TEAM_PHONES.includes(from)) {
+        let replyText = '';
+        if (message.type === 'text') replyText = message.text?.body || '';
+        else if (message.type === 'interactive') replyText = message.interactive?.button_reply?.title || message.interactive?.list_reply?.title || '';
+        // Mark the latest unanswered team_messages row for this (tenant, recipient).
+        await pool.query(
+          `UPDATE team_messages
+              SET replied_at = NOW(), reply_text = $3
+            WHERE id = (
+              SELECT id FROM team_messages
+               WHERE tenant_id = $1 AND recipient_phone = $2 AND replied_at IS NULL
+               ORDER BY sent_at DESC LIMIT 1
+            )`,
+          [tenant.id, from, String(replyText).slice(0, 1000)]
+        );
+      }
+    } catch (e) {
+      console.error('[team_messages] inbound capture failed (non-fatal):', e.message);
     }
 
     // ─── PHASE 2 + 4: usage tracking + threshold alerts ─────────────────

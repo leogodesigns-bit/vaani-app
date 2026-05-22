@@ -99,7 +99,7 @@ function isTemplateApproved(tenant, templateName) {
 //   phoneNumberId — sender phone_number_id
 //
 // Returns: { ok: boolean, messageId?, error? }
-async function sendTemplate({ to, templateName, params, tenant, waToken, phoneNumberId }) {
+async function sendTemplate({ to, templateName, params, tenant, waToken, phoneNumberId, record }) {
   const tplDef = TEMPLATES[templateName];
   if (!tplDef) {
     return { ok: false, error: `Unknown template: ${templateName}` };
@@ -150,6 +150,32 @@ async function sendTemplate({ to, templateName, params, tenant, waToken, phoneNu
     );
     const messageId = res.data?.messages?.[0]?.id;
     console.log(`[templates] sent ${templateName} → ${to} (msgId=${messageId})`);
+
+    // ─── Patch A: record team_messages row for dashboard timeline ──────────
+    if (record && messageId && record.tenantId) {
+      try {
+        const { pool } = require('./db');
+        await pool.query(
+          `INSERT INTO team_messages
+             (tenant_id, wamid, recipient_phone, recipient_role, sos_type, template_name, params, draft_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)
+           ON CONFLICT (wamid) DO NOTHING`,
+          [
+            record.tenantId,
+            messageId,
+            to,
+            record.role || null,
+            record.sosType || null,
+            templateName,
+            JSON.stringify(params || {}),
+            record.draftId || null,
+          ]
+        );
+      } catch (e) {
+        console.error('[templates] team_messages insert failed (non-fatal):', e.message);
+      }
+    }
+
     return { ok: true, messageId };
   } catch (err) {
     const errBody = err.response?.data || { message: err.message };
@@ -183,6 +209,7 @@ async function sendTemplateOrFreeform({
   // Try template path first
   if (isTemplateApproved(tenant, templateName)) {
     const result = await sendTemplate({
+      record: arguments[0].record,
       to, templateName, params, tenant, waToken, phoneNumberId,
     });
     if (result.ok) {

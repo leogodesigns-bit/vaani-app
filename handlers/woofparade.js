@@ -2813,7 +2813,7 @@ async function handleCustomOrderFromWebsite(ctx) {
   alertLines.push(text.slice(0, 600));
 
   const alertBody = alertLines.join('\n');
-  await pingTeam(ctx, 'designer', alertBody, { sosType: 'CUSTOM ORDER', summary: pupName ? `Custom order from ${pupName}'s parent` : 'Custom order intake' });
+  await pingTeam(ctx, 'designer', alertBody, { sosType: 'CUSTOM ORDER', summary: pupName ? `Custom order from ${pupName}'s parent` : 'Custom order intake', draftId: draft?.id || null });
 
   await upsertConversation(tenant.id, from, [
     ...history,
@@ -4068,6 +4068,12 @@ async function pingTeam(ctx, role, body, meta) {
         phoneNumberId: ctx.phoneNumberId,
         freeformText: body,
         sendMessage,
+        record: {
+          tenantId: ctx.tenant?.id,
+          role,
+          sosType: meta.sosType,
+          draftId: meta.draftId || null,
+        },
       });
       console.log(`[woofparade] pinged ${role} (${phone}) via=${result.via} ok=${result.ok}`);
       return;
