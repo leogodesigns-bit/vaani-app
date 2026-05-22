@@ -103,7 +103,7 @@ async function createDraftOrder(shopDomain, accessToken, lineItems, customerPhon
       };
     });
     const res = await axios.post(
-      `https://${shopDomain}/admin/api/2024-01/draft_orders.json`,
+      `https://${shopDomain}/admin/api/2025-07/draft_orders.json`,
       {
         draft_order: {
           line_items: formattedItems,
@@ -235,11 +235,27 @@ async function createCheckoutDraftOrder(shopDomain, accessToken, opts) {
       }
     );
     console.log('[createCheckoutDraftOrder] response keys:', Object.keys(res.data || {}));
-    const draft = res.data && res.data.draft_order;
+    // Shopify normally returns draft_order (singular) on POST, but some API versions
+    // return draft_orders (plural array). Handle both.
+    let draft = res.data && res.data.draft_order;
+    if (!draft && res.data && Array.isArray(res.data.draft_orders)) {
+      // Find the draft we just created — match by our internalOrderId in note_attributes
+      draft = res.data.draft_orders.find(d =>
+        d.note_attributes && d.note_attributes.some(a =>
+          a.name === 'vaani_internal_order_id' && a.value === internalOrderId
+        )
+      );
+      // Fallback: most recent draft if no match
+      if (!draft && res.data.draft_orders.length > 0) {
+        draft = res.data.draft_orders[res.data.draft_orders.length - 1];
+        console.warn('[createCheckoutDraftOrder] using last draft as fallback');
+      }
+    }
     if (!draft) {
       console.error('[createCheckoutDraftOrder] no draft_order in response:', JSON.stringify(res.data));
       return null;
     }
+    console.log('[createCheckoutDraftOrder] resolved draft id:', draft.id, 'invoice_url:', draft.invoice_url);
     return {
       id: draft.id,
       invoice_url: draft.invoice_url,
