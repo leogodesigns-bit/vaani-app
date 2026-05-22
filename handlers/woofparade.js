@@ -118,7 +118,7 @@ const ALL_SIZES = ['XS', 'S', 'M', 'L', 'XL', '2XL'];
 
 const PICKED_BTN = {
   ACCESSORIES:    'Accessories',
-  CONTINUE:       'Continue this section',
+  CONTINUE:       'Continue shopping',
   CHECKOUT:       'Checkout',
 };
 
@@ -748,8 +748,12 @@ async function handle(ctx) {
     await handleContinueSection(ctx);
     return;
   }
-  if (trimmed === PICKED_BTN.CHECKOUT || trimmed === 'Checkout' || trimmed === 'Checkout now' || trimmed === CHECKOUT_BTN.PAY_NOW) {
+  if (trimmed === PICKED_BTN.CHECKOUT || trimmed === 'Checkout' || trimmed === 'Checkout now') {
     await handleCheckout(ctx);
+    return;
+  }
+  if (trimmed === CHECKOUT_BTN.PAY_NOW || trimmed === 'Pay now') {
+    await handleCheckoutPayNow(ctx);
     return;
   }
   if (trimmed === CHECKOUT_BTN.COD || trimmed === 'Cash on delivery') {
@@ -2384,6 +2388,23 @@ async function handleCheckout(ctx) {
     woofparade: {
       ...(cart.woofparade || {}),
       checkout: { step: null, subtotal, discount: discount.amount, discountLabel: discount.label, shipping, grand, phone: from },
+    },
+  });
+}
+
+async function handleCheckoutPayNow(ctx) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  await sendMessage(from, ADDRESS_PROMPT, waToken, phoneNumberId);
+  const co = cart.woofparade?.checkout || {};
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: '[woofparade paynow_started]' },
+  ], {
+    ...cart,
+    woofparade: {
+      ...(cart.woofparade || {}),
+      checkout: { ...co, step: CHECKOUT_STEP.COLLECT, paymentMethod: 'paynow' },
     },
   });
 }
