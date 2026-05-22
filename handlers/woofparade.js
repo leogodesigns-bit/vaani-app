@@ -1026,7 +1026,7 @@ async function sendShowstopperWelcome(ctx) {
       { id: WELCOME_ROW.CUSTOM,      title: 'Custom Fit',      description: "Made to your pup's size" },
       { id: WELCOME_ROW.BESTSELLERS, title: 'Bestsellers',     description: 'What other pups love' },
     ],
-  }], waToken, phoneNumberId);
+  }], waToken, phoneNumberId, 'Browse Categories');
   await upsertConversation(tenant.id, from, [
     ...history,
     { role: 'user', content: text },
@@ -1111,7 +1111,7 @@ async function sendBranchCWelcomeNoProduct(ctx) {
       { id: WELCOME_ROW.CUSTOM,      title: 'Custom Fit',      description: "Made to your pup's size" },
       { id: WELCOME_ROW.BESTSELLERS, title: 'Bestsellers',     description: 'What other pups love' },
     ],
-  }], waToken, phoneNumberId);
+  }], waToken, phoneNumberId, 'Browse Categories');
   await sendButtons(from, 'Or:',
     [WELCOME_BTN.ORDER_HELP, 'Just saying hi 🧡'],
     waToken, phoneNumberId);
@@ -1195,7 +1195,7 @@ async function sendWelcome(ctx) {
       { id: WELCOME_ROW.CUSTOM,      title: 'Custom Fit',      description: "Made to your pup's size" },
       { id: WELCOME_ROW.BESTSELLERS, title: 'Bestsellers',     description: 'What other pups love' },
     ],
-  }], waToken, phoneNumberId);
+  }], waToken, phoneNumberId, 'Browse Categories');
 
   await sendButtons(from, 'Or:',
     [WELCOME_BTN.ORDER_HELP, 'Just saying hi 🧡'],
@@ -1357,7 +1357,7 @@ async function sendProductPickerList(ctx, products) {
   });
   await sendList(from, `Tap any to see details ${PAW}`,
     [{ title: 'Pick a product', rows }],
-    waToken, phoneNumberId);
+    waToken, phoneNumberId, 'Pick a product');
 }
 
 async function handleShow3More(ctx) {

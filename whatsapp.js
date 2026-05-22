@@ -40,7 +40,7 @@ async function sendButtons(to, bodyText, buttons, token, phoneNumberId) {
   }
 }
 
-async function sendList(to, bodyText, sections, token, phoneNumberId) {
+async function sendList(to, bodyText, sections, token, phoneNumberId, buttonText) {
   try {
     await axios.post(
       `https://graph.facebook.com/v25.0/${phoneNumberId}/messages`,
@@ -52,7 +52,7 @@ async function sendList(to, bodyText, sections, token, phoneNumberId) {
           type: 'list',
           body: { text: bodyText },
           action: {
-            button: 'Browse Products',
+            button: (buttonText && buttonText.length <= 20) ? buttonText : 'Browse Products',
             sections
           }
         }
