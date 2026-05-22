@@ -1887,65 +1887,111 @@ async function handleSizingRemind(ctx, when) {
     waToken, phoneNumberId);
 }
 
-// PATCH 26 — Parse free-text time string from 'Pick a time' branch.
+// PATCH 28 — Parse free-text time string from 'Pick a time' branch.
+// Server runs in UTC; customer messages are IST. We compute target moments in
+// IST math then convert to UTC Date for storage.
+//
 // Accepts forms:
 //   "in 2 hours" / "in 30 minutes" / "in 4h" / "in 90 min"
-//   "tomorrow 6pm" / "tomorrow at 9am" / "tomorrow morning"
-//   "6pm" / "9:30am" / "18:00"  (today, or tomorrow if past)
-// Returns Date or null.
+//   "tomorrow 6pm" / "tomorrow at 9am" / "tomorrow morning/afternoon/evening/night"
+//   "today 6pm" / "today 3:30 pm"
+//   "6pm" / "9:30am" / "18:00"  (interpreted as today IST; tomorrow if past)
+// Returns Date (UTC) or null.
+//
+// Returns null only if no time-like content found. Caller shows a friendly
+// hint and reprompts.
 function parseRemindTime(text) {
   if (!text) return null;
-  const t = String(text).toLowerCase().trim();
-  const now = new Date();
+  let t = String(text).toLowerCase().trim();
+  if (!t) return null;
 
-  // "in N hours" / "in N minutes"
+  // Strip pleasantries and connectors that don't carry meaning
+  t = t.replace(/\b(at|please|pls|by|around|around about)\b/g, ' ').replace(/\s+/g, ' ').trim();
+
+  // "in N hours" / "in N minutes" — simple offset, server-TZ-agnostic
   let m = t.match(/in\s+(\d+)\s*(hour|hr|h|minute|min|m)s?\b/);
   if (m) {
     const n = parseInt(m[1], 10);
+    if (n <= 0 || n > 168) return null;  // sanity cap: max 1 week
     const unit = m[2];
     const ms = (unit.startsWith('h') ? n * 60 * 60 : n * 60) * 1000;
-    return new Date(now.getTime() + ms);
+    return new Date(Date.now() + ms);
   }
 
-  // "tomorrow [at] HH[:MM][ ]am/pm"  or  "tomorrow morning"
+  // Determine day offset: today/tomorrow (default = today)
+  let dayOffset = 0;
   if (/\btomorrow\b/.test(t)) {
-    const tm = new Date(now); tm.setDate(tm.getDate() + 1);
-    if (/morning/.test(t))         { tm.setHours(9, 0, 0, 0);  return tm; }
-    if (/afternoon|noon/.test(t))  { tm.setHours(14, 0, 0, 0); return tm; }
-    if (/evening/.test(t))         { tm.setHours(18, 0, 0, 0); return tm; }
-    if (/night/.test(t))           { tm.setHours(20, 0, 0, 0); return tm; }
-    const tt = t.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/);
-    if (tt) {
-      let h = parseInt(tt[1], 10);
-      const mi = tt[2] ? parseInt(tt[2], 10) : 0;
-      const ap = tt[3];
-      if (ap === 'pm' && h < 12) h += 12;
-      if (ap === 'am' && h === 12) h = 0;
-      tm.setHours(h, mi, 0, 0);
-      return tm;
-    }
-    // Default tomorrow → 9am
-    tm.setHours(9, 0, 0, 0); return tm;
+    dayOffset = 1;
+    t = t.replace(/\btomorrow\b/, ' ').replace(/\s+/g, ' ').trim();
+  } else if (/\btoday\b/.test(t)) {
+    dayOffset = 0;
+    t = t.replace(/\btoday\b/, ' ').replace(/\s+/g, ' ').trim();
   }
 
-  // "HH[:MM][ ]am/pm"  or  "HH:MM" (24h) — today, or tomorrow if past
-  m = t.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/);
+  // Time-of-day keyword (morning/afternoon/evening/night/tonight) — default times in IST
+  let hourIST = null, minuteIST = 0;
+  if (/\bmorning\b/.test(t))           { hourIST = 9;  }
+  else if (/\b(afternoon|noon)\b/.test(t)) { hourIST = 14; }
+  else if (/\b(evening)\b/.test(t))     { hourIST = 18; }
+  else if (/\b(night|tonight)\b/.test(t)) { hourIST = 20; if (/\btonight\b/.test(t)) dayOffset = 0; }
+  // Bare "tomorrow" with no time → default 9am
+  else if (dayOffset === 1 && !/\d/.test(t)) { hourIST = 9; }
+
+  // Explicit HH[:MM][am|pm] anywhere in remaining string
+  m = t.match(/\b(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?|am|pm)?\b/);
   if (m) {
     let h = parseInt(m[1], 10);
     const mi = m[2] ? parseInt(m[2], 10) : 0;
-    const ap = m[3];
+    const apRaw = m[3] ? m[3].replace(/\./g, '') : null;
+    const ap = apRaw === 'am' || apRaw === 'pm' ? apRaw : null;
+
     if (ap === 'pm' && h < 12) h += 12;
     if (ap === 'am' && h === 12) h = 0;
-    if (!ap && h <= 12 && h !== 0) {
-      // ambiguous "6" → assume next 6 (today if future, else tomorrow)
-    }
-    const candidate = new Date(now);
-    candidate.setHours(h, mi, 0, 0);
-    if (candidate.getTime() <= now.getTime()) candidate.setDate(candidate.getDate() + 1);
-    return candidate;
+
+    // Validate
+    if (h < 0 || h > 23 || mi < 0 || mi > 59) return null;
+    // Bare "3:30" without am/pm and h <= 12 is ambiguous — only accept if
+    // it looks like 24h (>= 13) or has explicit colon (e.g. "03:30" looks
+    // intentional). Otherwise reject so caller can reprompt.
+    if (!ap && h < 8 && !m[2]) return null;  // "6" alone → ambiguous, ask again
+
+    hourIST = h;
+    minuteIST = mi;
   }
 
-  return null;
+  if (hourIST === null) return null;
+
+  // Compute target moment in IST → convert to UTC Date.
+  // IST = UTC+5:30. Strategy: compute today's date in IST, set H:M IST,
+  // then subtract 5:30 to get UTC.
+  const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+  const nowUTC = new Date();
+  const nowIST = new Date(nowUTC.getTime() + IST_OFFSET_MS);
+
+  // Build target in IST as if it were UTC, then subtract offset to get true UTC
+  const targetIST = new Date(Date.UTC(
+    nowIST.getUTCFullYear(),
+    nowIST.getUTCMonth(),
+    nowIST.getUTCDate() + dayOffset,
+    hourIST,
+    minuteIST,
+    0
+  ));
+  const targetUTC = new Date(targetIST.getTime() - IST_OFFSET_MS);
+
+  // If user said "6pm" without today/tomorrow and 6pm IST already passed
+  // today → roll forward to tomorrow.
+  if (dayOffset === 0 && !/\btoday\b/.test(text.toLowerCase()) && targetUTC.getTime() <= nowUTC.getTime()) {
+    return new Date(targetUTC.getTime() + 24 * 60 * 60 * 1000);
+  }
+
+  // If "today X" was explicit but X has passed → return null so user is told
+  // it's already past (less surprising than silently scheduling tomorrow).
+  if (dayOffset === 0 && /\btoday\b/.test(text.toLowerCase()) && targetUTC.getTime() <= nowUTC.getTime()) {
+    return null;
+  }
+
+  return targetUTC;
 }
 
 // PATCH 26 — Handle the free-text reply after 'Pick a time'.
@@ -1956,7 +2002,11 @@ async function handleSizingRemindTimeMessage(ctx) {
 
   if (!fireAt || fireAt.getTime() <= Date.now()) {
     await sendMessage(from,
-      `Couldn't catch that time ${PAW} Try "tomorrow 6pm" or "in 2 hours".`,
+      `Couldn't catch that time ${PAW}\n\n` +
+      `Try one of these formats:\n` +
+      `• *in 2 hours* / *in 30 min*\n` +
+      `• *today 6pm* / *today 3:30 pm*\n` +
+      `• *tomorrow morning* / *tomorrow 6pm*`,
       waToken, phoneNumberId);
     return;
   }
