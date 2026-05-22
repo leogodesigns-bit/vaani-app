@@ -2437,8 +2437,31 @@ async function handleAddressMessage(ctx) {
     return;
   }
 
-  // Partial parse — ask for just what's missing, but save what we got into checkout state
-  if (parsed._missing && parsed._missing.length > 0) {
+  // Merge previously-captured fields from checkout state with new parse
+  const co = cart.woofparade?.checkout || {};
+  const fields = ['name', 'address1', 'city', 'state', 'pin'];
+  const merged = {};
+  fields.forEach(k => {
+    // Prefer new value, fall back to previous
+    if (parsed[k]) merged[k] = parsed[k];
+    else if (co[k]) merged[k] = co[k];
+  });
+
+  // Re-infer state from PIN if still missing
+  if (!merged.state && merged.pin) {
+    const inferredState = stateFromPin(merged.pin);
+    if (inferredState) merged.state = inferredState;
+  }
+
+  // Recompute what's missing AFTER merge
+  const stillMissing = [];
+  if (!merged.name || merged.name.length < 2) stillMissing.push('name');
+  if (!merged.address1 || merged.address1.length < 3) stillMissing.push('address1');
+  if (!merged.city) stillMissing.push('city');
+  if (!merged.state) stillMissing.push('state');
+  if (!merged.pin) stillMissing.push('pin');
+
+  if (stillMissing.length > 0) {
     const labels = {
       name: 'full name',
       address1: 'house/flat + street/area',
@@ -2446,29 +2469,27 @@ async function handleAddressMessage(ctx) {
       state: 'state',
       pin: '6-digit PIN',
     };
-    const missingHuman = parsed._missing.map(k => labels[k] || k);
-    const co = cart.woofparade?.checkout || {};
-    // Merge what we got so far (non-null fields) into checkout state
-    const partial = {};
-    ['name', 'address1', 'city', 'state', 'pin'].forEach(k => {
-      if (parsed[k]) partial[k] = parsed[k];
-    });
+    const missingHuman = stillMissing.map(k => labels[k] || k);
     await sendMessage(from,
       `Got most of it ${PAW} Just need: ${missingHuman.join(', ')}`,
       waToken, phoneNumberId);
     await upsertConversation(tenant.id, from, [
       ...history,
       { role: 'user', content: text },
-      { role: 'assistant', content: `[woofparade address_partial missing=${parsed._missing.join(',')}]` },
+      { role: 'assistant', content: `[woofparade address_partial missing=${stillMissing.join(',')}]` },
     ], {
       ...cart,
       woofparade: {
         ...(cart.woofparade || {}),
-        checkout: { ...co, ...partial, step: CHECKOUT_STEP.COLLECT },
+        checkout: { ...co, ...merged, step: CHECKOUT_STEP.COLLECT },
       },
     });
     return;
   }
+
+  // All fields present — overwrite `parsed` with merged so downstream uses complete data
+  Object.assign(parsed, merged);
+  delete parsed._missing;
 
   const serviceable = await isPincodeServiceable(parsed.pin);
   if (!serviceable) {
