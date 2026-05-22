@@ -338,7 +338,12 @@ async function createCustomOrderDraft(shopDomain, accessToken, opts) {
       draftBody,
       { headers: { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' } }
     );
-    const draft = res.data.draft_order;
+    const draft = res.data?.draft_order;
+    if (!draft) {
+      console.error('❌ createCustomOrderDraft: no draft_order in response. Full data:', JSON.stringify(res.data));
+      console.error('   request body was:', JSON.stringify(draftBody));
+      return null;
+    }
     return {
       id: draft.id,
       name: draft.name,
@@ -346,7 +351,8 @@ async function createCustomOrderDraft(shopDomain, accessToken, opts) {
       admin_url: 'https://' + shopDomain + '/admin/draft_orders/' + draft.id,
     };
   } catch (err) {
-    console.error('❌ createCustomOrderDraft error:', err.response?.data || err.message);
+    console.error('❌ createCustomOrderDraft error:', err.response?.status, JSON.stringify(err.response?.data) || err.message);
+    console.error('   request body was:', JSON.stringify(draftBody));
     return null;
   }
 }
