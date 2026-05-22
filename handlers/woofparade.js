@@ -673,7 +673,7 @@ async function handle(ctx) {
     await sendWelcome(ctx);
     return;
   }
-  if (trimmed === 'Continue where I left off' || listReplyId === 'continue_where_left_off') {
+  if (trimmed === 'Continue' || trimmed === 'Continue where I left off' || trimmed === 'Continue where I lef' || listReplyId === 'continue_where_left_off') {
     await handleContinueWhereLeftOff(ctx);
     return;
   }
@@ -1113,7 +1113,7 @@ async function sendBranchCWelcome(ctx, lastProduct) {
     `Welcome back ${PAW}\n` +
     `Last time you were checking out the ${lastProduct}. Want to:`;
   await sendButtons(from, body,
-    ['Continue where I left off', 'Browse fresh', 'Order help'],
+    ['Continue', 'Browse fresh', 'Order help'],
     waToken, phoneNumberId);
   await upsertConversation(tenant.id, from, [
     ...history,
