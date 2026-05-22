@@ -783,7 +783,7 @@ async function handle(ctx) {
     return;
   }
   // Patch 29 — Raincoats waitlist (seasonal category trailing button)
-  if (trimmed === 'Notify me — Raincoats') {
+  if (trimmed === 'Notify me — Raincoats' || trimmed === 'Notify me — Raincoat') {
     await handleNotifyRaincoats(ctx);
     return;
   }
@@ -1324,7 +1324,7 @@ async function sendCategoryResults(ctx, rowId, page) {
       ['Looking for a Lehenga?'], waToken, phoneNumberId);
   } else if (rowId === WELCOME_ROW.IPL) {
     await sendButtons(from, 'Raincoats are on the way 🍃',
-      ['Notify me — Raincoats'], waToken, phoneNumberId);
+      ['Notify me — Raincoat'], waToken, phoneNumberId);
   }
 
   await upsertConversation(tenant.id, from, [
