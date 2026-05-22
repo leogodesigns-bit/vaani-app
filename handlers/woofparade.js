@@ -140,17 +140,77 @@ const SIZE_BTN = {
   SKIP_BROWSE:  'Skip, browse instead',
 };
 
-// Reasonable defaults for the size chart — used in S07 if no founder data set.
-// Founder review: confirm against actual Woof Parade size chart.
-const SIZE_CHART = [
-  // size, back_min, back_max, chest_min, chest_max, neck_min, neck_max
-  { size: 'XS',  back: [8,  11], chest: [12, 14], neck: [8,  10] },
-  { size: 'S',   back: [11, 14], chest: [14, 17], neck: [10, 12] },
-  { size: 'M',   back: [14, 18], chest: [17, 20], neck: [12, 14] },
-  { size: 'L',   back: [18, 22], chest: [20, 24], neck: [14, 17] },
-  { size: 'XL',  back: [22, 26], chest: [24, 28], neck: [17, 20] },
-  { size: '2XL', back: [26, 30], chest: [28, 32], neck: [20, 23] },
-];
+// PATCH 24 — Per-category size charts. Mirrors the Interactive Size Finder
+// widget on woofparade.com (assets/twp-size-guide.liquid) EXACTLY. Source of
+// truth is the widget; if the widget changes, update these together.
+//
+// Categories (priority order, first hit wins):
+//   harness → bandana → jersey → posh (SHIRT but not jersey) → ethnic (default)
+//   leash/collar → no size guide (caller handles)
+//
+// Single-row format for clothes: { key, name, length, chest, neck } — target
+// sizes the garment is cut to. Match: chest <= row.chest AND neck <= row.neck+1.
+// Harness uses ranges: { key, name, cMin, cMax, nMin, nMax }.
+// Bandana uses neck range only.
+const SIZE_CHARTS_BY_CATEGORY = {
+  ethnic: [
+    { key: 'XS',  name: 'Extra Small (XS)', length: 13, chest: 22, neck: 14 },
+    { key: 'S',   name: 'Small (S)',         length: 16, chest: 24, neck: 15 },
+    { key: 'M',   name: 'Medium (M)',        length: 20, chest: 27, neck: 19 },
+    { key: 'L',   name: 'Large (L)',         length: 24, chest: 30, neck: 22 },
+    { key: 'XL',  name: 'Extra Large (XL)',  length: 26, chest: 36, neck: 25 },
+    { key: '2XL', name: 'Double XL (2XL)',   length: 28, chest: 38, neck: 28 },
+  ],
+  posh: [
+    { key: 'S',   name: 'Small (S)',         length: 16, chest: 24, neck: 15 },
+    { key: 'M',   name: 'Medium (M)',        length: 20, chest: 28, neck: 20 },
+    { key: 'L',   name: 'Large (L)',         length: 24, chest: 30, neck: 22 },
+    { key: 'XL',  name: 'Extra Large (XL)',  length: 26, chest: 37, neck: 25 },
+    { key: '2XL', name: 'Double XL (2XL)',   length: 28, chest: 41, neck: 30 },
+  ],
+  jersey: [
+    { key: 'XS',  name: 'Extra Small (XS)', length: 16, chest: 25, neck: 16 },
+    { key: 'S',   name: 'Small (S)',         length: 18, chest: 27, neck: 18 },
+    { key: 'M',   name: 'Medium (M)',        length: 20, chest: 31, neck: 21 },
+    { key: 'L',   name: 'Large (L)',         length: 22, chest: 34, neck: 24 },
+    { key: 'XL',  name: 'Extra Large (XL)',  length: 24, chest: 38, neck: 26 },
+    { key: '2XL', name: 'Double XL (2XL)',   length: 26, chest: 40, neck: 28 },
+  ],
+  harness: [
+    { key: 'S',  name: 'Small (S)',         cMin: 13, cMax: 25, nMin: 12, nMax: 18 },
+    { key: 'M',  name: 'Medium (M)',        cMin: 17, cMax: 29, nMin: 14, nMax: 21 },
+    { key: 'L',  name: 'Large (L)',         cMin: 19, cMax: 34, nMin: 16, nMax: 25 },
+    { key: 'XL', name: 'Extra Large (XL)',  cMin: 21, cMax: 40, nMin: 19, nMax: 28 },
+  ],
+  bandana: [
+    { key: 'M',  name: 'Medium (M)', nMin: 14, nMax: 20 },
+    { key: 'L',  name: 'Large (L)',  nMin: 20, nMax: 24 },
+  ],
+};
+
+// PATCH 24 — Size guide image (Shopify CDN, same one the website widget uses).
+// Sent at S07 start AND when customer asks "how do I measure".
+const MEASURE_IMG_URL = 'https://cdn.shopify.com/s/files/1/1000/6475/6006/files/WhatsApp_Image_2026-04-08_at_08.58.07.jpg?v=1775665162';
+const MEASURE_IMG_CAPTION = 'How to measure your pup — length, chest & neck';
+
+// PATCH 24 — Detect product category from title. Mirrors the Liquid logic in
+// the widget (assets/twp-size-guide.liquid):
+//   - HARNESS  → harness
+//   - BANDANA  → bandana
+//   - JERSEY   → jersey
+//   - SHIRT (not JERSEY) → posh
+//   - LEASH or COLLAR → no_size_guide
+//   - everything else (KURTA etc.) → ethnic
+function categorizeProduct(productTitle) {
+  const t = String(productTitle || '').toUpperCase();
+  if (!t) return 'ethnic';  // safe default when no product context
+  if (t.includes('HARNESS')) return 'harness';
+  if (t.includes('BANDANA')) return 'bandana';
+  if (t.includes('JERSEY'))  return 'jersey';
+  if (t.includes('SHIRT'))   return 'posh';  // SHIRT-but-not-JERSEY (already returned above)
+  if (t.includes('LEASH') || t.includes('COLLAR')) return 'no_size_guide';
+  return 'ethnic';
+}
 
 // ─── CHECKOUT (S10, S11) ───────────────────────────────────────────────────
 
@@ -232,7 +292,8 @@ const NUDGE_BTN = {
 };
 
 // ─── TEAM ROUTING (env-driven) ─────────────────────────────────────────────
-// All placeholders until Kashmira confirms numbers. When unset, alerts go to console only.
+// Apurv +91 73871 66499; Kashmira +91 88888 16399. Set in Railway env.
+// If unset, alerts go to console only (handy for local dev).
 const APURV_PHONE     = process.env.APURV_PHONE     || null; // ops + custom design + everything except founder commands
 const KASHMIRA_PHONE  = process.env.KASHMIRA_PHONE  || null; // founder line + SOS escalation + founder commands
 
@@ -248,10 +309,14 @@ const MAX_PRODUCTS_PER_CAT = 12;
 async function handle(ctx) {
   const { tenant, message, from, text } = ctx;
 
-  // S14 — user is active again, kill any pending silence-nudges for them.
+  // S14 — user is active again, kill any pending IN-WINDOW silence-nudges
+  // (Branch A and Branch B) for them. Do NOT cancel day-14 — per PDF that
+  // fires 14 days after first contact regardless of intervening activity.
   // Fire-and-forget; failures shouldn't block the message flow.
-  cancelNudges(tenant.id, from, null, 'user_active')
-    .catch(e => console.error('[woofparade S14] cancelNudges failed:', e.message));
+  cancelNudges(tenant.id, from, 's14_branch_a_pre_shortlist', 'user_active')
+    .catch(e => console.error('[woofparade S14] cancel branch_a failed:', e.message));
+  cancelNudges(tenant.id, from, 's14_branch_b_post_shortlist', 'user_active')
+    .catch(e => console.error('[woofparade S14] cancel branch_b failed:', e.message));
 
   // S16 mute window: if a team member is currently dealing with this customer,
   // stay quiet so Vaani doesn't talk over them. Window is 30min from when
@@ -723,8 +788,20 @@ async function handle(ctx) {
     return;
   }
 
+  // PATCH 23 — bare WOOF-XXXXXX-XXX order ID typed by customer → S32 Branch 4.
+  // The customer asked "where's my order?", got the prompt for an order number,
+  // and just pasted the ID. Look it up and route to track-order flow.
+  const _orderIdMatch = trimmed.match(/\b(WOOF-\d{6}-[A-Z0-9]{3})\b/i);
+  if (_orderIdMatch) {
+    ctx.cart = ctx.cart || {};
+    ctx.cart.woofparade = ctx.cart.woofparade || {};
+    ctx.cart.woofparade.lastOrderId = _orderIdMatch[1].toUpperCase();
+    await handleTrackOrder(ctx);
+    return;
+  }
+
   // S35 — direct pincode question
-  if (/^(do you )?deliver to \d{6}\??$/i.test(trimmed) || /^\d{6}$/.test(trimmed) && ctx.cart?.woofparade?.awaitingPincode) {
+  if (/\b\d{6}\b/.test(trimmed) && /(deliver|ship|cod|pincode|pin code)/i.test(trimmed)) {
     await handlePincodeCheck(ctx, trimmed.match(/\d{6}/)[0]);
     return;
   }
@@ -1029,6 +1106,16 @@ async function sendWelcome(ctx) {
     scheduleNudge(tenant.id, from, 's14_branch_a_pre_shortlist', _fireAt, { pupName: _pupName })
       .catch(e => console.error('[woofparade S14] schedule branch_a failed:', e.message));
   }
+
+  // PATCH 23 — S14 day-14 final nudge. Fires 14 days after first contact
+  // regardless of intervening activity (cart auto-clears day 15 per PDF page 15-16).
+  // Cancelled on purchase, unsubscribe, or refreshed when shortlist is added.
+  // scheduleNudge dedupes by (tenant, phone, kind) so re-running on every message
+  // is safe — it'll either insert once or refresh fire_at.
+  const _day14FireAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+  const _day14Pup = _r14.lastBranchAPupName || _r14.custom?.pupName || null;
+  scheduleNudge(tenant.id, from, 's14_day14_final', _day14FireAt, { pupName: _day14Pup })
+    .catch(e => console.error('[woofparade S14] schedule day14 failed:', e.message));
 
 
   let baseBody;
@@ -1459,6 +1546,12 @@ async function handleSizePick(ctx, size) {
     productTitle: product.title, size, pupName,
   }).catch(e => console.error('[woofparade S14] schedule branch_b failed:', e.message));
 
+  // PATCH 23 — Refresh day-14 nudge with product context now that we have one.
+  const _d14At = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+  scheduleNudge(tenant.id, from, 's14_day14_final', _d14At, {
+    pupName, productTitle: product.title,
+  }).catch(e => console.error('[woofparade S14] refresh day14 failed:', e.message));
+
   // S06 PDF v1.4: "Added Size S to your shortlist 🛒\nAnything you'd like to pair with this?"
   await sendMessage(from,
     `Added Size ${size} to your shortlist 🛒`,
@@ -1533,6 +1626,12 @@ async function handleContinueSection(ctx) {
 
 async function handleSizingHelpStart(ctx) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  // PATCH 24 — Send the measure image first so customer knows how to measure.
+  try {
+    await sendImage(from, MEASURE_IMG_URL, MEASURE_IMG_CAPTION, waToken, phoneNumberId);
+  } catch (e) {
+    console.error('[woofparade S07] sendImage failed:', e.message);
+  }
   // S07 PDF v1.4: "No stress — we'll get the fit just right 🐾 Do you have your pup's measurements handy?"
   await sendButtons(from,
     `No stress — we'll get the fit just right ${PAW}\nDo you have your pup's measurements handy?`,
@@ -1551,21 +1650,53 @@ async function handleSizingHelpStart(ctx) {
 
 async function handleSizingHaveMeasurements(ctx) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
-  // S07 PDF v1.4: ask for back/chest/neck only (armhole is custom-only — see S12)
-  await sendMessage(from,
-    `Pop your pup's measurements in here ${PAW}\n\n` +
-    `• Back length (neck base to tail base)\n` +
-    `• Chest (widest part behind front legs)\n` +
-    `• Neck (around the base)\n\n` +
-    `In inches please. Like:\n*Back 14, Chest 18, Neck 12*`,
-    waToken, phoneNumberId);
+
+  // PATCH 24 — Determine category from current product context (if any).
+  // No product context yet → default to ethnic which uses all 3 measurements.
+  const productTitle = cart?.woofparade?.product?.title || '';
+  const category = categorizeProduct(productTitle);
+
+  // Send the measure-image once with the prompt so customer sees what to measure.
+  try {
+    await sendImage(from, MEASURE_IMG_URL, MEASURE_IMG_CAPTION, waToken, phoneNumberId);
+  } catch (e) {
+    console.error('[woofparade S07] sendImage failed:', e.message);
+  }
+
+  // PATCH 24 — Category-aware measurement prompt mirroring the widget's inputs.
+  let prompt;
+  if (category === 'bandana') {
+    prompt =
+      `Pop your pup's *neck* measurement in here ${PAW}\n\n` +
+      `Just the neck (around the base) — in inches.\n\n` +
+      `Like: *Neck 16*`;
+  } else if (category === 'harness') {
+    prompt =
+      `Pop your pup's measurements in here ${PAW}\n\n` +
+      `• Chest (widest part behind front legs)\n` +
+      `• Neck (around the base)\n\n` +
+      `In inches please. Like: *Chest 22, Neck 14*`;
+  } else {
+    // ethnic / posh / jersey — same 3 measurements
+    prompt =
+      `Pop your pup's measurements in here ${PAW}\n\n` +
+      `• Back length (neck base to tail base)\n` +
+      `• Chest (widest part behind front legs)\n` +
+      `• Neck (around the base)\n\n` +
+      `In inches please. Like:\n*Back 14, Chest 18, Neck 12*`;
+  }
+  await sendMessage(from, prompt, waToken, phoneNumberId);
+
   await upsertConversation(tenant.id, from, [
     ...history,
     { role: 'user', content: text },
-    { role: 'assistant', content: '[woofparade sizing_awaiting_measurements]' },
+    { role: 'assistant', content: `[woofparade sizing_awaiting_measurements category=${category}]` },
   ], {
     ...cart,
-    woofparade: { ...(cart.woofparade || {}), sizing: { step: 'awaiting', awaitingMeasurements: true } },
+    woofparade: {
+      ...(cart.woofparade || {}),
+      sizing: { step: 'awaiting', awaitingMeasurements: true, category },
+    },
   });
 }
 
@@ -1605,13 +1736,25 @@ async function handleMeasurementsMessage(ctx) {
     return;
   }
 
-  const match = matchSizeFromChart(parsed);
+  // PATCH 24 — Read category set during handleSizingHaveMeasurements (or
+  // re-derive from current product). Used to pick the right chart.
+  const sizingCart = cart?.woofparade?.sizing || {};
+  const productTitle = cart?.woofparade?.product?.title || '';
+  const category = sizingCart.category || categorizeProduct(productTitle);
+
+  const match = matchSizeFromChart(parsed, category);
   const r = cart.woofparade || {};
   const updatedCart = {
     ...cart,
     woofparade: {
       ...r,
-      sizing: { step: 'done', awaitingMeasurements: false, measurements: parsed, lastMatch: match.outcome },
+      sizing: {
+        step: 'done',
+        awaitingMeasurements: false,
+        measurements: parsed,
+        category,
+        lastMatch: match.outcome,
+      },
     },
   };
 
@@ -1623,7 +1766,6 @@ async function handleMeasurementsMessage(ctx) {
       waToken, phoneNumberId);
   } else if (match.outcome === 'borderline') {
     // S07 PDF v1.4 borderline: quote specific over-measurement
-    // "Quick note — their length (22 in) is slightly over the M (20 in). Could go either way:"
     let overLine = `Quick note — they're slightly over the ${match.size}. Could go either way:`;
     if (match.overLabel && match.overValue !== null && match.overMax !== null) {
       overLine = `Quick note — their ${match.overLabel} (${match.overValue} in) is slightly over the ${match.size} (${match.overMax} in). Could go either way:`;
@@ -1638,11 +1780,26 @@ async function handleMeasurementsMessage(ctx) {
     await sendButtons(from, 'Choose:',
       [`Add ${match.size}`, `Add ${match.otherSize}`, SIZE_BTN.TALK_DESIGNER],
       waToken, phoneNumberId);
+  } else if (match.outcome === 'harness_multi') {
+    // PATCH 24 — Harness multi-match (mirrors widget). Up to 3 fitting sizes.
+    // WhatsApp Cloud API reply-button cap = 3. We send a single message with
+    // the matches enumerated and 2-3 "Add <size>" buttons. If there are 4 we
+    // truncate to the largest 3 (consistent w/ harness 'size-up' guidance).
+    const list = match.matches.slice(0, 3);
+    const lines = list.map(s => `• *${s.key}* — chest ${s.cMin}–${s.cMax}", neck ${s.nMin}–${s.nMax}"`).join('\n');
+    await sendMessage(from,
+      `Your pup may fit either of these sizes ${PAW}\n` +
+      `Check both ranges and pick what works best:\n\n` +
+      `${lines}\n\n` +
+      `💡 Between two sizes? Go up — a slightly looser harness is safer.`,
+      waToken, phoneNumberId);
+    const btns = list.map(s => `Add ${s.key}`);
+    await sendButtons(from, 'Choose a size:', btns, waToken, phoneNumberId);
   } else {
     // S07 PDF v1.4 no match: route to custom
     await sendMessage(from,
       `Hmm — your pup's measurements are outside our standard sizes ${PAW}\n\n` +
-      `But Anouttama can custom-make something pawfect for them.\n\n` +
+      `But Apurv can sort a custom-make for them.\n\n` +
       `Want me to set that up?`,
       waToken, phoneNumberId);
     await sendButtons(from, 'Choose:',
@@ -1657,58 +1814,104 @@ async function handleMeasurementsMessage(ctx) {
   ], updatedCart);
 }
 
+// PATCH 24 — Accept partial measurement input.
+// Categories needing different inputs:
+//   bandana → neck only
+//   harness → chest + neck (length not used)
+//   clothes → length + chest + neck ideal, but bot still matches with what's given
+// Returns null only if NOTHING parseable was found.
 function parseMeasurements(text) {
   const t = (text || '').toLowerCase();
-  const back = t.match(/back\s*[:=]?\s*(\d+(?:\.\d+)?)/);
+  const back  = t.match(/(?:back|length)\s*[:=]?\s*(\d+(?:\.\d+)?)/);
   const chest = t.match(/chest\s*[:=]?\s*(\d+(?:\.\d+)?)/);
-  const neck = t.match(/neck\s*[:=]?\s*(\d+(?:\.\d+)?)/);
-  if (!back || !chest || !neck) return null;
+  const neck  = t.match(/neck\s*[:=]?\s*(\d+(?:\.\d+)?)/);
+  if (!back && !chest && !neck) return null;
   return {
-    back: parseFloat(back[1]),
-    chest: parseFloat(chest[1]),
-    neck: parseFloat(neck[1]),
+    back:  back  ? parseFloat(back[1])  : 0,
+    chest: chest ? parseFloat(chest[1]) : 0,
+    neck:  neck  ? parseFloat(neck[1])  : 0,
   };
 }
 
-function matchSizeFromChart(m) {
-  for (const row of SIZE_CHART) {
-    const inBack = m.back >= row.back[0] && m.back <= row.back[1];
-    const inChest = m.chest >= row.chest[0] && m.chest <= row.chest[1];
-    const inNeck = m.neck >= row.neck[0] && m.neck <= row.neck[1];
-    if (inBack && inChest && inNeck) {
-      return { outcome: 'clean', size: row.size };
-    }
+// PATCH 24 — Per-category size match, mirrors the widget's twpFind() exactly.
+// m: { back, chest, neck } — any can be 0 (missing). Returns:
+//   { outcome: 'clean',      category, size, name, sizeUpTo? }   single match
+//   { outcome: 'borderline', category, size, otherSize, overLabel, overValue, overMax }
+//   { outcome: 'harness_multi', category, matches: [{key,name,cMin,cMax,nMin,nMax}, ...] }
+//   { outcome: 'no_match',   category }
+function matchSizeFromChart(m, category) {
+  category = category || 'ethnic';
+  const table = SIZE_CHARTS_BY_CATEGORY[category];
+  if (!table) return { outcome: 'no_match', category };
+
+  const C = Number(m.chest) || 0;
+  const N = Number(m.neck) || 0;
+  const L = Number(m.back) || 0;  // 'back' is widget's 'length'
+
+  // ─── Bandana: neck only
+  if (category === 'bandana') {
+    if (!N) return { outcome: 'no_match', category };
+    const hit = table.find(s => N >= s.nMin && N <= s.nMax);
+    if (hit) return { outcome: 'clean', category, size: hit.key, name: hit.name, range: { nMin: hit.nMin, nMax: hit.nMax } };
+    return { outcome: 'no_match', category };
   }
-  // Borderline: identify which size 2-of-3 measurements fit, and which measurement is over
-  for (let i = 0; i < SIZE_CHART.length; i++) {
-    const row = SIZE_CHART[i];
-    const next = SIZE_CHART[i + 1];
-    if (!next) continue;
-    const backFit = m.back >= row.back[0] && m.back <= row.back[1];
-    const chestFit = m.chest >= row.chest[0] && m.chest <= row.chest[1];
-    const neckFit = m.neck >= row.neck[0] && m.neck <= row.neck[1];
-    const hits = [backFit, chestFit, neckFit].filter(Boolean).length;
-    if (hits === 2) {
-      // Find the over-dimension and its size-row max
-      let overLabel = null, overValue = null, overMax = null;
-      if (!backFit && m.back > row.back[1]) {
-        overLabel = 'length'; overValue = m.back; overMax = row.back[1];
-      } else if (!chestFit && m.chest > row.chest[1]) {
-        overLabel = 'chest'; overValue = m.chest; overMax = row.chest[1];
-      } else if (!neckFit && m.neck > row.neck[1]) {
-        overLabel = 'neck'; overValue = m.neck; overMax = row.neck[1];
-      }
+
+  // ─── Harness: collect all overlapping matches
+  if (category === 'harness') {
+    if (!C && !N) return { outcome: 'no_match', category };
+    const matches = table.filter(s => {
+      const cOk = !C || (C >= s.cMin && C <= s.cMax);
+      const nOk = !N || (N >= s.nMin && N <= s.nMax);
+      return cOk && nOk;
+    });
+    if (matches.length === 0) return { outcome: 'no_match', category };
+    if (matches.length === 1) return { outcome: 'clean', category, size: matches[0].key, name: matches[0].name, range: matches[0] };
+    return { outcome: 'harness_multi', category, matches };
+  }
+
+  // ─── Clothes (ethnic/posh/jersey) — chest-first, neck within +1, length is tip-only
+  let chestMatch = null, neckMatch = null, bothMatch = null;
+  for (let i = 0; i < table.length; i++) {
+    const cs = table[i];
+    const ccf = !C || C <= cs.chest;
+    const cnf = !N || N <= cs.neck + 1;
+    if (ccf && !chestMatch) chestMatch = cs;
+    if (cnf && !neckMatch)  neckMatch  = cs;
+    if (ccf && cnf && !bothMatch) { bothMatch = cs; break; }
+  }
+
+  if (!bothMatch) {
+    // Borderline: chest and neck land on different sizes — return the bigger
+    if (chestMatch && neckMatch && chestMatch.key !== neckMatch.key) {
+      const cIdx = table.indexOf(chestMatch);
+      const nIdx = table.indexOf(neckMatch);
+      const bigger  = cIdx > nIdx ? chestMatch : neckMatch;
+      const smaller = cIdx > nIdx ? neckMatch  : chestMatch;
+      // Which measurement is the one driving the upsize?
+      let overLabel, overValue, overMax;
+      if (cIdx > nIdx) { overLabel = 'chest'; overValue = C; overMax = smaller.chest; }
+      else             { overLabel = 'neck';  overValue = N; overMax = smaller.neck; }
       return {
-        outcome: 'borderline',
-        size: row.size,
-        otherSize: next.size,
-        overLabel,
-        overValue,
-        overMax,
+        outcome: 'borderline', category,
+        size: smaller.key, otherSize: bigger.key,
+        overLabel, overValue, overMax,
       };
     }
+    return { outcome: 'no_match', category };
   }
-  return { outcome: 'no_match', size: null };
+
+  // Both fit. Check for length-over tip (size up suggestion).
+  const longPup = L && L > bothMatch.length;
+  const next = table[table.indexOf(bothMatch) + 1] || null;
+  if (longPup && next) {
+    return {
+      outcome: 'borderline', category,
+      size: bothMatch.key, otherSize: next.key,
+      overLabel: 'length', overValue: L, overMax: bothMatch.length,
+    };
+  }
+
+  return { outcome: 'clean', category, size: bothMatch.key, name: bothMatch.name };
 }
 
 async function handleTalkToDesigner(ctx) {
@@ -3488,4 +3691,23 @@ async function getRecentChats(tenantId, n) {
   }
 }
 
-module.exports = { handle };
+// ─── PATCH 23 — Webhook entry for S30 after Pay Now confirmation ────────────
+// Builds a minimal ctx from tenant + customerPhone + creds, loads the
+// conversation, and fires handlePupProfileFlow. Used by routes/shopify-webhook.js
+// in handleOrderPaid after sending "Payment confirmed!".
+async function firePostPurchasePupProfile(tenant, customerPhone, waToken, phoneNumberId) {
+  try {
+    const conv = await getConversation(tenant.id, customerPhone);
+    const history = conv?.messages || [];
+    const cart = conv?.cart || {};
+    const ctx = {
+      tenant, from: customerPhone, waToken, phoneNumberId,
+      history, cart, text: '', message: {},
+    };
+    await handlePupProfileFlow(ctx);
+  } catch (e) {
+    console.error('[woofparade firePostPurchasePupProfile] failed:', e.message);
+  }
+}
+
+module.exports = { handle, firePostPurchasePupProfile };
