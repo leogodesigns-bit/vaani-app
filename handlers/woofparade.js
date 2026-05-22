@@ -21,7 +21,9 @@ const { sendMessage, sendButtons, sendList, sendImage } = require('../whatsapp')
 const { sendTemplateOrFreeform } = require('../templates');
 const { getConversation, upsertConversation, saveOrder,
   saveShopifyDraftRef, getOrder, markOrderPaid, saveNotifyRequest,
-  scheduleNudge, cancelNudges } = require('../db');
+  scheduleNudge, cancelNudges,
+  saveOptIn, tagOrderToPup, savePupNote } = require('../db');
+const { detectLanguage } = require('../ai');
 const Anthropic = require('@anthropic-ai/sdk');
 const edge = require('./woofparade-edge');
 const qa = require('./woofparade-qa');
@@ -231,8 +233,7 @@ const NUDGE_BTN = {
 
 // ─── TEAM ROUTING (env-driven) ─────────────────────────────────────────────
 // All placeholders until Kashmira confirms numbers. When unset, alerts go to console only.
-const APURV_PHONE     = process.env.APURV_PHONE     || null; // ops, sizing, COD, refunds, tracking, mods, address, paid-elsewhere, frustration, discount-x3
-const ANOUTTAMA_PHONE = process.env.ANOUTTAMA_PHONE || null; // custom design lead (S02, S12)
+const APURV_PHONE     = process.env.APURV_PHONE     || null; // ops + custom design + everything except founder commands
 const KASHMIRA_PHONE  = process.env.KASHMIRA_PHONE  || null; // founder line + SOS escalation + founder commands
 
 // Press email (S22) — TBC per PDF Section 7.
@@ -270,6 +271,13 @@ async function handle(ctx) {
   }
 
   console.log(`[woofparade] ${tenant.shop_domain} — from ${from}: ${text}`);
+
+  // PATCH 22 — S25 language detection. Used by built-in FAQ path below for
+  // a short same-language lead-in. Full Hindi/Marathi support = v1.5.
+  ctx.detectedLang = detectLanguage(text || '');
+  if (ctx.detectedLang !== 'english') {
+    console.log(`[woofparade S25] detected lang=${ctx.detectedLang} for ${from}`);
+  }
 
   const listReplyId   = message.interactive?.list_reply?.id || null;
   const buttonReplyId = message.interactive?.button_reply?.id || null;
@@ -660,7 +668,7 @@ async function handle(ctx) {
   // Numbers are global across all browsed pages within the session (resets on checkout).
   // e.g. customer browsed Jerseys 1-3 then Clothes 4-6, types "5" → pick handle at index 4.
   if (/^[1-9]\d*$/.test(trimmed)) {
-    const handles = cart.woofparade?.productHandles || [];
+    const handles = ctx.cart?.woofparade?.productHandles || [];
     const idx = parseInt(trimmed, 10) - 1;
     if (idx >= 0 && idx < handles.length) {
       await sendProductDetail(ctx, handles[idx]);
@@ -727,16 +735,38 @@ async function handle(ctx) {
     return;
   }
 
+  // S23 — multi-pup intent ("I have 2 dogs, can I order for both?")
+  if (/\b(\d+|two|three|both|multiple|several)\s+(dogs|pups|puppies|pets)\b/i.test(trimmed) ||
+      /\bfor (both|all) (my |our )?(pups|dogs|pets)\b/i.test(trimmed)) {
+    await handleMultiPup(ctx);
+    return;
+  }
+
+  // S24 — cat owner ("I have a cat, will these fit?")
+  if (/\b(have|own|got)\s+(a |my )?(cat|kitty|kitten)\b/i.test(trimmed) ||
+      /\b(cat|kitty|kitten)s?\b.*\b(fit|wear|size|order)\b/i.test(trimmed) ||
+      /\bfor (my )?(cat|kitty|kitten)\b/i.test(trimmed)) {
+    await handleCatOwner(ctx);
+    return;
+  }
+
   // S20 — international opt-in
   if (/\b(ship|deliver|order|send).*(uk|usa|america|uae|canada|australia|singapore|international|overseas|abroad)\b/i.test(trimmed)) {
     await handleInternationalRequest(ctx);
     return;
   }
   if (trimmed === ORDER_OPS_BTN.YES_WHATSAPP) {
-    await handleInternationalOptIn(ctx);
+    // Route by the most-recent opt-in context flag set by either S20 or S35.
+    const optKind = ctx.cart?.woofparade?.pendingOptInKind;
+    if (optKind === 'pin_nonserviceable') {
+      await handlePinNonserviceableOptIn(ctx);
+    } else {
+      await handleInternationalOptIn(ctx);
+    }
     return;
   }
   if (trimmed === ORDER_OPS_BTN.NO_THANKS) {
+    if (ctx.cart?.woofparade) delete ctx.cart.woofparade.pendingOptInKind;
     await sendMessage(ctx.from, "All good 🐾 If you change your mind, just message me.", ctx.waToken, ctx.phoneNumberId);
     return;
   }
@@ -806,6 +836,12 @@ async function handle(ctx) {
   // ─── BUILT-IN FAQ MATCH (S17 — delivery, exchange, sale, real person) ────
   const builtin = qa.matchBuiltinFaq(trimmed);
   if (builtin) {
+    // PATCH 22 — S25 short same-language lead-in if customer wrote in Hindi/Hinglish/Marathi.
+    if (ctx.detectedLang === 'hinglish' || ctx.detectedLang === 'hindi') {
+      await sendMessage(from, `Bilkul batata hoon ${PAW}`, ctx.waToken, ctx.phoneNumberId);
+    } else if (ctx.detectedLang === 'marathi') {
+      await sendMessage(from, `Nakkich sangto ${PAW}`, ctx.waToken, ctx.phoneNumberId);
+    }
     await sendMessage(from, builtin.a, ctx.waToken, ctx.phoneNumberId);
     if (builtin.q === 'realperson') {
       await sendButtons(from, 'Anything else?',
@@ -2313,10 +2349,18 @@ async function handleInternationalRequest(ctx) {
 }
 
 async function handleInternationalOptIn(ctx) {
-  const { from, phoneNumberId, waToken } = ctx;
+  const { tenant, from, phoneNumberId, waToken, cart } = ctx;
   await sendMessage(from,
     `Lovely ${PAW} Apurv will WhatsApp you within 24 hours with international shipping options.`,
     waToken, phoneNumberId);
+
+  // PATCH 22: actually persist the opt-in (PDF S20 said "saved to Google Sheet";
+  // we persist to woofparade_optins instead, viewable in the dashboard).
+  await saveOptIn(tenant.id, from, 'international', null);
+
+  if (cart?.woofparade) {
+    delete cart.woofparade.pendingOptInKind;
+  }
 
   const body =
     `🌍 *INTERNATIONAL INQUIRY*\n` +
@@ -2440,29 +2484,101 @@ async function handleRageQuit(ctx) {
 // ─── S35 — PINCODE SERVICEABILITY ─────────────────────────────────────────
 
 async function handlePincodeCheck(ctx, pin) {
-  const { from, phoneNumberId, waToken, cart } = ctx;
+  const { tenant, from, phoneNumberId, waToken, cart } = ctx;
   const ok = await isPincodeServiceable(pin);
   if (ok) {
     await sendMessage(from,
       `Yes! We deliver to *${pin}* ${PAW} Usually 4–8 days.`,
       waToken, phoneNumberId);
-  } else {
-    await sendMessage(from,
-      `We don't ship to *${pin}* yet ${PAW} Want me to notify you when we open up your area?`,
-      waToken, phoneNumberId);
-    await sendButtons(from, 'Choose:',
-      [ORDER_OPS_BTN.YES_WHATSAPP, ORDER_OPS_BTN.NO_THANKS],
-      waToken, phoneNumberId);
+    return;
   }
+  // PATCH 22: Not serviceable — set context flag so a follow-up YES_WHATSAPP
+  // routes to S35 opt-in (not S20 international).
+  ctx.cart = ctx.cart || {};
+  ctx.cart.woofparade = ctx.cart.woofparade || {};
+  ctx.cart.woofparade.pendingOptInKind = 'pin_nonserviceable';
+  ctx.cart.woofparade.pendingOptInPin  = pin;
+  await upsertConversation(tenant.id, from, ctx.history || [], ctx.cart);
+
+  await sendMessage(from,
+    `We don't ship to *${pin}* yet ${PAW} Want me to notify you when we open up your area?`,
+    waToken, phoneNumberId);
+  await sendButtons(from, 'Choose:',
+    [ORDER_OPS_BTN.YES_WHATSAPP, ORDER_OPS_BTN.NO_THANKS],
+    waToken, phoneNumberId);
 }
 
-// Stub. Returns true unless a known non-serviceable prefix.
-// TODO: wire to Shopify shipping zones + Shiprocket API after founder confirms (PDF Section 7).
+// PATCH 22 — S35 PDF v1.4: founder confirmed (21 May 2026) data source =
+// Shopify shipping zones (option A). True Shopify GraphQL deliveryProfiles
+// wiring is a future task; for now we use a broader hardcoded non-serviceable
+// list covering India's actual non-deliverable pockets. Add to BLOCKED_PREFIXES
+// as real exceptions surface from Apurv.
+const BLOCKED_PREFIXES = [
+  '682',  // Lakshadweep (Kavaratti)
+  '744',  // Andaman & Nicobar Islands
+  '796',  // Mizoram remote (Lawngtlai)
+  '797',  // Nagaland remote — Apurv to confirm
+];
+
 async function isPincodeServiceable(pin) {
   if (!/^\d{6}$/.test(pin)) return false;
-  // Hardcoded non-serviceable prefixes for v1 (PO box / Andaman remote / Lakshadweep).
-  const blocked = ['744', '682']; // partial — review with founder
-  return !blocked.some(prefix => pin.startsWith(prefix));
+  return !BLOCKED_PREFIXES.some(prefix => pin.startsWith(prefix));
+}
+
+async function handlePinNonserviceableOptIn(ctx) {
+  const { tenant, from, phoneNumberId, waToken, cart } = ctx;
+  const pin = cart?.woofparade?.pendingOptInPin || null;
+  await sendMessage(from,
+    `Saved ${PAW} I'll WhatsApp you the moment we open up ${pin ? `*${pin}*` : 'your area'}.`,
+    waToken, phoneNumberId);
+
+  await saveOptIn(tenant.id, from, 'pin_nonserviceable', pin ? { pin } : null);
+
+  if (cart?.woofparade) {
+    delete cart.woofparade.pendingOptInKind;
+    delete cart.woofparade.pendingOptInPin;
+  }
+  console.log(`[woofparade] pin_nonserviceable opt-in: ${from} pin=${pin}`);
+}
+
+// ─── S23 — MULTI-PUP ──────────────────────────────────────────────────────
+// PDF v1.4 page 19: "I have 2 dogs, can I order for both?" → onboard pup #1
+// using the existing pup-profile capture flow.
+async function handleMultiPup(ctx) {
+  const { tenant, from, phoneNumberId, waToken, history, cart } = ctx;
+  await sendMessage(from,
+    `Of course! Let's keep it organised ${PAW}\n\nWhat's pup #1's name?`,
+    waToken, phoneNumberId);
+
+  await upsertConversation(tenant.id, from, history || [], {
+    ...cart,
+    woofparade: {
+      ...(cart?.woofparade || {}),
+      pupProfile: {
+        ...((cart?.woofparade || {}).pupProfile || {}),
+        awaitingPupDetails: true,
+        multiPup: true,
+      },
+    },
+  });
+}
+
+// ─── S24 — CAT OWNER ──────────────────────────────────────────────────────
+// PDF v1.4 page 19: kitty sizing uses the dog chart for v1; reuses S07 path.
+async function handleCatOwner(ctx) {
+  const { from, phoneNumberId, waToken } = ctx;
+  await sendMessage(from,
+    `Yes! Most of our pieces are designed for both pups and kitties ${PAW}\n\n` +
+    `Like with pups, sizing goes by measurements (not breed). Pop in your kitty's:\n` +
+    `• Back length (neck base to tail base)\n` +
+    `• Chest (widest part)\n` +
+    `• Neck (around the base)\n\n` +
+    `In inches please.`,
+    waToken, phoneNumberId);
+  ctx.cart = ctx.cart || {};
+  ctx.cart.woofparade = ctx.cart.woofparade || {};
+  ctx.cart.woofparade.sizing = { ...(ctx.cart.woofparade.sizing || {}), awaitingMeasurements: true, isCat: true };
+  await upsertConversation(ctx.tenant.id, ctx.from, ctx.history || [], ctx.cart);
 }
 
 // ─── S29 — HIGH-VALUE ALERT ────────────────────────────────────────────────
@@ -2598,16 +2714,22 @@ async function handlePupProfileAddNow(ctx) {
 }
 
 async function handleTagOrderToPup(ctx, pupName) {
-  const { from, phoneNumberId, waToken } = ctx;
+  const { from, phoneNumberId, waToken, cart } = ctx;
   if (pupName === 'new') {
     await handleNewPupAdd(ctx);
     return;
   }
+  // PATCH 22: persist the tag against the most recent order (S30 Branch B/C).
+  const orderId = cart?.woofparade?.lastOrderId || cart?.woofparade?.checkout?.orderId;
+  if (orderId) {
+    await tagOrderToPup(orderId, pupName);
+    console.log(`[woofparade] tagged order ${orderId} to ${pupName} for ${from}`);
+  } else {
+    console.log(`[woofparade] no order to tag for ${from} (pup ${pupName})`);
+  }
   await sendMessage(from,
     `Tagged this order to *${pupName}* ${PAW}`,
     waToken, phoneNumberId);
-  // TODO: write to orders table — tagged_pup column when added.
-  console.log(`[woofparade] tagged order to ${pupName} for ${from}`);
 }
 
 // ─── S31 — PHOTO FROM CUSTOMER ────────────────────────────────────────────
@@ -2987,11 +3109,12 @@ async function tryFounderCommand(ctx, text) {
     return true;
   }
 
-  // note [pup] [text]
+  // note [pup] [text] — PATCH 22: persisted to pup_profiles.notes
   m = t.match(/^note\s+(\S+)\s+(.+)$/i);
   if (m) {
     const pup = m[1];
     const note = m[2];
+    await savePupNote(tenant.id, null, pup, note);
     console.log(`[woofparade founder] note on ${pup}: ${note}`);
     await sendMessage(from, `📝 Noted on *${pup}*: ${note}`, waToken, phoneNumberId);
     return true;

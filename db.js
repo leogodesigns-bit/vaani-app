@@ -391,6 +391,65 @@ async function markNudgeError(id, err) {
   await pool.query(`UPDATE scheduled_nudges SET last_error = $2 WHERE id = $1`, [id, String(err).slice(0, 500)]);
 }
 
+// ─── PATCH 22: S20 / S35 opt-in persistence ────────────────────────────────
+// `kind` examples: 'international', 'pin_nonserviceable', 'notify_restock'.
+// `meta` is freeform JSONB (e.g. { pin: '797001' } for pin opt-ins).
+// Idempotent: relies on unique index (tenant, phone, kind) from 005_patch22.sql.
+async function saveOptIn(tenantId, customerPhone, kind, meta = null) {
+  try {
+    await pool.query(
+      `INSERT INTO woofparade_optins (tenant_id, customer_phone, kind, meta)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (tenant_id, customer_phone, kind)
+       DO UPDATE SET meta = EXCLUDED.meta, created_at = NOW()`,
+      [tenantId, customerPhone, kind, meta ? JSON.stringify(meta) : null]
+    );
+  } catch (e) {
+    console.error('[db saveOptIn] error:', e.message);
+  }
+}
+
+// ─── PATCH 22: S30 tag order to specific pup (Branch B / C) ────────────────
+async function tagOrderToPup(orderId, pupName) {
+  try {
+    await pool.query(
+      `UPDATE orders SET tagged_pup = $2 WHERE order_id = $1`,
+      [orderId, pupName]
+    );
+  } catch (e) {
+    console.error('[db tagOrderToPup] error:', e.message);
+  }
+}
+
+// ─── PATCH 22: S5.5 founder `note [pup] [text]` persistence ────────────────
+// Appends to existing notes if pup profile exists; creates lightweight row otherwise.
+async function savePupNote(tenantId, customerPhone, pupName, note) {
+  try {
+    const r = await pool.query(
+      `SELECT id, notes FROM pup_profiles
+       WHERE tenant_id = $1 AND customer_phone = $2 AND LOWER(pup_name) = LOWER($3)
+       ORDER BY id DESC LIMIT 1`,
+      [tenantId, customerPhone, pupName]
+    );
+    if (r.rows.length) {
+      const existing = r.rows[0].notes ? r.rows[0].notes + '\n' : '';
+      const stamped = `${existing}[${new Date().toISOString().slice(0, 10)}] ${note}`;
+      await pool.query(
+        `UPDATE pup_profiles SET notes = $2 WHERE id = $1`,
+        [r.rows[0].id, stamped]
+      );
+    } else {
+      await pool.query(
+        `INSERT INTO pup_profiles (tenant_id, customer_phone, pup_name, notes)
+         VALUES ($1, $2, $3, $4)`,
+        [tenantId, customerPhone || 'founder-note', pupName, note]
+      );
+    }
+  } catch (e) {
+    console.error('[db savePupNote] error:', e.message);
+  }
+}
+
 module.exports = { pool, initDB, getTenant, createTenant, updateTenant, getConversation, upsertConversation ,
   saveOrder, getOrder, markOrderPaid,
   saveShopifyDraftRef, getOrderByShopifyDraftId,
@@ -399,4 +458,5 @@ module.exports = { pool, initDB, getTenant, createTenant, updateTenant, getConve
   recordWebhookEvent, markWebhookProcessed,
   saveNotifyRequest, getPendingNotifyRequests, markNotifyRequestSent,
   scheduleNudge, cancelNudges, getDueNudges, markNudgeSent, markNudgeError,
+  saveOptIn, tagOrderToPup, savePupNote,
 };
