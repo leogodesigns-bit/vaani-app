@@ -2503,7 +2503,6 @@ async function handleAddressMessage(ctx) {
     return;
   }
 
-  const co = cart.woofparade?.checkout || {};
   const updatedCheckout = { ...co, ...parsed, step: CHECKOUT_STEP.REVIEW };
 
   let review = `*Order summary ${PAW}*\n\n`;
