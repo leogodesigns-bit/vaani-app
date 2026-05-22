@@ -3718,7 +3718,7 @@ async function handleApproveDraft(ctx, { draftId, newPrice }) {
     const lineTitle = row.design_name
       ? `Custom Order \u2014 ${row.design_name}${row.pup_name ? ' for ' + row.pup_name : ''}`
       : 'Custom Order';
-    const updated = await updateDraftOrderPrice(tenant.shop_domain, tenant.shopify_token, row.draft_id, newPrice, lineTitle);
+    const updated = await updateDraftOrderPrice(tenant.shopify_admin_domain || tenant.shop_domain, tenant.shopify_token, row.draft_id, newPrice, lineTitle);
     if (!updated) {
       await sendMessage(from, `\u26A0\uFE0F Failed to update price on Shopify draft ${row.draft_name}. Customer not notified.`, waToken, phoneNumberId);
       return;
