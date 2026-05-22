@@ -3409,7 +3409,29 @@ async function handlePupProfileFlow(ctx) {
 async function handlePupProfileMessage(ctx) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
   const t = (text || '').trim();
-  const pupName = t.split(/[,\n]/)[0].slice(0, 60);
+  const pupName = t.split(/[,\n]/)[0].trim().slice(0, 60);
+
+  // Patch 37: reject if input doesn't look like a pup name.
+  //   - empty / too short
+  //   - contains digits (probably an address fragment)
+  //   - too long (likely full address)
+  //   - matches customer's own first name from checkout (auto-capture bug)
+  const co = cart.woofparade?.checkout || {};
+  const customerFirstName = String(co.name || '').trim().split(/\s+/)[0] || '';
+  const looksLikeAddress = /\d/.test(t) || t.length > 40;
+  const isCustomerName = customerFirstName &&
+    pupName.toLowerCase() === customerFirstName.toLowerCase();
+  const tooShort = pupName.length < 2;
+
+  if (tooShort || looksLikeAddress || isCustomerName) {
+    console.log('[woofparade pupProfile] rejected invalid pup name input:',
+      JSON.stringify({ pupName, customerFirstName, looksLikeAddress, isCustomerName, tooShort }));
+    await sendMessage(from,
+      `Just your pup's name ${PAW} — like *Rio* or *Mochi*. Or tap Skip.`,
+      waToken, phoneNumberId);
+    await sendButtons(from, 'Or:', [POSTPURCHASE_BTN.SKIP], waToken, phoneNumberId);
+    return;
+  }
 
   // Check sub-persona switch (S14 — customer's pup also named Rio → bot becomes Biscuit)
   const isRioPup = /^rio$/i.test(pupName);
