@@ -700,6 +700,12 @@ async function handle(ctx) {
     return;
   }
 
+  // PATCH 42: 'Add to cart' for sizeless products (accessories — Color/Material variants)
+  if (trimmed === 'Add to cart') {
+    await handleSizePick(ctx, '__NO_SIZE__');
+    return;
+  }
+
   // Size button taps after product detail
   if (ALL_SIZES.includes(trimmed)) {
     await handleSizePick(ctx, trimmed);
@@ -1567,13 +1573,20 @@ async function handleSizePick(ctx, size) {
 
   let variantId = null;
   let variantPrice = product.price;
+  const isNoSize = size === '__NO_SIZE__';
   try {
     const fetched = await getProductByHandle(tenant, product.handle);
     if (fetched) {
-      const v = (fetched.variants || []).find(v => {
-        const opt = String(v.option1 || v.title || '').toUpperCase().trim();
-        return v.available !== false && opt === size;
-      });
+      let v;
+      if (isNoSize) {
+        // PATCH 42: sizeless products — first available variant wins
+        v = (fetched.variants || []).find(v => v.available !== false);
+      } else {
+        v = (fetched.variants || []).find(v => {
+          const opt = String(v.option1 || v.title || '').toUpperCase().trim();
+          return v.available !== false && opt === size;
+        });
+      }
       if (v) { variantId = String(v.id); variantPrice = parseFloat(v.price) || product.price; }
     }
   } catch (e) { console.error('[woofparade] variant resolve failed:', e.message); }
