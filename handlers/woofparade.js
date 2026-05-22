@@ -678,7 +678,18 @@ async function handle(ctx) {
     return;
   }
   if (trimmed === 'Browse fresh') {
-    await sendWelcome(ctx);
+    // Patch 40: bypass sendWelcome (which would fire S03 returning-welcome again
+    // and create a loop). Show category picker directly.
+    const { from, phoneNumberId, waToken } = ctx;
+    await sendList(from, `Have a peek ${PAW} what's your pup after?`, [{
+      title: 'Browse',
+      rows: [
+        { id: WELCOME_ROW.CASUAL,      title: 'Casual Wear',     description: 'Fits for everyday' },
+        { id: WELCOME_ROW.FESTIVE,     title: 'Festive Fits',    description: 'Kurtas, frocks, lehengas' },
+        { id: WELCOME_ROW.ACCESSORIES, title: 'Accessories',     description: 'Bandanas, collars, leashes' },
+        { id: WELCOME_ROW.CUSTOM,      title: 'Custom outfit',   description: 'Made to measure' },
+      ],
+    }], waToken, phoneNumberId);
     return;
   }
 
