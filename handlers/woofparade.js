@@ -190,8 +190,8 @@ const SIZE_CHARTS_BY_CATEGORY = {
 
 // PATCH 24 — Size guide image (Shopify CDN, same one the website widget uses).
 // Sent at S07 start AND when customer asks "how do I measure".
-const MEASURE_IMG_URL = 'https://cdn.shopify.com/s/files/1/1000/6475/6006/files/WhatsApp_Image_2026-04-08_at_08.58.07.jpg?v=1775665162';
-const MEASURE_IMG_CAPTION = 'How to measure your pup — length, chest & neck';
+const MEASURE_IMG_URL = 'https://cdn.shopify.com/s/files/1/1000/6475/6006/files/Gemini_Generated_Image_ua6e2vua6e2vua6e.png?v=1779443190';
+const MEASURE_IMG_CAPTION = 'How to measure your pup — neck, chest, length & arm hole';
 
 // PATCH 24 — Detect product category from title. Mirrors the Liquid logic in
 // the widget (assets/twp-size-guide.liquid):
