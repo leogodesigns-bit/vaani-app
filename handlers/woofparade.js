@@ -94,10 +94,10 @@ const CATEGORY_HANDLES = {
 };
 
 const CATEGORY_LABEL = {
-  [WELCOME_ROW.CASUAL]:      'Clothes',
+  [WELCOME_ROW.CASUAL]:      'Casual Wear',
   [WELCOME_ROW.FESTIVE]:     'Festive Fits',
   [WELCOME_ROW.ACCESSORIES]: 'Accessories',
-  [WELCOME_ROW.IPL]:         'Jerseys',
+  [WELCOME_ROW.IPL]:         'Seasonal Wear',
   [WELCOME_ROW.CUSTOM]:      'Custom Fit',
   [WELCOME_ROW.BESTSELLERS]: 'Bestsellers',
 };
@@ -777,6 +777,16 @@ async function handle(ctx) {
     await sendWelcome(ctx);
     return;
   }
+  // Patch 29 — Lehenga request (festive category trailing button)
+  if (trimmed === 'Looking for a Lehenga?') {
+    await handleLehengaRequest(ctx);
+    return;
+  }
+  // Patch 29 — Raincoats waitlist (seasonal category trailing button)
+  if (trimmed === 'Notify me — Raincoats') {
+    await handleNotifyRaincoats(ctx);
+    return;
+  }
   if (trimmed === 'Talk to designer') {
     await handleTalkToDesigner(ctx);
     return;
@@ -1009,10 +1019,10 @@ async function sendShowstopperWelcome(ctx) {
   await sendList(from, body, [{
     title: 'View categories',
     rows: [
-      { id: WELCOME_ROW.CASUAL,      title: 'Clothes',         description: 'Tees, hoodies, kurtas' },
-      { id: WELCOME_ROW.FESTIVE,     title: 'Festive Fits',    description: 'Diwali, weddings, more' },
-      { id: WELCOME_ROW.ACCESSORIES, title: 'Accessories',     description: 'Bandanas, collars, bowties' },
-      { id: WELCOME_ROW.IPL,         title: 'Jerseys',         description: 'IPL & match-day fits' },
+      { id: WELCOME_ROW.CASUAL,      title: 'Casual Wear',     description: 'Fits for everyday' },
+      { id: WELCOME_ROW.FESTIVE,     title: 'Festive Fits',    description: 'Kurtas, frocks, lehengas' },
+      { id: WELCOME_ROW.ACCESSORIES, title: 'Accessories',     description: 'Bandanas, collars, leashes' },
+      { id: WELCOME_ROW.IPL,         title: 'Seasonal Wear',   description: 'Jerseys and Raincoats' },
       { id: WELCOME_ROW.CUSTOM,      title: 'Custom Fit',      description: "Made to your pup's size" },
       { id: WELCOME_ROW.BESTSELLERS, title: 'Bestsellers',     description: 'What other pups love' },
     ],
@@ -1094,10 +1104,10 @@ async function sendBranchCWelcomeNoProduct(ctx) {
   await sendList(from, body, [{
     title: 'Browse',
     rows: [
-      { id: WELCOME_ROW.CASUAL,      title: 'Clothes',         description: 'Tees, hoodies, kurtas' },
-      { id: WELCOME_ROW.FESTIVE,     title: 'Festive Fits',    description: 'Diwali, weddings, more' },
-      { id: WELCOME_ROW.ACCESSORIES, title: 'Accessories',     description: 'Bandanas, collars, bowties' },
-      { id: WELCOME_ROW.IPL,         title: 'Jerseys',         description: 'IPL & match-day fits' },
+      { id: WELCOME_ROW.CASUAL,      title: 'Casual Wear',     description: 'Fits for everyday' },
+      { id: WELCOME_ROW.FESTIVE,     title: 'Festive Fits',    description: 'Kurtas, frocks, lehengas' },
+      { id: WELCOME_ROW.ACCESSORIES, title: 'Accessories',     description: 'Bandanas, collars, leashes' },
+      { id: WELCOME_ROW.IPL,         title: 'Seasonal Wear',   description: 'Jerseys and Raincoats' },
       { id: WELCOME_ROW.CUSTOM,      title: 'Custom Fit',      description: "Made to your pup's size" },
       { id: WELCOME_ROW.BESTSELLERS, title: 'Bestsellers',     description: 'What other pups love' },
     ],
@@ -1178,10 +1188,10 @@ async function sendWelcome(ctx) {
   await sendList(from, baseBody, [{
     title: 'Browse',
     rows: [
-      { id: WELCOME_ROW.CASUAL,      title: 'Clothes',         description: 'Tees, hoodies, kurtas' },
-      { id: WELCOME_ROW.FESTIVE,     title: 'Festive Fits',    description: 'Diwali, weddings, more' },
-      { id: WELCOME_ROW.ACCESSORIES, title: 'Accessories',     description: 'Bandanas, collars, bowties' },
-      { id: WELCOME_ROW.IPL,         title: 'Jerseys',         description: 'IPL & match-day fits' },
+      { id: WELCOME_ROW.CASUAL,      title: 'Casual Wear',     description: 'Fits for everyday' },
+      { id: WELCOME_ROW.FESTIVE,     title: 'Festive Fits',    description: 'Kurtas, frocks, lehengas' },
+      { id: WELCOME_ROW.ACCESSORIES, title: 'Accessories',     description: 'Bandanas, collars, leashes' },
+      { id: WELCOME_ROW.IPL,         title: 'Seasonal Wear',   description: 'Jerseys and Raincoats' },
       { id: WELCOME_ROW.CUSTOM,      title: 'Custom Fit',      description: "Made to your pup's size" },
       { id: WELCOME_ROW.BESTSELLERS, title: 'Bestsellers',     description: 'What other pups love' },
     ],
@@ -1307,6 +1317,15 @@ async function sendCategoryResults(ctx, rowId, page) {
     ? [PRODUCT_BTN.SHOW_3_MORE, PRODUCT_BTN.BACK_TO_MENU]
     : [PRODUCT_BTN.BACK_TO_MENU];
   await sendButtons(from, 'Or:', buttons, waToken, phoneNumberId);
+
+  // Patch 29 — category-specific trailing buttons
+  if (rowId === WELCOME_ROW.FESTIVE) {
+    await sendButtons(from, 'Looking for something extra special?',
+      ['Looking for a Lehenga?'], waToken, phoneNumberId);
+  } else if (rowId === WELCOME_ROW.IPL) {
+    await sendButtons(from, 'Raincoats are on the way 🍃',
+      ['Notify me — Raincoats'], waToken, phoneNumberId);
+  }
 
   await upsertConversation(tenant.id, from, [
     ...history,
@@ -2244,6 +2263,36 @@ async function handleTalkToDesigner(ctx) {
   await sendMessage(ctx.from,
     `Our designer Anouttama will reach out shortly ${PAW} Meanwhile, feel free to keep browsing.`,
     ctx.waToken, ctx.phoneNumberId);
+}
+
+// Patch 29 — Lehenga request: pings Anouttama for festive Lehenga design.
+async function handleLehengaRequest(ctx) {
+  const msg =
+    `👘 *Lehenga Design Request*\n` +
+    `From: +${ctx.from}\n` +
+    `Customer is interested in a custom Lehenga from the Festive collection.`;
+  await pingTeam(ctx, 'designer', msg, { sosType: 'LEHENGA REQUEST', summary: 'Customer wants a Lehenga from Festive collection' });
+  await sendMessage(ctx.from,
+    `Lovely choice ${PAW} Lehengas are one of our designer specials — Anouttama will reach out shortly to take this forward ✨`,
+    ctx.waToken, ctx.phoneNumberId);
+  await sendButtons(ctx.from, 'Meanwhile:',
+    [PRODUCT_BTN.BACK_TO_MENU], ctx.waToken, ctx.phoneNumberId);
+}
+
+// Patch 29 — Raincoats waitlist: saves a notify_requests row keyed to a virtual handle.
+async function handleNotifyRaincoats(ctx) {
+  const { tenant, from, phoneNumberId, waToken } = ctx;
+  try {
+    await saveNotifyRequest(tenant.id, from, 'raincoats-launch', 'Raincoats (launch)', null);
+    console.log(`[woofparade P29] raincoats-launch notify saved: tenant=${tenant.id} phone=${from}`);
+  } catch (e) {
+    console.error('[woofparade P29] saveNotifyRequest (raincoats) failed:', e.message);
+  }
+  await sendMessage(from,
+    `Got it ${PAW} I'll WhatsApp you the moment our *Raincoats* drop 🍃`,
+    waToken, phoneNumberId);
+  await sendButtons(from, 'Meanwhile:',
+    [PRODUCT_BTN.BACK_TO_MENU], waToken, phoneNumberId);
 }
 
 // ─── CHECKOUT (S09–S11) ───────────────────────────────────────────────────
