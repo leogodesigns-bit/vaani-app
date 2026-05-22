@@ -178,6 +178,35 @@ async function getConversation(tenantId, customerPhone) {
 }
 
 async function upsertConversation(tenantId, customerPhone, messages, cart) {
+  // ─── Merge captured outbound sends so the dashboard sees real reply text ───
+  // Handlers still pass [woofparade S01 …] placeholders; we replace each one
+  // with the actual rendered send captured in whatsapp.js, in order.
+  try {
+    const { drainSentMessages } = require('./whatsapp');
+    const drained = drainSentMessages(customerPhone) || [];
+    if (drained.length) {
+      const msgs = Array.isArray(messages) ? [...messages] : [];
+      let drainIdx = 0;
+      for (let i = 0; i < msgs.length && drainIdx < drained.length; i++) {
+        const m = msgs[i];
+        const isPlaceholder = m && m.role === 'assistant' && typeof m.content === 'string'
+          && /^\s*\[[^\]]+\]\s*$/.test(m.content);
+        if (isPlaceholder) {
+          msgs[i] = { ...m, ...drained[drainIdx], debug: m.content };
+          drainIdx++;
+        }
+      }
+      // If more sends than placeholders (e.g. handler forgot to log), append the rest.
+      while (drainIdx < drained.length) {
+        msgs.push(drained[drainIdx]);
+        drainIdx++;
+      }
+      messages = msgs;
+    }
+  } catch (e) {
+    console.error('[upsertConversation] sent-message merge failed (non-fatal):', e.message);
+  }
+
   const res = await pool.query(
     `INSERT INTO conversations (tenant_id, customer_phone, messages, cart, last_active)
      VALUES ($1, $2, $3, $4, NOW())
