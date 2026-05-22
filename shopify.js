@@ -140,9 +140,19 @@ async function createCheckoutDraftOrder(shopDomain, accessToken, opts) {
   } = opts;
 
   try {
+    console.log('[createCheckoutDraftOrder] items received:', JSON.stringify(items));
+    if (!items || items.length === 0) {
+      console.error('[createCheckoutDraftOrder] no items provided');
+      return null;
+    }
     const formattedItems = items.map(it => {
-      if (it.variantId) {
-        return { variant_id: parseInt(it.variantId, 10), quantity: it.quantity || 1 };
+      // Strip GID prefix if present (gid://shopify/ProductVariant/123 → 123)
+      let vid = it.variantId || it.variant_id;
+      if (vid && typeof vid === 'string' && vid.includes('/')) {
+        vid = vid.split('/').pop();
+      }
+      if (vid && !isNaN(parseInt(vid, 10))) {
+        return { variant_id: parseInt(vid, 10), quantity: it.quantity || 1 };
       }
       // Fallback to custom line item (e.g. for accessories without variant id)
       return {
@@ -151,6 +161,7 @@ async function createCheckoutDraftOrder(shopDomain, accessToken, opts) {
         price: String(it.price || 0),
       };
     });
+    console.log('[createCheckoutDraftOrder] formattedItems:', JSON.stringify(formattedItems));
 
     // Convert phone like '919371730196' to '+91 93717 30196' for Shopify
     const formattedPhone = customerPhone && customerPhone.length >= 10
@@ -223,7 +234,12 @@ async function createCheckoutDraftOrder(shopDomain, accessToken, opts) {
         },
       }
     );
-    const draft = res.data.draft_order;
+    console.log('[createCheckoutDraftOrder] response keys:', Object.keys(res.data || {}));
+    const draft = res.data && res.data.draft_order;
+    if (!draft) {
+      console.error('[createCheckoutDraftOrder] no draft_order in response:', JSON.stringify(res.data));
+      return null;
+    }
     return {
       id: draft.id,
       invoice_url: draft.invoice_url,
