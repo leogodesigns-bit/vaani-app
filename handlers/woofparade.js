@@ -2432,9 +2432,41 @@ async function handleAddressMessage(ctx) {
 
   if (!parsed) {
     await sendMessage(from,
-      `Couldn't quite read that ${PAW} Try again, all in one message:\n\n` +
-      `1. Full name\n2. Address (house/flat, street, area)\n3. City + State\n4. 6-digit PIN`,
+      `Couldn't quite read that ${PAW} Try again with name, address, city, state and 6-digit PIN`,
       waToken, phoneNumberId);
+    return;
+  }
+
+  // Partial parse — ask for just what's missing, but save what we got into checkout state
+  if (parsed._missing && parsed._missing.length > 0) {
+    const labels = {
+      name: 'full name',
+      address1: 'house/flat + street/area',
+      city: 'city',
+      state: 'state',
+      pin: '6-digit PIN',
+    };
+    const missingHuman = parsed._missing.map(k => labels[k] || k);
+    const co = cart.woofparade?.checkout || {};
+    // Merge what we got so far (non-null fields) into checkout state
+    const partial = {};
+    ['name', 'address1', 'city', 'state', 'pin'].forEach(k => {
+      if (parsed[k]) partial[k] = parsed[k];
+    });
+    await sendMessage(from,
+      `Got most of it ${PAW} Just need: ${missingHuman.join(', ')}`,
+      waToken, phoneNumberId);
+    await upsertConversation(tenant.id, from, [
+      ...history,
+      { role: 'user', content: text },
+      { role: 'assistant', content: `[woofparade address_partial missing=${parsed._missing.join(',')}]` },
+    ], {
+      ...cart,
+      woofparade: {
+        ...(cart.woofparade || {}),
+        checkout: { ...co, ...partial, step: CHECKOUT_STEP.COLLECT },
+      },
+    });
     return;
   }
 
@@ -4115,9 +4147,52 @@ async function pingTeam(ctx, role, body, meta) {
 
 // ─── Claude-powered bulk address parser ────────────────────────────────────
 
+// PIN-prefix → state lookup (Indian Postal Index Number ranges).
+// Used to infer state when the customer omits it. Covers all states + UTs.
+function stateFromPin(pin) {
+  const p = String(pin || '').replace(/\D/g, '');
+  if (p.length !== 6) return null;
+  const n = parseInt(p.slice(0, 3), 10);
+  if (n >= 110 && n <= 110) return 'Delhi';
+  if (n >= 111 && n <= 136) return 'Haryana';
+  if (n >= 140 && n <= 160) return 'Punjab';
+  if (n >= 160 && n <= 160) return 'Chandigarh';
+  if (n >= 171 && n <= 177) return 'Himachal Pradesh';
+  if (n >= 180 && n <= 194) return 'Jammu and Kashmir';
+  if (n >= 201 && n <= 285) return 'Uttar Pradesh';
+  if (n >= 301 && n <= 345) return 'Rajasthan';
+  if (n >= 360 && n <= 396) return 'Gujarat';
+  if (n >= 400 && n <= 445) return 'Maharashtra';
+  if (n >= 450 && n <= 488) return 'Madhya Pradesh';
+  if (n >= 490 && n <= 497) return 'Chhattisgarh';
+  if (n >= 500 && n <= 535) return 'Telangana';
+  if (n >= 500 && n <= 535) return 'Andhra Pradesh';
+  if (n >= 560 && n <= 591) return 'Karnataka';
+  if (n >= 670 && n <= 695) return 'Kerala';
+  if (n >= 600 && n <= 643) return 'Tamil Nadu';
+  if (n >= 605 && n <= 605) return 'Puducherry';
+  if (n >= 682 && n <= 682) return 'Lakshadweep';
+  if (n >= 700 && n <= 743) return 'West Bengal';
+  if (n >= 744 && n <= 744) return 'Andaman and Nicobar Islands';
+  if (n >= 751 && n <= 770) return 'Odisha';
+  if (n >= 781 && n <= 788) return 'Assam';
+  if (n >= 790 && n <= 792) return 'Arunachal Pradesh';
+  if (n >= 793 && n <= 794) return 'Meghalaya';
+  if (n >= 795 && n <= 795) return 'Manipur';
+  if (n >= 796 && n <= 796) return 'Mizoram';
+  if (n >= 797 && n <= 798) return 'Nagaland';
+  if (n >= 799 && n <= 799) return 'Tripura';
+  if (n >= 800 && n <= 855) return 'Bihar';
+  if (n >= 814 && n <= 835) return 'Jharkhand';
+  if (n >= 831 && n <= 835) return 'Jharkhand';
+  if (n >= 246 && n <= 263) return 'Uttarakhand';
+  if (n >= 396 && n <= 396) return 'Dadra and Nagar Haveli';
+  return null;
+}
+
 async function bulkParseAddress(text) {
   const msg = (text || '').trim();
-  if (msg.length < 15 || !/\d{6}/.test(msg)) return null;
+  if (msg.length < 10) return { _missing: ['everything'] };
   if (!process.env.ANTHROPIC_API_KEY) return null;
 
   try {
@@ -4125,9 +4200,10 @@ async function bulkParseAddress(text) {
       "Extract the customer's shipping details from their message. " +
       "Reply with ONLY a JSON object: " +
       '{"name":"...","address1":"...","city":"...","state":"...","pin":"......"}. ' +
-      "If any field is missing, set it to null. " +
-      "name = full name; address1 = house/flat/street/area; city = city only; " +
-      "state = Indian state; pin = 6-digit pincode as string.";
+      "If any field is missing or unclear, set it to null. Do NOT invent values. " +
+      "name = full name (a person's name, 2+ words preferred but 1 word OK); " +
+      "address1 = house/flat/street/area/landmark — combine all street-level details here; " +
+      "city = city only; state = Indian state name; pin = 6-digit pincode as string.";
 
     const r = await anthropic.messages.create({
       model: 'claude-haiku-4-5',
@@ -4140,18 +4216,40 @@ async function bulkParseAddress(text) {
     let parsed;
     try { parsed = JSON.parse(cleaned); } catch { return null; }
 
-    const { name, address1, city, state, pin } = parsed || {};
-    if (!name || !address1 || !city || !state || !pin) return null;
-    const pinClean = String(pin).replace(/\D/g, '');
-    if (pinClean.length !== 6) return null;
-    if (String(name).trim().length < 2) return null;
+    let { name, address1, city, state, pin } = parsed || {};
+
+    // Normalize
+    const pinClean = pin ? String(pin).replace(/\D/g, '') : '';
+    const validPin = pinClean.length === 6 ? pinClean : null;
+
+    // Infer state from PIN if missing
+    if (!state && validPin) state = stateFromPin(validPin);
+
+    // Decide what's missing
+    const missing = [];
+    if (!name || String(name).trim().length < 2) missing.push('name');
+    if (!address1 || String(address1).trim().length < 3) missing.push('address1');
+    if (!city) missing.push('city');
+    if (!state) missing.push('state');
+    if (!validPin) missing.push('pin');
+
+    if (missing.length > 0) {
+      return {
+        _missing: missing,
+        name: name ? String(name).trim() : null,
+        address1: address1 ? String(address1).trim() : null,
+        city: city ? String(city).trim() : null,
+        state: state ? String(state).trim() : null,
+        pin: validPin,
+      };
+    }
 
     return {
       name: String(name).trim(),
       address1: String(address1).trim(),
       city: String(city).trim(),
       state: String(state).trim(),
-      pin: pinClean,
+      pin: validPin,
     };
   } catch (e) {
     console.error('[woofparade bulkParseAddress] error:', e.message);
