@@ -284,6 +284,106 @@ function stripHtml(html) {
     .trim();
 }
 
+
+// ─── createCustomOrderDraft (S02) ─────────────────────────────────────────
+// Creates a placeholder Shopify draft for a custom-order intake from the
+// thewoofparade.com /pages/custom-order form. One generic line item
+// "Custom Order" at ₹0; price gets updated when Apurv approves with a value.
+// Returns { id, name, invoice_url, admin_url } or null on failure.
+async function createCustomOrderDraft(shopDomain, accessToken, opts) {
+  const {
+    customerPhone,   // '918805100535'
+    pupName,         // 'Mochi' | null
+    designName,      // 'Black Assamese' | null
+    summary,         // multi-line readback shown to Apurv
+  } = opts || {};
+
+  try {
+    const formattedPhone = customerPhone
+      ? (customerPhone.startsWith('+') ? customerPhone : '+' + customerPhone)
+      : null;
+
+    const titleBits = ['Custom Order'];
+    if (designName) titleBits.push('— ' + designName);
+    if (pupName)    titleBits.push('for ' + pupName);
+    const lineTitle = titleBits.join(' ');
+
+    const draftBody = {
+      draft_order: {
+        line_items: [{
+          title: lineTitle,
+          quantity: 1,
+          price: '0.00',
+        }],
+        customer: formattedPhone ? {
+          first_name: pupName ? (pupName + "'s parent") : 'Custom',
+          last_name:  'Order',
+          phone: formattedPhone,
+        } : undefined,
+        note: 'Vaani S02 custom-order intake\n' + (summary || ''),
+        note_attributes: [
+          { name: 'vaani_source', value: 'woofparade-s02' },
+          { name: 'vaani_customer_phone', value: formattedPhone || '' },
+          { name: 'vaani_pup_name', value: pupName || '' },
+          { name: 'vaani_design', value: designName || '' },
+          { name: 'vaani_status', value: 'pending_approval' },
+        ],
+        tags: 'vaani, whatsapp, woofparade-s02, custom-order, pending-approval',
+        use_customer_default_address: false,
+      },
+    };
+
+    const res = await axios.post(
+      'https://' + shopDomain + '/admin/api/2024-01/draft_orders.json',
+      draftBody,
+      { headers: { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' } }
+    );
+    const draft = res.data.draft_order;
+    return {
+      id: draft.id,
+      name: draft.name,
+      invoice_url: draft.invoice_url,
+      admin_url: 'https://' + shopDomain + '/admin/draft_orders/' + draft.id,
+    };
+  } catch (err) {
+    console.error('❌ createCustomOrderDraft error:', err.response?.data || err.message);
+    return null;
+  }
+}
+
+// ─── updateDraftOrderPrice (S02 approval) ─────────────────────────────────
+// Replaces the draft's single Custom Order line item with the same title at
+// the price Apurv specifies. Returns updated invoice_url + total_price.
+async function updateDraftOrderPrice(shopDomain, accessToken, draftId, newPrice, lineTitle) {
+  try {
+    const priceStr = String(Number(newPrice).toFixed(2));
+    const res = await axios.put(
+      'https://' + shopDomain + '/admin/api/2024-01/draft_orders/' + draftId + '.json',
+      {
+        draft_order: {
+          id: draftId,
+          line_items: [{
+            title: lineTitle || 'Custom Order',
+            quantity: 1,
+            price: priceStr,
+          }],
+        },
+      },
+      { headers: { 'X-Shopify-Access-Token': accessToken, 'Content-Type': 'application/json' } }
+    );
+    const draft = res.data.draft_order;
+    return {
+      id: draft.id,
+      name: draft.name,
+      invoice_url: draft.invoice_url,
+      total_price: draft.total_price,
+    };
+  } catch (err) {
+    console.error('❌ updateDraftOrderPrice error:', err.response?.data || err.message);
+    return null;
+  }
+}
+
 module.exports = {
   getCollectionProducts,
   getProductByHandle,
@@ -293,4 +393,6 @@ module.exports = {
   createCheckoutDraftOrder,
   formatPrice,
   stripHtml,
+  createCustomOrderDraft,
+  updateDraftOrderPrice,
 };

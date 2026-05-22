@@ -29,7 +29,7 @@ const edge = require('./woofparade-edge');
 const qa = require('./woofparade-qa');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const { getCollectionProducts, getProductByHandle, getProducts, formatPrice, stripHtml , createCheckoutDraftOrder } = require('../shopify');
+const { getCollectionProducts, getProductByHandle, getProducts, formatPrice, stripHtml , createCheckoutDraftOrder, createCustomOrderDraft, updateDraftOrderPrice} = require('../shopify');
 
 // ─── S12 PDF v1.4: Custom Order fabrics ────────────────────────────────────
 // 8 fabrics in PDF order. photoUrl=null = text-only fallback (HEIC files not
@@ -361,6 +361,29 @@ async function handle(ctx) {
     const m = trimmed.match(/^(confirmed|mark paid)\s+(WOOF-\d{6}-[A-Z0-9]{3})\s*$/i);
     if (m) {
       await handleOwnerConfirmCommand(ctx, m[2].toUpperCase());
+      return;
+    }
+  }
+
+  // ─── PATCH 31: OWNER APPROVE COMMAND (Apurv or Kashmira) — S02 draft approval ───
+  // Formats:
+  //   approved                  — approve latest pending draft for this tenant, send invoice as-is
+  //   approved 3500             — same + set Custom Order price to ₹3500 first
+  //   approve <draft_id>        — explicit draft, send invoice as-is
+  //   approve <draft_id> 3500   — explicit draft + set price first
+  if ((APURV_PHONE && from === APURV_PHONE) || (KASHMIRA_PHONE && from === KASHMIRA_PHONE)) {
+    const lc = trimmed.toLowerCase();
+    let am;
+    // approve <id> [price]
+    am = lc.match(/^approve\s+(\d{6,})(?:\s+(\d+(?:\.\d+)?))?\s*$/);
+    if (am) {
+      await handleApproveDraft(ctx, { draftId: am[1], newPrice: am[2] ? Number(am[2]) : null });
+      return;
+    }
+    // approved [price]
+    am = lc.match(/^approved(?:\s+(\d+(?:\.\d+)?))?\s*$/);
+    if (am) {
+      await handleApproveDraft(ctx, { draftId: null, newPrice: am[1] ? Number(am[1]) : null });
       return;
     }
   }
@@ -2665,7 +2688,9 @@ async function handleCustomFitStart(ctx) {
 }
 
 async function handleCustomOrderFromWebsite(ctx) {
-  // S02 PDF v1.4: read back pup name + measurements + design choice, route to Anouttama.
+  // S02 PDF v1.4: read back pup name + measurements + design choice,
+  // CREATE Shopify draft order (placeholder ₹0), persist to pending_drafts,
+  // notify Apurv with draft details + approval instructions.
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
 
   // Try to extract pup name, fabric/style, occasion, and measurements from the auto-typed message.
@@ -2683,41 +2708,107 @@ async function handleCustomOrderFromWebsite(ctx) {
   const style = styleMatch ? styleMatch[1].trim() : null;
   const occasion = occasionMatch ? occasionMatch[1].trim() : null;
 
-  // Build readback message per PDF S02
+  // Build readback message per PDF S02 (customer-facing)
   let msg = pupName
-    ? `Hi! Got ${pupName}'s custom order details — `
-    : `Hi! Got your custom order details — `;
+    ? `Hi! Got ${pupName}'s custom order details \u2014 `
+    : `Hi! Got your custom order details \u2014 `;
   msg += fabric ? `gorgeous choice with the ${fabric} ${PAW}\n` : `${PAW}\n`;
   msg += `Here's what we have:\n`;
-  if (backMatch) msg += `• Back: ${backMatch[1]}"\n`;
-  if (chestMatch) msg += `• Chest: ${chestMatch[1]}"\n`;
-  if (neckMatch) msg += `• Neck: ${neckMatch[1]}"\n`;
-  if (style) msg += `• Style: ${style}\n`;
-  if (occasion) msg += `• Occasion: ${occasion}\n`;
-  msg += `\nOur designer will sniff this out shortly and get back to you ✨`;
-
+  if (backMatch) msg += `\u2022 Back: ${backMatch[1]}"\n`;
+  if (chestMatch) msg += `\u2022 Chest: ${chestMatch[1]}"\n`;
+  if (neckMatch) msg += `\u2022 Neck: ${neckMatch[1]}"\n`;
+  if (style) msg += `\u2022 Style: ${style}\n`;
+  if (occasion) msg += `\u2022 Occasion: ${occasion}\n`;
+  msg += `\nOur designer will sniff this out shortly and get back to you \u2728`;
   await sendMessage(from, msg, waToken, phoneNumberId);
 
-  const alertBody =
-    `🎨 *CUSTOM ORDER FROM WEBSITE*\n` +
-    `From: +${from}\n` +
-    (pupName ? `Pup: ${pupName}\n` : '') +
-    (fabric ? `Fabric: ${fabric}\n` : '') +
-    (style ? `Style: ${style}\n` : '') +
-    (occasion ? `Occasion: ${occasion}\n` : '') +
-    (backMatch ? `Back: ${backMatch[1]}"\n` : '') +
-    (chestMatch ? `Chest: ${chestMatch[1]}"\n` : '') +
-    (neckMatch ? `Neck: ${neckMatch[1]}"\n` : '') +
-    `\nAuto-message content:\n${text.slice(0, 800)}`;
-  await pingTeam(ctx, 'designer', alertBody, { sosType: 'CUSTOM ORDER', summary: 'Auto-detected custom-fit intake from chat' });
+  // ─── Patch 31: create Shopify draft order ──────────────────────────────
+  let draft = null;
+  if (tenant.shopify_token && tenant.shop_domain) {
+    try {
+      const summaryForShopify = [
+        pupName  ? `Pup: ${pupName}` : null,
+        fabric   ? `Design: ${fabric}` : null,
+        style    ? `Style: ${style}` : null,
+        occasion ? `Occasion: ${occasion}` : null,
+        backMatch  ? `Back: ${backMatch[1]}"` : null,
+        chestMatch ? `Chest: ${chestMatch[1]}"` : null,
+        neckMatch  ? `Neck: ${neckMatch[1]}"` : null,
+        `Customer WA: +${from}`,
+      ].filter(Boolean).join('\n');
+
+      draft = await createCustomOrderDraft(tenant.shop_domain, tenant.shopify_token, {
+        customerPhone: from,
+        pupName,
+        designName: fabric,
+        summary: summaryForShopify,
+      });
+
+      if (draft) {
+        await pool.query(
+          `INSERT INTO pending_drafts (
+            tenant_id, draft_id, draft_name, invoice_url,
+            customer_phone, pup_name, design_name, summary, status, created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', NOW())`,
+          [tenant.id, draft.id, draft.name, draft.invoice_url,
+           from, pupName, fabric, summaryForShopify]
+        );
+        console.log(`[woofparade S02] draft created: ${draft.name} (id=${draft.id}) for +${from}`);
+      } else {
+        console.error(`[woofparade S02] createCustomOrderDraft returned null for +${from}`);
+      }
+    } catch (e) {
+      console.error('[woofparade S02] draft creation failed:', e.message);
+    }
+  } else {
+    console.warn('[woofparade S02] missing tenant.shopify_token/shop_domain \u2014 skipping draft creation');
+  }
+
+  // ─── Apurv SOS with draft details + approval instructions ──────────────
+  const alertLines = [
+    `\uD83C\uDFA8 *CUSTOM ORDER FROM WEBSITE*`,
+    `From: +${from}`,
+  ];
+  if (pupName)  alertLines.push(`Pup: ${pupName}`);
+  if (fabric)   alertLines.push(`Fabric: ${fabric}`);
+  if (style)    alertLines.push(`Style: ${style}`);
+  if (occasion) alertLines.push(`Occasion: ${occasion}`);
+  if (backMatch)  alertLines.push(`Back: ${backMatch[1]}"`);
+  if (chestMatch) alertLines.push(`Chest: ${chestMatch[1]}"`);
+  if (neckMatch)  alertLines.push(`Neck: ${neckMatch[1]}"`);
+
+  if (draft) {
+    alertLines.push('');
+    alertLines.push(`\uD83D\uDCCB *Draft Order:* ${draft.name}`);
+    alertLines.push(`Admin: ${draft.admin_url}`);
+    alertLines.push('');
+    alertLines.push(`*To approve and send payment link to customer:*`);
+    alertLines.push(`Reply with one of:`);
+    alertLines.push(`  \u2022 *approved* \u2014 send link as-is`);
+    alertLines.push(`  \u2022 *approve ${draft.id} 3500* \u2014 set price to \u20B93500 first`);
+    alertLines.push(`  \u2022 *approved 3500* \u2014 set price + approve latest pending`);
+  } else {
+    alertLines.push('');
+    alertLines.push(`\u26A0\uFE0F Shopify draft creation failed \u2014 please create manually in Admin.`);
+  }
+  alertLines.push('');
+  alertLines.push(`Auto-message content:`);
+  alertLines.push(text.slice(0, 600));
+
+  const alertBody = alertLines.join('\n');
+  await pingTeam(ctx, 'designer', alertBody, { sosType: 'CUSTOM ORDER', summary: pupName ? `Custom order from ${pupName}'s parent` : 'Custom order intake' });
 
   await upsertConversation(tenant.id, from, [
     ...history,
     { role: 'user', content: text },
-    { role: 'assistant', content: `[woofparade S02 custom_from_website pup=${pupName||'-'}]` },
+    { role: 'assistant', content: `[woofparade S02 custom_from_website pup=${pupName||'-'} draft=${draft?.name||'-'}]` },
   ], {
     ...cart,
-    woofparade: { ...(cart.woofparade || {}), custom: { source: 'website', stage: 'team_notified', pupName, fabric, style, occasion } },
+    woofparade: {
+      ...(cart.woofparade || {}),
+      custom: { source: 'website', stage: 'team_notified', pupName, fabric, style, occasion },
+      lastCustomDraftId: draft?.id || null,
+    },
   });
 }
 
@@ -3567,6 +3658,117 @@ async function handleOwnerConfirmCommand(ctx, orderId) {
     `Your order *${orderId}* is now in our queue. ` +
     `You'll get tracking once it ships (4–8 days estimate).`,
     waToken, phoneNumberId);
+}
+
+// ─── PATCH 31: S02 DRAFT APPROVAL — Apurv/Kashmira approve custom-order draft ────
+
+async function handleApproveDraft(ctx, { draftId, newPrice }) {
+  const { tenant, from, phoneNumberId, waToken } = ctx;
+  const approverLabel = from === KASHMIRA_PHONE ? 'Kashmira' : 'Apurv';
+
+  // Step 1: find the pending draft row
+  let row;
+  try {
+    if (draftId) {
+      const r = await pool.query(
+        `SELECT * FROM pending_drafts
+         WHERE tenant_id=$1 AND draft_id=$2 AND status IN ('pending','approved')
+         ORDER BY created_at DESC LIMIT 1`,
+        [tenant.id, draftId]
+      );
+      row = r.rows[0];
+    } else {
+      const r = await pool.query(
+        `SELECT * FROM pending_drafts
+         WHERE tenant_id=$1 AND status='pending'
+         ORDER BY created_at DESC LIMIT 1`,
+        [tenant.id]
+      );
+      row = r.rows[0];
+    }
+  } catch (e) {
+    console.error('[woofparade approve] DB lookup failed:', e.message);
+    await sendMessage(from, `\u26A0\uFE0F Couldn't look up draft \u2014 DB error. Check logs.`, waToken, phoneNumberId);
+    return;
+  }
+
+  if (!row) {
+    const msg = draftId
+      ? `No pending draft found with ID ${draftId}.`
+      : `No pending custom-order drafts to approve right now.`;
+    await sendMessage(from, msg, waToken, phoneNumberId);
+    return;
+  }
+
+  if (row.status === 'invoice_sent') {
+    await sendMessage(from,
+      `Draft ${row.draft_name} (ID ${row.draft_id}) was already approved & sent on ${new Date(row.invoice_sent_at).toISOString().slice(0,16).replace('T',' ')} UTC.`,
+      waToken, phoneNumberId);
+    return;
+  }
+
+  // Step 2: optionally update Shopify price
+  let invoiceUrl = row.invoice_url;
+  let totalPrice = null;
+  if (newPrice && newPrice > 0) {
+    if (!tenant.shopify_token || !tenant.shop_domain) {
+      await sendMessage(from, `\u26A0\uFE0F Cannot update price \u2014 Shopify token missing on tenant.`, waToken, phoneNumberId);
+      return;
+    }
+    const lineTitle = row.design_name
+      ? `Custom Order \u2014 ${row.design_name}${row.pup_name ? ' for ' + row.pup_name : ''}`
+      : 'Custom Order';
+    const updated = await updateDraftOrderPrice(tenant.shop_domain, tenant.shopify_token, row.draft_id, newPrice, lineTitle);
+    if (!updated) {
+      await sendMessage(from, `\u26A0\uFE0F Failed to update price on Shopify draft ${row.draft_name}. Customer not notified.`, waToken, phoneNumberId);
+      return;
+    }
+    invoiceUrl = updated.invoice_url;
+    totalPrice = updated.total_price;
+    await pool.query(
+      `UPDATE pending_drafts SET invoice_url=$1, price_set=$2 WHERE id=$3`,
+      [invoiceUrl, newPrice, row.id]
+    );
+  }
+
+  // Step 3: mark approved
+  await pool.query(
+    `UPDATE pending_drafts SET status='approved', approved_by=$1, approved_at=NOW() WHERE id=$2`,
+    [from, row.id]
+  );
+
+  // Step 4: send customer the payment link
+  const priceLine = totalPrice ? `\u20B9${totalPrice}` : (row.price_set ? `\u20B9${row.price_set}` : 'as quoted');
+  const customerMsg =
+    `Great news ${PAW} Your custom order is ready to pay for.\n\n` +
+    (row.design_name ? `Design: *${row.design_name}*\n` : '') +
+    (row.pup_name ? `For: *${row.pup_name}*\n` : '') +
+    (totalPrice || row.price_set ? `Total: *${priceLine}*\n` : '') +
+    `\nPay here: ${invoiceUrl}\n\n` +
+    `Once we see the payment, we'll get started on stitching. Ship-out is usually 7\u201310 days from confirmation \u2728`;
+
+  try {
+    await sendMessage(row.customer_phone, customerMsg, waToken, phoneNumberId);
+  } catch (e) {
+    console.error('[woofparade approve] failed to send invoice to customer:', e.message);
+    await sendMessage(from, `\u26A0\uFE0F Approved on Shopify, but failed to message customer +${row.customer_phone}. Send link manually:\n${invoiceUrl}`, waToken, phoneNumberId);
+    return;
+  }
+
+  // Step 5: mark invoice_sent
+  await pool.query(
+    `UPDATE pending_drafts SET status='invoice_sent', invoice_sent_at=NOW() WHERE id=$1`,
+    [row.id]
+  );
+
+  // Step 6: confirm to approver
+  await sendMessage(from,
+    `\u2705 Draft ${row.draft_name} approved by ${approverLabel}.\n` +
+    `Customer +${row.customer_phone} sent the payment link.\n` +
+    (totalPrice ? `Price: ${priceLine}` : `Price: as set on draft`),
+    waToken, phoneNumberId);
+
+  console.log(`[woofparade S02 approve] ${row.draft_name} approved by ${approverLabel} (+${from}) for +${row.customer_phone}`);
 }
 
 // ─── S03 BRANCH C — CONTINUE WHERE LEFT OFF ───────────────────────────────
