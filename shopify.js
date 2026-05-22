@@ -89,7 +89,6 @@ async function getOrders(shopDomain, accessToken, customerId) {
 }
 
 async function createDraftOrder(shopDomain, accessToken, lineItems, customerPhone) {
-  shopDomain = await resolveAdminDomain(shopDomain);
   // BACKWARD-COMPAT signature: when called as createDraftOrder(domain, token, items, phone)
   // just creates a minimal draft order (used by Rajathee + legacy paths).
   try {
@@ -125,7 +124,6 @@ async function createDraftOrder(shopDomain, accessToken, lineItems, customerPhon
 // discount, and tagged note. Returns { id, invoice_url, name, total_price } or null.
 // `cart` is the woofparade cart shape (items[], discountAmount, discountLabel, address).
 async function createCheckoutDraftOrder(shopDomain, accessToken, opts) {
-  shopDomain = await resolveAdminDomain(shopDomain);
   const {
     items,            // [{ variantId, productTitle, size, price, kind: 'product' }]
     customerPhone,    // '919371730196'
@@ -433,32 +431,3 @@ module.exports = {
   createCustomOrderDraft,
   updateDraftOrderPrice,
 };
-
-// ─── Patch 31: Admin domain resolution at Shopify boundary ────────────────
-// Every Admin API REST/GraphQL call MUST go to the *.myshopify.com handle,
-// not the public/custom domain. Tenants table stores both. This helper
-// transparently resolves any input domain to the correct admin domain.
-// Cached in-memory per process to avoid repeat DB hits.
-const __adminDomainCache = new Map();
-
-async function resolveAdminDomain(shopDomain) {
-  if (!shopDomain) return shopDomain;
-  if (shopDomain.endsWith('.myshopify.com')) return shopDomain;
-  if (__adminDomainCache.has(shopDomain)) {
-    return __adminDomainCache.get(shopDomain);
-  }
-  try {
-    const db = require('./db');
-    const resolved = await db.getAdminDomain(shopDomain);
-    if (!resolved || !resolved.endsWith('.myshopify.com')) {
-      console.error(`[shopify.resolveAdminDomain] WARNING: ${shopDomain} did not resolve to a *.myshopify.com handle (got: ${resolved}). Admin API calls will likely fail.`);
-    }
-    __adminDomainCache.set(shopDomain, resolved);
-    return resolved;
-  } catch (err) {
-    console.error('[shopify.resolveAdminDomain] error for', shopDomain, ':', err.message);
-    return shopDomain;
-  }
-}
-
-module.exports.resolveAdminDomain = resolveAdminDomain;
