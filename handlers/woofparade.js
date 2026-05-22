@@ -2737,7 +2737,7 @@ async function handleCustomOrderFromWebsite(ctx) {
         `Customer WA: +${from}`,
       ].filter(Boolean).join('\n');
 
-      draft = await createCustomOrderDraft(tenant.shop_domain, tenant.shopify_token, {
+      draft = await createCustomOrderDraft(tenant.shopify_admin_domain || tenant.shop_domain, tenant.shopify_token, {
         customerPhone: from,
         pupName,
         designName: fabric,
