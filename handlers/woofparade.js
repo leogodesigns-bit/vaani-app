@@ -29,7 +29,7 @@ const edge = require('./woofparade-edge');
 const qa = require('./woofparade-qa');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const { getCollectionProducts, getProductByHandle, formatPrice, stripHtml , createCheckoutDraftOrder } = require('../shopify');
+const { getCollectionProducts, getProductByHandle, getProducts, formatPrice, stripHtml , createCheckoutDraftOrder } = require('../shopify');
 
 // ─── S12 PDF v1.4: Custom Order fabrics ────────────────────────────────────
 // 8 fabrics in PDF order. photoUrl=null = text-only fallback (HEIC files not
@@ -665,8 +665,23 @@ async function handle(ctx) {
     await handleSizePick(ctx, trimmed);
     return;
   }
-  if (trimmed === PRODUCT_BTN.HELP_SIZING || /^(help\s*me\s*sizing|need\s+(help\s+)?sizing|sizing\s+help|i?\s*need\s+sizing)\b/i.test(trimmed)) {
-    await handleSizingHelpStart(ctx);
+  // PATCH 25 — broadened sizing-intent detection.
+  // Matches:
+  //   • Exact button tap (PRODUCT_BTN.HELP_SIZING)
+  //   • "I need sizing" / "need help sizing" / "need help with sizing" / "sizing help"
+  //   • "Hi, I need help with sizing for <product>" (CTA from product page)
+  //   • "can you help me with size" / "size help please" / "what size for my pup"
+  // For CTA messages with a product hint, we extract the product name and
+  // look it up in the Shopify catalog so per-category sizing (Patch 24)
+  // picks the right table.
+  if (trimmed === PRODUCT_BTN.HELP_SIZING ||
+      /\b(siz(ing|e)\s+help|help\s+(me\s+)?(with\s+)?(siz(ing|e)|fit(ting)?)|need\s+(help\s+)?(with\s+)?(siz(ing|e)|fit)|what\s+siz(e|ing)|which\s+siz(e|ing)|fit\s+(help|guide))\b/i.test(trimmed)) {
+    const productHint = extractProductHintFromSizingMsg(trimmed);
+    if (productHint) {
+      await handleSizingHelpFromCTA(ctx, productHint);
+    } else {
+      await handleSizingHelpStart(ctx);
+    }
     return;
   }
   if (trimmed === SIZE_BTN.YES_HAVE) {
@@ -1622,6 +1637,103 @@ async function handleContinueSection(ctx) {
     return;
   }
   await sendWelcome(ctx);
+}
+
+// PATCH 25 — Extract product name from a sizing-help message.
+// Examples:
+//   "Hi, I need help with sizing for Banarasi Lavender Kurta 🐾"
+//      → "Banarasi Lavender Kurta"
+//   "sizing help for the CSK Jersey please"
+//      → "CSK Jersey"
+//   "need sizing"  →  null  (no product hint, use S07 generic flow)
+// Returns trimmed string or null.
+function extractProductHintFromSizingMsg(text) {
+  if (!text) return null;
+  // Look for "for <X>" / "of <X>" / "with <X>" pattern (after sizing keyword)
+  // Capture everything up to end of message, trailing emoji/punctuation stripped.
+  const m = text.match(/\b(?:siz(?:ing|e)|fit(?:ting)?)\b[^.!?]*?\b(?:for|of|with)\s+(?:the\s+|a\s+|an\s+|my\s+)?([^.!?\n]+)/i);
+  if (!m || !m[1]) return null;
+  let hint = m[1].trim();
+  // Strip trailing emojis / paw-prints / punctuation / common filler
+  hint = hint.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]+/gu, '').trim();
+  hint = hint.replace(/\s+(please|pls|thanks|thx|ty)\s*$/i, '').trim();
+  hint = hint.replace(/[\s,.\-!?]+$/g, '').trim();
+  // Strip "for dogs & cats" / "for my pup" trailing audience phrases
+  hint = hint.replace(/\s+for\s+(dogs?|cats?|pets?|pups?|my\s+(dog|cat|pet|pup))(\s+(&|and)\s+\w+)?\s*$/i, '').trim();
+  if (hint.length < 3) return null;       // too short to be a real product
+  if (hint.length > 80) hint = hint.slice(0, 80);  // safety cap
+  return hint;
+}
+
+// PATCH 25 — Fuzzy-match a product hint against the Shopify catalog.
+// Scores word overlap (case-insensitive). Returns best product if score
+// is >= 50% of the hint's words, else null.
+function findProductByTitleFuzzy(hint, products) {
+  if (!hint || !Array.isArray(products) || products.length === 0) return null;
+  const hintWords = hint.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length >= 3);  // skip 'a', 'of', 'the', etc.
+  if (hintWords.length === 0) return null;
+
+  let best = null;
+  let bestScore = 0;
+  for (const p of products) {
+    const titleLow = (p.title || '').toLowerCase();
+    let score = 0;
+    for (const w of hintWords) {
+      if (titleLow.includes(w)) score++;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      best = p;
+    }
+  }
+  // Require at least half the hint words to overlap
+  if (bestScore >= Math.ceil(hintWords.length / 2)) return best;
+  return null;
+}
+
+// PATCH 25 — Handle the size-help CTA from product page.
+// 1) Fuzzy-find product by name in Shopify catalog
+// 2) Set ctx.cart.woofparade.product so per-category sizing (Patch 24) kicks in
+// 3) Send a brief acknowledgement that names the product
+// 4) Fire handleSizingHelpStart (which sends measure image + asks for measurements)
+async function handleSizingHelpFromCTA(ctx, productHint) {
+  const { tenant, from, phoneNumberId, waToken } = ctx;
+  let product = null;
+  try {
+    const products = await getProducts(tenant.shop_domain, tenant.shopify_token);
+    product = findProductByTitleFuzzy(productHint, products);
+  } catch (e) {
+    console.error('[woofparade S07 CTA] product fuzzy lookup failed:', e.message);
+  }
+
+  // Acknowledge before launching size flow — even if product wasn't found,
+  // we use the customer's own words.
+  const productLabel = product ? product.title : productHint;
+  await sendMessage(from,
+    `On it ${PAW} — let's get a perfect fit for *${productLabel}*.`,
+    waToken, phoneNumberId);
+
+  // Stash product context so handleSizingHaveMeasurements picks the right
+  // category chart (kurta→ethnic, jersey→jersey, harness→harness, etc.)
+  ctx.cart = ctx.cart || {};
+  ctx.cart.woofparade = ctx.cart.woofparade || {};
+  if (product) {
+    ctx.cart.woofparade.product = {
+      handle: product.handle,
+      title: product.title,
+      id: product.id,
+    };
+  } else {
+    // Fall back to hint string as title so categorizeProduct() can still
+    // do its job (it operates on the title string, not the handle).
+    ctx.cart.woofparade.product = { handle: null, title: productHint, id: null };
+  }
+
+  // Now fire the normal S07 entry — image + "have measurements?" prompt.
+  await handleSizingHelpStart(ctx);
 }
 
 async function handleSizingHelpStart(ctx) {
