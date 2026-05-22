@@ -489,3 +489,28 @@ module.exports = { pool, initDB, getTenant, createTenant, updateTenant, getConve
   scheduleNudge, cancelNudges, getDueNudges, markNudgeSent, markNudgeError,
   saveOptIn, tagOrderToPup, savePupNote,
 };
+
+// ─── Patch 31: Admin domain resolution ────────────────────────────────────
+// Returns the Shopify Admin API domain (the *.myshopify.com handle) for a
+// given shop_domain. The shop_domain in our DB is often a public/custom
+// domain like 'thewoofparade.com' which does NOT work for Admin API calls.
+// Falls back to the input if no admin domain is stored.
+async function getAdminDomain(shopDomain) {
+  if (!shopDomain) return shopDomain;
+  // If already a myshopify handle, skip lookup
+  if (shopDomain.endsWith('.myshopify.com')) return shopDomain;
+  try {
+    const res = await pool.query(
+      'SELECT shopify_admin_domain FROM tenants WHERE shop_domain = $1 LIMIT 1',
+      [shopDomain]
+    );
+    if (res.rows[0] && res.rows[0].shopify_admin_domain) {
+      return res.rows[0].shopify_admin_domain;
+    }
+  } catch (err) {
+    console.error('[db.getAdminDomain] lookup failed for', shopDomain, ':', err.message);
+  }
+  return shopDomain;
+}
+
+module.exports.getAdminDomain = getAdminDomain;
