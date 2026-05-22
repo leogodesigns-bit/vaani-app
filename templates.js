@@ -1,6 +1,3 @@
-// ───────────────────────────────────────────────────────────────────────
-// Phase 5: WhatsApp message templates
-//
 // This module sends template messages via Meta Cloud API. Templates are
 // pre-approved messages that can be sent OUTSIDE the 24-hour customer
 // service window — critical for billing alerts that may fire when the
@@ -60,6 +57,22 @@ const TEMPLATES = {
   vaani_team_sos: {
     language: 'en',
     paramOrder: ['sosType', 'customerPhone', 'summary'],
+  },
+  // PATCH 23 — S14 day-14 final cart-nudge (Woof Parade).
+  // Body: "Hey {{1}}! Your shortlist at The Woof Parade is still saved, but it'll clear tomorrow.
+  //        Want to grab it before it's gone? Reply 'show me' and Rio will pull it up. 🐾"
+  // Param 1: pup name OR "there" if unknown.
+  woof_day14_final: {
+    language: 'en',
+    paramOrder: ['pupNameOrThere'],
+  },
+  // PATCH 23 — S15 24-hr unpaid checkout nudge (Woof Parade).
+  // Body: "Hey 🐾 Your shortlist at The Woof Parade is still saved if you want to continue.
+  //        No pressure — but the WOOF15 discount is good for the next 24 hours. {{1}}"
+  // Param 1: short invoice/product hint OR "Reply 'cart' to see it."
+  woof_unpaid_checkout_24h: {
+    language: 'en',
+    paramOrder: ['invoiceHint'],
   },
 };
 
@@ -223,3 +236,4 @@ module.exports = {
   markTemplateStatus,
   getAllTemplateNames,
 };
+

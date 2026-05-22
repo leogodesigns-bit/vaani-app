@@ -16,6 +16,8 @@
 
 const { pool, getDueNudges, markNudgeSent, markNudgeError, getConversation } = require('./db');
 const { sendMessage } = require('./whatsapp');
+// PATCH 23 — wire real template sends with freeform fallback for in-window cases.
+const { sendTemplateOrFreeform } = require('./templates');
 
 const POLL_INTERVAL_MS = 30 * 1000;  // 30s
 const PAW = '🐾';
@@ -68,28 +70,50 @@ async function sendBranchB(creds, phone, payload) {
 }
 
 // ─── Out-of-window nudge senders (templates — dormant until Meta approves) ─
-async function sendDay14Template(creds, phone, payload) {
-  // S14 Day-14 final: outside 24h window, must be Meta utility template.
-  // Template name placeholder: "woof_day14_final" with 1 parameter (pup name or "your pup").
-  if (!process.env.WOOF_TEMPLATE_DAY14_NAMESPACE) {
-    console.log(`[cron-nudges] s14_day14_final → template not yet approved, skipping (phone=${phone})`);
-    return { skipped: true, reason: 'template_pending' };
-  }
-  // TODO: real template call once Meta approves.
-  console.log(`[cron-nudges] s14_day14_final → would send template (phone=${phone}, payload=${JSON.stringify(payload)})`);
-  return { skipped: true, reason: 'not_implemented' };
+async function sendDay14Template(tenant, creds, phone, payload) {
+  // PATCH 23 — S14 day-14 final.
+  // Template: woof_day14_final, 1 param (pup name or "there").
+  const pupNameOrThere = (payload?.pupName || '').trim() || 'there';
+  const freeformText =
+    `Hey ${pupNameOrThere === 'there' ? '' : pupNameOrThere + '\'s parent '}🐾\n` +
+    `Your shortlist at The Woof Parade is still saved, but it'll clear tomorrow.\n` +
+    `Want to grab it before it's gone? Just reply 'show me' and Rio will pull it up.`;
+  const r = await sendTemplateOrFreeform({
+    to: phone,
+    templateName: 'woof_day14_final',
+    params: { pupNameOrThere },
+    freeformText,
+    tenant,
+    waToken: creds.waToken,
+    phoneNumberId: creds.phoneNumberId,
+  });
+  if (r?.ok) return { sent: true };
+  if (r?.skipped) return { skipped: true, reason: r.reason || 'template_skipped' };
+  return { skipped: true, reason: r?.error || 'unknown_failure' };
 }
 
-async function sendUnpaidCheckoutTemplate(creds, phone, payload) {
-  // S15 24-hr unpaid: outside 24h window, must be Meta utility template.
-  // Template name placeholder: "woof_unpaid_checkout_24h" with 2 params (productTitle, invoiceUrl).
-  if (!process.env.WOOF_TEMPLATE_UNPAID_NAMESPACE) {
-    console.log(`[cron-nudges] s15_unpaid_checkout → template not yet approved, skipping (phone=${phone})`);
-    return { skipped: true, reason: 'template_pending' };
-  }
-  // TODO: real template call once Meta approves.
-  console.log(`[cron-nudges] s15_unpaid_checkout → would send template (phone=${phone}, payload=${JSON.stringify(payload)})`);
-  return { skipped: true, reason: 'not_implemented' };
+async function sendUnpaidCheckoutTemplate(tenant, creds, phone, payload) {
+  // PATCH 23 — S15 24-hr unpaid checkout.
+  // Template: woof_unpaid_checkout_24h, 1 param (invoice hint).
+  const product = (payload?.productTitle || '').trim();
+  const invoiceHint = product
+    ? `Your ${product} is one tap away.`
+    : `Reply 'cart' to see your saved items.`;
+  const freeformText =
+    `Hey 🐾 Your shortlist at The Woof Parade is still saved if you want to continue.\n` +
+    `No pressure — but the WOOF15 discount is good for the next 24 hours. ${invoiceHint}`;
+  const r = await sendTemplateOrFreeform({
+    to: phone,
+    templateName: 'woof_unpaid_checkout_24h',
+    params: { invoiceHint },
+    freeformText,
+    tenant,
+    waToken: creds.waToken,
+    phoneNumberId: creds.phoneNumberId,
+  });
+  if (r?.ok) return { sent: true };
+  if (r?.skipped) return { skipped: true, reason: r.reason || 'template_skipped' };
+  return { skipped: true, reason: r?.error || 'unknown_failure' };
 }
 
 // ─── Dispatch one nudge ───────────────────────────────────────────────────
@@ -124,9 +148,9 @@ async function dispatchOne(nudge) {
       await sendBranchB(creds, phone, payload);
       return { sent: true };
     case 's14_day14_final':
-      return await sendDay14Template(creds, phone, payload);
+      return await sendDay14Template(tenant, creds, phone, payload);
     case 's15_unpaid_checkout':
-      return await sendUnpaidCheckoutTemplate(creds, phone, payload);
+      return await sendUnpaidCheckoutTemplate(tenant, creds, phone, payload);
     default:
       throw new Error(`unknown nudge kind: ${nudge.kind}`);
   }

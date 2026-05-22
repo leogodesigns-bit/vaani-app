@@ -30,6 +30,8 @@ const {
 } = require('../db');
 
 const { sendMessage } = require('../whatsapp');
+// PATCH 23 — needed for S30 post-purchase pup profile after Pay Now.
+const { firePostPurchasePupProfile } = require('../handlers/woofparade');
 
 // ─── HMAC VERIFICATION ─────────────────────────────────────────────────────
 // Shopify signs every webhook with HMAC-SHA256 of the raw body using the app's
@@ -245,6 +247,14 @@ async function handleOrderPaid(tenant, payload) {
   } catch (e) {
     console.error(`[orders/paid] sendMessage failed for ${ourOrder.order_id}:`, e.message);
   }
+
+  // PATCH 23 — Pay Now path PDF S11: "→ S30 fires next: post-purchase pup
+  // profile / confirmation." Wait a beat so customer reads the confirmation
+  // before the pup-profile prompt arrives.
+  setTimeout(() => {
+    firePostPurchasePupProfile(tenant, customerPhone, creds.waToken, creds.phoneNumberId)
+      .catch(e => console.error('[orders/paid S30] firePostPurchasePupProfile failed:', e.message));
+  }, 1500);
 }
 
 // ─── orders/fulfilled → tracking link (PDF S32 Branch 1) ──────────────────
@@ -317,3 +327,4 @@ async function handleOrderFulfilled(tenant, payload) {
 }
 
 module.exports = router;
+
