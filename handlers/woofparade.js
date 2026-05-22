@@ -2695,29 +2695,46 @@ async function handleCustomOrderFromWebsite(ctx) {
 
   // Try to extract pup name, fabric/style, occasion, and measurements from the auto-typed message.
   const t = text || '';
-  const pupMatch = t.match(/(?:pup'?s?\s+name|pup|dog|name)\s*[:=]\s*([A-Za-z][A-Za-z\s]{0,30})/i);
-  const fabricMatch = t.match(/(?:fabric|design|style)\s*[:=]\s*([A-Za-z][A-Za-z\s]{0,50})/i);
-  const occasionMatch = t.match(/occasion\s*[:=]\s*([A-Za-z][A-Za-z\s]{0,30})/i);
-  const backMatch = t.match(/back\s*[:=]?\s*(\d+(?:\.\d+)?)/i);
-  const chestMatch = t.match(/chest\s*[:=]?\s*(\d+(?:\.\d+)?)/i);
-  const neckMatch = t.match(/neck\s*[:=]?\s*(\d+(?:\.\d+)?)/i);
-  const styleMatch = t.match(/style\s*[:=]\s*([A-Za-z][A-Za-z\s]{0,30})/i);
 
-  const pupName = pupMatch ? pupMatch[1].trim().split(/\s+/)[0] : null;
-  const fabric = fabricMatch ? fabricMatch[1].trim() : null;
-  const style = styleMatch ? styleMatch[1].trim() : null;
-  const occasion = occasionMatch ? occasionMatch[1].trim() : null;
+  // Helper: extract value for a labelled field. Stops at newline so we never
+  // bleed into the next field (e.g. "Red Banarasi" not "Red Banarasi\nItem").
+  const extract = (labelRe) => {
+    const m = t.match(new RegExp('(?:^|\\n)\\s*(?:' + labelRe + ')\\s*[:=]\\s*([^\\n]+)', 'i'));
+    return m ? m[1].trim() : null;
+  };
+  const extractNum = (labelRe) => {
+    const m = t.match(new RegExp('(?:^|\\n)\\s*(?:' + labelRe + ')\\s*[:=]?\\s*(\\d+(?:\\.\\d+)?)', 'i'));
+    return m ? m[1] : null;
+  };
+
+  const pupName  = (extract("pup'?s?\\s+name|pup|dog name|pet'?s?\\s+name") || '').split(/\s+/)[0] || null;
+  const item     = extract('item|product|garment|outfit');
+  const fabric   = extract('design|fabric|pattern|print');
+  const style    = extract('style|cut');
+  const occasion = extract('occasion|theme');
+  const breed    = extract('breed');
+  const weight   = extract('weight');
+  const back     = extractNum('back\\s*length|back');
+  const chest    = extractNum('chest');
+  const neck     = extractNum('neck');
+  // Back-compat shims so the rest of this function and the Shopify draft still work
+  const backMatch  = back  ? [null, back]  : null;
+  const chestMatch = chest ? [null, chest] : null;
+  const neckMatch  = neck  ? [null, neck]  : null;
 
   // Build readback message per PDF S02 (customer-facing)
   let msg = pupName
-    ? `Hi! Got ${pupName}'s custom order details \u2014 `
-    : `Hi! Got your custom order details \u2014 `;
-  msg += fabric ? `gorgeous choice with the ${fabric} ${PAW}\n` : `${PAW}\n`;
-  msg += `Here's what we have:\n`;
-  if (backMatch) msg += `\u2022 Back: ${backMatch[1]}"\n`;
-  if (chestMatch) msg += `\u2022 Chest: ${chestMatch[1]}"\n`;
-  if (neckMatch) msg += `\u2022 Neck: ${neckMatch[1]}"\n`;
-  if (style) msg += `\u2022 Style: ${style}\n`;
+    ? `Hi! Got ${pupName}'s custom order details ${PAW}\n`
+    : `Hi! Got your custom order details ${PAW}\n`;
+  if (fabric) msg += `Gorgeous choice with the ${fabric} \u2728\n`;
+  msg += `\nHere's what we have:\n`;
+  if (item)     msg += `\u2022 Item: ${item}\n`;
+  if (breed)    msg += `\u2022 Breed: ${breed}\n`;
+  if (back)     msg += `\u2022 Back: ${back}"\n`;
+  if (chest)    msg += `\u2022 Chest: ${chest}"\n`;
+  if (neck)     msg += `\u2022 Neck: ${neck}"\n`;
+  if (weight)   msg += `\u2022 Weight: ${weight}\n`;
+  if (style)    msg += `\u2022 Style: ${style}\n`;
   if (occasion) msg += `\u2022 Occasion: ${occasion}\n`;
   msg += `\nOur designer will sniff this out shortly and get back to you \u2728`;
   await sendMessage(from, msg, waToken, phoneNumberId);
