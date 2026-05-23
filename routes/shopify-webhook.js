@@ -59,9 +59,10 @@ function verifyShopifyHmac(rawBody, hmacHeader, secret) {
 // We have tenants stored by both pretty domain (thewoofparade.com) and handle.
 async function findTenantByShopDomain(shopDomain) {
   if (!shopDomain) return null;
-  // Try pretty domain first, then myshopify handle
+  // Try shop_domain (pretty), shopify_admin_domain (myshopify handle stored),
+  // and also the canonical Shopify myshopify_domain (e.g. vs6xap-uz.myshopify.com).
   const result = await pool.query(
-    `SELECT * FROM tenants WHERE shop_domain = $1 OR shop_domain = $2 LIMIT 1`,
+    `SELECT * FROM tenants WHERE shop_domain = $1 OR shopify_admin_domain = $1 OR myshopify_canonical_domain = $1 OR shop_domain = $2 LIMIT 1`,
     [shopDomain, shopDomain.replace('.myshopify.com', '')]
   );
   if (result.rows[0]) return result.rows[0];
@@ -81,7 +82,10 @@ function getWebhookSecret(tenant) {
   if (!tenant) return null;
   // Right now we only register webhooks for Woof. When Rajathee is wired,
   // add SHOPIFY_WEBHOOK_SECRET_RAJATHEE env and branch by tenant.id.
-  if (tenant.shop_domain === 'thewoofparade.com' || tenant.shop_domain === 'vs6xap-uz.myshopify.com') {
+  if (tenant.shop_domain === 'thewoofparade.com' ||
+      tenant.shop_domain === 'vs6xap-uz.myshopify.com' ||
+      tenant.shopify_admin_domain === 'the-woof-parade-2.myshopify.com' ||
+      tenant.myshopify_canonical_domain === 'vs6xap-uz.myshopify.com') {
     return process.env.SHOPIFY_WEBHOOK_SECRET_WOOF;
   }
   return null;
