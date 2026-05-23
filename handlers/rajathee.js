@@ -29,6 +29,7 @@ const qa = require('./rajathee-qa');
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const { getCollectionProducts, getProductByHandle, formatPrice, stripHtml } = require('../shopify');
 const { getTenantSettings } = require('../settings-cache');
+const { sendTemplateOrFreeform } = require('../templates');
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────
 
@@ -1588,6 +1589,93 @@ function generateOrderId(phone) {
   const last6 = (phone || '').slice(-6).padStart(6, '0');
   const rand = Math.random().toString(36).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3).padEnd(3, 'X');
   return 'RAJ-' + last6 + '-' + rand;
+}
+
+// ─── TEAM ALERT ROUTING (Patch C.7 — 23 May) ──────────────────────────────
+// Final routing per Kashmira:
+//   - role 'ops'  → Apurv + Nikita        (new orders, all operational alerts)
+//   - role 'sos'  → Apurv + Nikita + Manisha  (escalations)
+//   - role 'apurv' / 'nikita' / 'manisha' / 'kashmira' → single recipient
+//
+// Uses vaani_team_sos template (when meta.sosType present + tenant provisioned)
+// so SOS messages deliver outside the 24h freeform window. Falls back to
+// freeform when no meta or template not approved.
+//
+// OWNER_ALERT_PHONE remains as legacy single-recipient fallback if the new
+// env vars are not set.
+
+const RAJATHEE_APURV_PHONE   = process.env.RAJATHEE_APURV_PHONE   || null;
+const RAJATHEE_NIKITA_PHONE  = process.env.RAJATHEE_NIKITA_PHONE  || null;
+const RAJATHEE_MANISHA_PHONE = process.env.RAJATHEE_MANISHA_PHONE || null;
+const RAJATHEE_KASHMIRA_PHONE = process.env.KASHMIRA_PHONE        || null;
+
+function resolveRajatheeRole(role) {
+  switch (role) {
+    case 'apurv':    return RAJATHEE_APURV_PHONE ? [RAJATHEE_APURV_PHONE] : [];
+    case 'nikita':   return RAJATHEE_NIKITA_PHONE ? [RAJATHEE_NIKITA_PHONE] : [];
+    case 'manisha':  return RAJATHEE_MANISHA_PHONE ? [RAJATHEE_MANISHA_PHONE] : [];
+    case 'kashmira': return RAJATHEE_KASHMIRA_PHONE ? [RAJATHEE_KASHMIRA_PHONE] : [];
+    case 'ops':      return [RAJATHEE_APURV_PHONE, RAJATHEE_NIKITA_PHONE].filter(Boolean);
+    case 'sos':      return [RAJATHEE_APURV_PHONE, RAJATHEE_NIKITA_PHONE, RAJATHEE_MANISHA_PHONE].filter(Boolean);
+    default:         return [];
+  }
+}
+
+async function pingTeam(ctx, role, body, meta) {
+  if (ctx?.testMode) {
+    console.log(`[rajathee testMode] would have pinged ${role}:\n${body}`);
+    return;
+  }
+
+  let phones = resolveRajatheeRole(role);
+
+  // Legacy fallback: if no per-person env vars set, route to OWNER_ALERT_PHONE.
+  if (!phones.length && OWNER_ALERT_PHONE) {
+    phones = [OWNER_ALERT_PHONE];
+    console.log(`[rajathee] role=${role} resolved no phones — falling back to OWNER_ALERT_PHONE`);
+  }
+
+  if (!phones.length) {
+    console.log(`[rajathee] role=${role} has no recipients — would have sent:\n${body}`);
+    return;
+  }
+
+  for (const phone of phones) {
+    if (meta && meta.sosType) {
+      try {
+        const result = await sendTemplateOrFreeform({
+          to: phone,
+          templateName: 'vaani_team_sos',
+          params: {
+            sosType: meta.sosType,
+            customerPhone: '+' + (ctx.from || 'unknown'),
+            summary: (meta.summary || body.split('\n').slice(0, 3).join(' ')).slice(0, 180),
+          },
+          tenant: ctx.tenant,
+          waToken: ctx.waToken,
+          phoneNumberId: ctx.phoneNumberId,
+          freeformText: body,
+          sendMessage,
+          record: {
+            tenantId: ctx.tenant?.id,
+            role,
+            sosType: meta.sosType,
+            draftId: meta.draftId || null,
+          },
+        });
+        console.log(`[rajathee] pinged ${role}→${phone} via=${result.via} ok=${result.ok}`);
+      } catch (e) {
+        console.error(`[rajathee] template/freeform ping ${role}→${phone} failed:`, e.message);
+      }
+    } else {
+      try {
+        await sendMessage(phone, body, ctx.waToken, ctx.phoneNumberId);
+        console.log(`[rajathee] pinged ${role}→${phone} via=freeform-legacy`);
+      } catch (e) {
+        console.error(`[rajathee] freeform ping ${role}→${phone} failed:`, e.message);
+      }
+    }
+  }
 }
 
 async function sendOwnerAlert(tenant, items, checkout, orderId) {
