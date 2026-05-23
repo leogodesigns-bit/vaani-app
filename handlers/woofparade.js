@@ -936,7 +936,16 @@ async function handle(ctx) {
   }
 
   // S18 — refund / complaint
-  if (/\b(refund|complain|complaint|not happy|disappointed|wrong (item|product|size)|defective|damaged|torn|doesn'?t fit|too (tight|loose|small|big))\b/i.test(trimmed)) {
+  // Patch 49: "refund policy/process/timeline" are FAQ queries, not complaints.
+  // Strategy: split into two branches —
+  //   (a) clear complaint signals → always SOS regardless of "refund"/"return" mention
+  //   (b) "refund" / "return"-as-action → SOS only if NOT framed as a policy question
+  // FAQ-style "refund policy / return policy / refund process / how do refunds work"
+  // fall through to qa.matchBuiltinFaq below.
+  const isPolicyQuery = /\b(policy|policies|process|procedure|timeline|window|period|rule|rules|how (do|does|long)|what is|whats|tell me about)\b/i.test(trimmed);
+  const hardComplaint = /\b(complain|complaint|not happy|disappointed|defective|damaged|torn|doesn'?t fit|too (tight|loose|small|big)|wrong (item|product|size)|broken|missing|never (got|received|came)|wrong order)\b/i.test(trimmed);
+  const refundAction = /\b(refund|return|exchange)\b/i.test(trimmed) && !isPolicyQuery;
+  if (hardComplaint || refundAction) {
     await handleRefundComplaint(ctx);
     return;
   }
