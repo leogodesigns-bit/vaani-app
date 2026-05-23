@@ -129,7 +129,7 @@ router.get('/', async (req, res) => {
         (SELECT COUNT(*) FROM tenants) AS tenants,
         (SELECT COUNT(*) FROM conversations) AS conversations,
         (SELECT COUNT(*) FROM conversations WHERE last_active > NOW() - INTERVAL '24 hours') AS active_24h,
-        (SELECT COALESCE(SUM(jsonb_array_length(messages)), 0) FROM conversations) AS messages
+        (SELECT COALESCE(SUM(CASE WHEN jsonb_typeof(messages)='array' THEN jsonb_array_length(messages) ELSE 0 END), 0) FROM conversations) AS messages
     `);
     const t = totalsRes.rows[0];
 
