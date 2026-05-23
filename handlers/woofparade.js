@@ -2431,7 +2431,7 @@ async function handleCheckout(ctx) {
   let summary = `Here's your order ${PAW}\n`;
   for (const it of items) {
     if (it.kind === 'product') {
-      const sz = it.size ? ` (${it.size})` : '';
+      const sz = (it.size && it.size !== '__NO_SIZE__') ? ` (${it.size})` : '';
       summary += `• ${it.productTitle}${sz} — ${formatPrice(it.price)}\n`;
     } else {
       summary += `• ${it.title || 'Item'} — ${formatPrice(it.price)}\n`;
@@ -4187,7 +4187,7 @@ function formatCartSummary(items) {
   const lines = items.map(it => {
     total += it.price || 0;
     if (it.kind === 'product') {
-      const sz = it.size ? ` (${it.size})` : '';
+      const sz = (it.size && it.size !== '__NO_SIZE__') ? ` (${it.size})` : '';
       return `• ${it.productTitle}${sz} — ${formatPrice(it.price)}`;
     }
     return `• ${it.title || 'Item'} — ${formatPrice(it.price)}`;
