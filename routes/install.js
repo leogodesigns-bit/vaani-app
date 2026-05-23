@@ -23,6 +23,15 @@ function getCreds(variant) {
       label: 'Vaani Woof',
     };
   }
+  if (variant === 'rajathee') {
+    return {
+      apiKey: process.env.SHOPIFY_API_KEY_RAJATHEE,
+      apiSecret: process.env.SHOPIFY_API_SECRET_RAJATHEE,
+      scopes: process.env.SHOPIFY_SCOPES_RAJATHEE,
+      callbackPath: '/shopify/callback-rajathee',
+      label: 'Vaani Rajathee',
+    };
+  }
   return {
     apiKey: process.env.SHOPIFY_API_KEY,
     apiSecret: process.env.SHOPIFY_API_SECRET,
@@ -133,5 +142,14 @@ router.get('/install-woof', (req, res) => {
 });
 
 router.get('/callback-woof', (req, res) => handleCallback(req, res, 'woof'));
+
+router.get('/install-rajathee', (req, res) => {
+  const shop = req.query.shop;
+  if (!shop) return res.status(400).send('Missing shop parameter');
+  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/i.test(shop)) return res.status(400).send('Invalid shop');
+  res.redirect(buildInstallRedirect(shop, 'rajathee'));
+});
+
+router.get('/callback-rajathee', (req, res) => handleCallback(req, res, 'rajathee'));
 
 module.exports = router;
