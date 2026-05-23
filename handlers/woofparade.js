@@ -27,6 +27,7 @@ const { detectLanguage } = require('../ai');
 const Anthropic = require('@anthropic-ai/sdk');
 const edge = require('./woofparade-edge');
 const qa = require('./woofparade-qa');
+const variantsModule = require('./woofparade-variants');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const { getCollectionProducts, getProductByHandle, getProducts, formatPrice, stripHtml , createCheckoutDraftOrder, createCustomOrderDraft, updateDraftOrderPrice} = require('../shopify');
@@ -700,6 +701,74 @@ async function handle(ctx) {
     return;
   }
 
+    // PATCH 52b: two-step color → size picker — step 1 (color tap)
+  if (ctx.cart?.woofparade?.awaitingColorPick) {
+    const pickState = ctx.cart.woofparade.awaitingColorPick;
+    const trimmedLocal = String(ctx.text || '').trim();
+    const pickedColor = (pickState.colors || []).find(c =>
+      c === trimmedLocal || ('color_' + c) === listReplyId
+    );
+    if (pickedColor) {
+      try {
+        const fetched = await getProductByHandle(ctx.tenant, pickState.handle);
+        const sizes = await variantsModule.sendSizePickerForColor(
+          ctx, fetched, pickedColor,
+          { sendMessage, sendButtons, sendList }
+        );
+        await upsertConversation(ctx.tenant.id, ctx.from, [
+          ...(ctx.history || []),
+          { role: 'user', content: ctx.text || '' },
+          { role: 'assistant', content: '[woofparade p52b color_picked=' + pickedColor + ' sizes=' + sizes.length + ']' },
+        ], {
+          ...(ctx.cart || {}),
+          woofparade: {
+            ...(ctx.cart.woofparade || {}),
+            awaitingColorPick: null,
+            awaitingSizeAfterColor: { handle: pickState.handle, color: pickedColor, sizes },
+          },
+        });
+      } catch (e) {
+        console.error('[woofparade P52b] color pick failed:', e.message);
+        await sendMessage(ctx.from,
+          `Hmm — something went sideways picking that ${PAW} Try again or tap Back to menu.`,
+          ctx.waToken, ctx.phoneNumberId);
+      }
+      return;
+    }
+  }
+
+  // PATCH 52b: two-step picker — step 2 (size tap after color)
+  if (ctx.cart?.woofparade?.awaitingSizeAfterColor) {
+    const pickState = ctx.cart.woofparade.awaitingSizeAfterColor;
+    const trimmedLocal = String(ctx.text || '').trim();
+    const pickedSize = (pickState.sizes || []).find(sz =>
+      sz === trimmedLocal || ('sizeac_' + sz) === listReplyId
+    );
+    if (pickedSize) {
+      try {
+        const fetched = await getProductByHandle(ctx.tenant, pickState.handle);
+        const variant = variantsModule.findVariant(fetched, pickState.color, pickedSize);
+        if (!variant) {
+          await sendMessage(ctx.from,
+            `Aw — ${pickState.color} in ${pickedSize} just sold out ${PAW} Tap another size or pick a different color.`,
+            ctx.waToken, ctx.phoneNumberId);
+          return;
+        }
+        ctx.cart.woofparade.preselectedVariantId = String(variant.id);
+        ctx.cart.woofparade.preselectedVariantTitle = pickState.color + ' / ' + pickedSize;
+        ctx.cart.woofparade.awaitingSizeAfterColor = null;
+        await upsertConversation(ctx.tenant.id, ctx.from, ctx.history || [], { ...(ctx.cart || {}) });
+        await handleSizePick(ctx, pickedSize);
+      } catch (e) {
+        console.error('[woofparade P52b] size-after-color pick failed:', e.message);
+        await sendMessage(ctx.from,
+          `Hmm — couldnt add that ${PAW} Try again or tap Back to menu.`,
+          ctx.waToken, ctx.phoneNumberId);
+      }
+      return;
+    }
+  }
+
   // PATCH 50 (fixed): tap on a variant title while picker is active.
   // NOTE: uses ctx.cart, not bare cart — main handle() does not destructure cart at top.
   if (ctx.cart?.woofparade?.awaitingVariantPick && ctx.cart?.woofparade?.variantChoices) {
@@ -724,6 +793,28 @@ async function handle(ctx) {
     if (product && product.handle) {
       try {
         const fetched = await getProductByHandle(ctx.tenant, product.handle);
+
+        // PATCH 52b: divert to two-step picker if eligible
+        if (variantsModule.needsTwoStepPicker(fetched)) {
+          const colors = await variantsModule.sendColorPicker(
+            ctx, fetched,
+            { sendButtons, sendList }
+          );
+          await upsertConversation(ctx.tenant.id, ctx.from, [
+            ...(ctx.history || []),
+            { role: 'user', content: ctx.text || '' },
+            { role: 'assistant', content: '[woofparade p52b color_picker presented=' + colors.length + ']' },
+          ], {
+            ...(ctx.cart || {}),
+            woofparade: {
+              ...(ctx.cart.woofparade || {}),
+              awaitingColorPick: { handle: product.handle, colors },
+              awaitingVariantPick: false,
+              variantChoices: null,
+            },
+          });
+          return;
+        }
         const available = ((fetched && fetched.variants) || []).filter(v => v.available !== false);
         // Skip Size-based variants — those have their own flow.
         const nonSizeAvail = available.filter(v => {
