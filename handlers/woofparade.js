@@ -716,14 +716,14 @@ async function handle(ctx) {
     }
   }
 
-  // PATCH 42 + PATCH 50 (fixed): 'Add to cart' for sizeless products.
-  // Uses ctx.cart, not bare cart.
+  // PATCH 42 + PATCH 50 (fixed in 50.2): 'Add to cart' for sizeless products.
+  // Uses ctx.* throughout — handle() does not destructure cart/history/text/tenant at top.
   if (trimmed === 'Add to cart') {
     const r = ctx.cart?.woofparade || {};
     const product = r.product;
     if (product && product.handle) {
       try {
-        const fetched = await getProductByHandle(tenant, product.handle);
+        const fetched = await getProductByHandle(ctx.tenant, product.handle);
         const available = ((fetched && fetched.variants) || []).filter(v => v.available !== false);
         // Skip Size-based variants — those have their own flow.
         const nonSizeAvail = available.filter(v => {
@@ -744,9 +744,11 @@ async function handle(ctx) {
           });
 
           // Persist choices on cart so the tap-handler above can resolve them.
-          await upsertConversation(tenant.id, from, [
-            ...history,
-            { role: 'user', content: text },
+          // PATCH 50.2: use ctx.history / ctx.text / ctx.waToken / ctx.phoneNumberId / ctx.from / ctx.tenant
+          //             — none of these are destructured at top of handle()
+          await upsertConversation(ctx.tenant.id, ctx.from, [
+            ...(ctx.history || []),
+            { role: 'user', content: ctx.text || '' },
             { role: 'assistant', content: '[woofparade variant_picker presented=' + choices.length + ']' },
           ], {
             ...(ctx.cart || {}),
@@ -758,15 +760,15 @@ async function handle(ctx) {
           });
 
           if (choices.length <= 3) {
-            await sendButtons(from,
+            await sendButtons(ctx.from,
               `Which one for your pup? ${PAW}`,
               choices.map(c => c.title),
-              waToken, phoneNumberId);
+              ctx.waToken, ctx.phoneNumberId);
           } else {
-            await sendList(from,
+            await sendList(ctx.from,
               `Which one for your pup? ${PAW}`,
               [{ title: 'Options', rows: choices.map(c => ({ id: c.id, title: c.title })) }],
-              waToken, phoneNumberId, 'Pick one');
+              ctx.waToken, ctx.phoneNumberId, 'Pick one');
           }
           return;
         }
