@@ -1678,7 +1678,10 @@ async function pingTeam(ctx, role, body, meta) {
   }
 }
 
-async function sendOwnerAlert(tenant, items, checkout, orderId) {
+async function sendOwnerAlert(ctx, items, checkout, orderId) {
+  // C.7c (23 May): switched from direct sendMessage(OWNER_ALERT_PHONE)
+  // to pingTeam(ctx, 'ops', ...) which fans out to Apurv + Nikita.
+  // Falls back to OWNER_ALERT_PHONE if RAJATHEE_*_PHONE env vars not set.
   const subtotal = items.reduce((s, it) => s + (it.price || 0), 0);
   const shipping = calcShipping(subtotal);
   const grand = subtotal + shipping;
@@ -1704,16 +1707,10 @@ async function sendOwnerAlert(tenant, items, checkout, orderId) {
   alert += '*Delivery*\n' + checkout.address1 + '\n';
   alert += checkout.city + ', ' + checkout.state + ' — ' + checkout.pin;
 
-  if (OWNER_ALERT_PHONE) {
-    try {
-      await sendMessage(OWNER_ALERT_PHONE, alert, tenant.whatsapp_token, tenant.whatsapp_number);
-      console.log('[rajathee] owner alert sent to ' + OWNER_ALERT_PHONE);
-    } catch (e) {
-      console.error('[rajathee] owner alert failed:', e.message);
-    }
-  } else {
-    console.log('[rajathee] OWNER_ALERT_PHONE not set — would have sent:\n' + alert);
-  }
+  await pingTeam(ctx, 'ops', alert, {
+    sosType: 'NEW ORDER',
+    summary: `New order ${orderId} — ${formatPrice(grand)}`,
+  });
 }
 
 async function handleCheckoutConfirm(ctx) {
@@ -1755,7 +1752,7 @@ async function handleCheckoutConfirm(ctx) {
     waToken, phoneNumberId);
 
   // Owner alert.
-  await sendOwnerAlert(tenant, items, co, orderId);
+  await sendOwnerAlert(ctx, items, co, orderId);
 
   await upsertConversation(tenant.id, from, [
     ...history,
