@@ -700,16 +700,13 @@ async function handle(ctx) {
     return;
   }
 
-  // PATCH 50: tap on a variant title (Red / Brown Stripes / Cotton) while picker is active
-  if (cart.woofparade?.awaitingVariantPick && cart.woofparade?.variantChoices) {
-    const choice = (cart.woofparade.variantChoices || []).find(c =>
+  // PATCH 50 (fixed): tap on a variant title while picker is active.
+  // NOTE: uses ctx.cart, not bare cart — main handle() does not destructure cart at top.
+  if (ctx.cart?.woofparade?.awaitingVariantPick && ctx.cart?.woofparade?.variantChoices) {
+    const choice = (ctx.cart.woofparade.variantChoices || []).find(c =>
       c.title === trimmed || c.id === buttonReplyId || c.id === listReplyId
     );
     if (choice) {
-      // Persist preselectedVariantId then clear the picker flag.
-      // handleSizePick('__NO_SIZE__') will honour preselectedVariantId via PATCH 50 edit 2.
-      ctx.cart = ctx.cart || {};
-      ctx.cart.woofparade = ctx.cart.woofparade || {};
       ctx.cart.woofparade.preselectedVariantId = choice.variantId;
       ctx.cart.woofparade.preselectedVariantTitle = choice.title;
       ctx.cart.woofparade.awaitingVariantPick = false;
@@ -719,11 +716,10 @@ async function handle(ctx) {
     }
   }
 
-  // PATCH 42 + PATCH 50: 'Add to cart' for sizeless products.
-  // If 2+ available variants with distinguishable option names (Color/Material/Pattern),
-  // present a picker first. Otherwise fall through to auto-pick (single variant).
+  // PATCH 42 + PATCH 50 (fixed): 'Add to cart' for sizeless products.
+  // Uses ctx.cart, not bare cart.
   if (trimmed === 'Add to cart') {
-    const r = cart.woofparade || {};
+    const r = ctx.cart?.woofparade || {};
     const product = r.product;
     if (product && product.handle) {
       try {
@@ -753,7 +749,7 @@ async function handle(ctx) {
             { role: 'user', content: text },
             { role: 'assistant', content: '[woofparade variant_picker presented=' + choices.length + ']' },
           ], {
-            ...cart,
+            ...(ctx.cart || {}),
             woofparade: {
               ...r,
               awaitingVariantPick: true,
