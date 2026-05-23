@@ -731,17 +731,38 @@ async function handle(ctx) {
           return !ALL_SIZES.includes(opt);
         });
         if (nonSizeAvail.length >= 2) {
-          // Build choice list: id=variant id (str), title=human label, variantId=str
-          const choices = nonSizeAvail.slice(0, 10).map(v => {
-            const label = (v.title && v.title !== 'Default Title')
+          // PATCH 51: Build choice list with disambiguated labels.
+          // For multi-option products (e.g. bandana with Color + Accessory size),
+          // v.title is auto-joined as "Flash / M" — perfect. For single-option
+          // products (Color only), v.title is just "Flash" — also fine.
+          // But Shopify also returns v.title === v.option1 when there's only one
+          // option, and when there are 2+ options the title joins them with " / ".
+          // We prefer the joined title, fall back to option1, then 'Option'.
+          //
+          // Dedup by label: if multiple variants share the same final label
+          // (data-quality issue in catalog), keep only the first — otherwise
+          // customer sees identical buttons and can't choose.
+          const rawChoices = nonSizeAvail.slice(0, 10).map(v => {
+            const opts = [v.option1, v.option2, v.option3].filter(Boolean);
+            const label = (v.title && v.title !== 'Default Title' && v.title !== v.option1)
               ? v.title
-              : (v.option1 || v.option2 || 'Option');
+              : (opts.join(' / ') || v.option1 || 'Option');
             return {
               id: 'variant_' + v.id,
               title: String(label).slice(0, 24),
               variantId: String(v.id),
             };
           });
+          const seen = new Set();
+          const choices = rawChoices.filter(c => {
+            if (seen.has(c.title)) return false;
+            seen.add(c.title);
+            return true;
+          });
+          if (choices.length < rawChoices.length) {
+            console.log('[woofparade PATCH 51] deduped variant labels:',
+              rawChoices.length, '->', choices.length, 'for', product.handle);
+          }
 
           // Persist choices on cart so the tap-handler above can resolve them.
           // PATCH 50.2: use ctx.history / ctx.text / ctx.waToken / ctx.phoneNumberId / ctx.from / ctx.tenant
