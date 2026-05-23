@@ -758,13 +758,33 @@ function filterProductsByColour(products, colourId) {
   });
 }
 
-// PDF Section 13 stock rule (Shweta 14 May):
-// Hide a saree from carousels if ALL its variants are sold out.
-// Treats v.available === undefined as in-stock (defensive default).
+// PDF Section 13 stock rule (Shweta 14 May, tightened C.6 23 May):
+// Hide a saree from carousels if ANY of these are true:
+//   - product status is not 'active' (drops draft / unlisted / archived)
+//   - published_at is null (drops unpublished even if status='active')
+//   - all variants have inventory_quantity <= 0
+// Admin API returns v.available = null, so the old check was a no-op.
+// inventory_quantity is the only reliable signal on Admin API responses.
+function isVisibleProduct(p) {
+  if (!p) return false;
+  if (p.status && p.status !== 'active') return false;
+  if (p.published_at === null || p.published_at === undefined) return false;
+  return true;
+}
+
+function hasStockOnSomeVariant(p) {
+  const variants = p.variants || [];
+  if (!variants.length) return false;
+  return variants.some(v => {
+    // Defensive: if inventory_quantity is missing/null, fall back to v.available
+    // (Storefront API path includes 'available'; Admin API includes 'inventory_quantity')
+    if (typeof v.inventory_quantity === 'number') return v.inventory_quantity > 0;
+    return v.available !== false;
+  });
+}
+
 function filterInStock(products) {
-  return (products || []).filter(p =>
-    (p.variants || []).some(v => v.available !== false)
-  );
+  return (products || []).filter(p => isVisibleProduct(p) && hasStockOnSomeVariant(p));
 }
 
 async function sendColourResults(ctx, colourRowId, page) {
@@ -1996,9 +2016,8 @@ async function handleInStockFilter(ctx) {
     return;
   }
 
-  const inStock = products.filter(p =>
-    (p.variants || []).some(v => v.available !== false)
-  );
+  // C.6: use shared filterInStock so this matches carousel behaviour
+  const inStock = filterInStock(products);
 
   if (!inStock.length) {
     await sendMessage(from,
@@ -2011,7 +2030,7 @@ async function handleInStockFilter(ctx) {
   const slice = inStock.slice(0, PAGE_SIZE);
 
   for (const p of slice) {
-    const v0 = (p.variants || []).find(v => v.available !== false) || p.variants?.[0];
+    const v0 = (p.variants || []).find(v => (typeof v.inventory_quantity === 'number' ? v.inventory_quantity > 0 : v.available !== false)) || p.variants?.[0];
     const img = v0?.featured_image?.src || p.images?.[0]?.src;
     const caption = buildProductCaption(p, v0);
     if (img) await sendImage(from, img, caption, waToken, phoneNumberId);
