@@ -653,12 +653,11 @@ async function sendFabricResults(ctx, fabricRowId, page) {
     return;
   }
 
-  // Send 3 product cards.
+  // Send 3 product cards. (C.5 — enriched captions w/ link + variants)
   for (const p of slice) {
     const v0 = p.variants?.[0];
     const img = p.images?.[0]?.src || v0?.featured_image?.src;
-    const price = formatPrice(v0?.price);
-    const caption = `${p.title}\n${price}`;
+    const caption = buildProductCaption(p);
     if (img) await sendImage(from, img, caption, waToken, phoneNumberId);
     else await sendMessage(from, caption, waToken, phoneNumberId);
   }
@@ -798,8 +797,7 @@ async function sendColourResults(ctx, colourRowId, page) {
     ) || p.variants?.[0];
 
     const img = matchingVariant?.featured_image?.src || p.images?.[0]?.src;
-    const price = formatPrice(matchingVariant?.price || p.variants?.[0]?.price);
-    const caption = `${p.title}\n${price}`;
+    const caption = buildProductCaption(p, matchingVariant);
 
     if (img) await sendImage(from, img, caption, waToken, phoneNumberId);
     else await sendMessage(from, caption, waToken, phoneNumberId);
@@ -836,6 +834,44 @@ async function sendColourResults(ctx, colourRowId, page) {
   });
 }
 
+// ─── PRODUCT CARD CAPTION BUILDER (Patch C.5 — Nikita feedback 23 May) ────
+// Enriches product captions with: PDP link + colour variant list.
+// Behaviour:
+//   - 1 variant (no colour option): title + price + PDP link only
+//   - 2+ variants with distinct option1 values: title + price + colours line + PDP link
+function buildProductCaption(p, variantOverride) {
+  const v0 = variantOverride || p.variants?.[0];
+  const price = formatPrice(v0?.price);
+  const lines = [p.title, price];
+
+  // Variant summary — only meaningful when there's an option named Color/Colour
+  // OR when there are 2+ variants with distinct option1 strings.
+  const variants = p.variants || [];
+  const hasColourOption = (p.options || []).some(
+    o => /colou?r/i.test(typeof o === 'string' ? o : (o?.name || ''))
+  );
+
+  if (variants.length >= 2) {
+    const opts = [...new Set(
+      variants.map(v => (v.option1 || '').trim()).filter(Boolean)
+    )];
+
+    if (opts.length >= 2) {
+      const label = hasColourOption ? 'colours' : 'options';
+      // Cap at 4 names to keep the caption tight; rest implied by "+N more"
+      const shown = opts.slice(0, 4).join(', ');
+      const extra = opts.length > 4 ? ` +${opts.length - 4} more` : '';
+      lines.push(`🎨 ${opts.length} ${label}: ${shown}${extra}`);
+    }
+  }
+
+  if (p.handle) {
+    lines.push(`🔗 https://rajathee.com/products/${p.handle}`);
+  }
+
+  return lines.join('\n');
+}
+
 // ─── C.3.5 SAREE PICKER LIST ──────────────────────────────────────────────
 
 async function sendSareePickerList(ctx, products) {
@@ -852,7 +888,7 @@ async function sendSareePickerList(ctx, products) {
   });
 
   const sections = [{ title: 'Tap to see details', rows }];
-  await sendList(from, 'Choose 1, 2, or 3 products so we can share more details with you.', sections, waToken, phoneNumberId);
+  await sendList(from, 'Tap any saree to see colours, sizes & order details.', sections, waToken, phoneNumberId);
 }
 
 // ─── PDF SECTION 4 — PRODUCT DETAIL ───────────────────────────────────────
@@ -1889,8 +1925,7 @@ async function sendCuratedCollection(ctx, handle, label, voice) {
   for (const p of slice) {
     const v0 = p.variants?.[0];
     const img = p.images?.[0]?.src || v0?.featured_image?.src;
-    const price = formatPrice(v0?.price);
-    const caption = `${p.title}\n${price}`;
+    const caption = buildProductCaption(p);
     if (img) await sendImage(from, img, caption, waToken, phoneNumberId);
     else await sendMessage(from, caption, waToken, phoneNumberId);
   }
@@ -1970,8 +2005,7 @@ async function handleInStockFilter(ctx) {
   for (const p of slice) {
     const v0 = (p.variants || []).find(v => v.available !== false) || p.variants?.[0];
     const img = v0?.featured_image?.src || p.images?.[0]?.src;
-    const price = formatPrice(v0?.price);
-    const caption = `${p.title}\n${price}`;
+    const caption = buildProductCaption(p, v0);
     if (img) await sendImage(from, img, caption, waToken, phoneNumberId);
     else await sendMessage(from, caption, waToken, phoneNumberId);
   }
