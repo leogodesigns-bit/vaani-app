@@ -740,3 +740,4 @@ app.listen(PORT, async () => {
 });
 require('./cron-alerts').start();
 require('./cron-nudges').start();
+require('./cron-s16-digest').start();
