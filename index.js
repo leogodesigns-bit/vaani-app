@@ -48,6 +48,7 @@ function detectVariantByHmac(req) {
     { variant: 'public', apiKey: process.env.SHOPIFY_API_KEY, secret: process.env.SHOPIFY_API_SECRET },
     { variant: 'custom', apiKey: process.env.SHOPIFY_API_KEY_CUSTOM, secret: process.env.SHOPIFY_API_SECRET_CUSTOM },
     { variant: 'woof', apiKey: process.env.SHOPIFY_API_KEY_WOOF, secret: process.env.SHOPIFY_API_SECRET_WOOF },
+    { variant: 'rajathee', apiKey: process.env.SHOPIFY_API_KEY_RAJATHEE, secret: process.env.SHOPIFY_API_SECRET_RAJATHEE },
   ];
   for (const v of variants) {
     if (!v.secret) continue;
@@ -59,7 +60,7 @@ function detectVariantByHmac(req) {
 // ── Pick the right client_id per shop for embedded shell rendering ───
 function pickApiKeyForShop(dbShop) {
   if (dbShop === 'thewoofparade.com') return process.env.SHOPIFY_API_KEY_WOOF;
-  if (dbShop === 'rajathee.myshopify.com') return process.env.SHOPIFY_API_KEY_CUSTOM;
+  if (dbShop === 'rajathee.myshopify.com') return process.env.SHOPIFY_API_KEY_RAJATHEE;
   return process.env.SHOPIFY_API_KEY || process.env.SHOPIFY_API_KEY_CUSTOM;
 }
 
@@ -593,7 +594,7 @@ app.get('/', async (req, res, next) => {
       console.log(`[/] Case B: ${!existing ? 'no tenant row' : 'token NULL'} for ${dbShop}, redirecting to OAuth`);
       // Pick the right install path per shop
       const installPath = dbShop === 'thewoofparade.com' ? 'install-woof'
-                        : dbShop === 'rajathee.myshopify.com' ? 'install-custom'
+                        : dbShop === 'rajathee.myshopify.com' ? 'install-rajathee'
                         : 'install';
       return res.redirect(`/shopify/${installPath}?shop=${encodeURIComponent(shop)}`);
     }
