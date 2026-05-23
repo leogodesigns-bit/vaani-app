@@ -700,8 +700,85 @@ async function handle(ctx) {
     return;
   }
 
-  // PATCH 42: 'Add to cart' for sizeless products (accessories — Color/Material variants)
+  // PATCH 50: tap on a variant title (Red / Brown Stripes / Cotton) while picker is active
+  if (cart.woofparade?.awaitingVariantPick && cart.woofparade?.variantChoices) {
+    const choice = (cart.woofparade.variantChoices || []).find(c =>
+      c.title === trimmed || c.id === buttonReplyId || c.id === listReplyId
+    );
+    if (choice) {
+      // Persist preselectedVariantId then clear the picker flag.
+      // handleSizePick('__NO_SIZE__') will honour preselectedVariantId via PATCH 50 edit 2.
+      ctx.cart = ctx.cart || {};
+      ctx.cart.woofparade = ctx.cart.woofparade || {};
+      ctx.cart.woofparade.preselectedVariantId = choice.variantId;
+      ctx.cart.woofparade.preselectedVariantTitle = choice.title;
+      ctx.cart.woofparade.awaitingVariantPick = false;
+      ctx.cart.woofparade.variantChoices = null;
+      await handleSizePick(ctx, '__NO_SIZE__');
+      return;
+    }
+  }
+
+  // PATCH 42 + PATCH 50: 'Add to cart' for sizeless products.
+  // If 2+ available variants with distinguishable option names (Color/Material/Pattern),
+  // present a picker first. Otherwise fall through to auto-pick (single variant).
   if (trimmed === 'Add to cart') {
+    const r = cart.woofparade || {};
+    const product = r.product;
+    if (product && product.handle) {
+      try {
+        const fetched = await getProductByHandle(tenant, product.handle);
+        const available = ((fetched && fetched.variants) || []).filter(v => v.available !== false);
+        // Skip Size-based variants — those have their own flow.
+        const nonSizeAvail = available.filter(v => {
+          const opt = String(v.option1 || v.title || '').toUpperCase().trim();
+          return !ALL_SIZES.includes(opt);
+        });
+        if (nonSizeAvail.length >= 2) {
+          // Build choice list: id=variant id (str), title=human label, variantId=str
+          const choices = nonSizeAvail.slice(0, 10).map(v => {
+            const label = (v.title && v.title !== 'Default Title')
+              ? v.title
+              : (v.option1 || v.option2 || 'Option');
+            return {
+              id: 'variant_' + v.id,
+              title: String(label).slice(0, 24),
+              variantId: String(v.id),
+            };
+          });
+
+          // Persist choices on cart so the tap-handler above can resolve them.
+          await upsertConversation(tenant.id, from, [
+            ...history,
+            { role: 'user', content: text },
+            { role: 'assistant', content: '[woofparade variant_picker presented=' + choices.length + ']' },
+          ], {
+            ...cart,
+            woofparade: {
+              ...r,
+              awaitingVariantPick: true,
+              variantChoices: choices,
+            },
+          });
+
+          if (choices.length <= 3) {
+            await sendButtons(from,
+              `Which one for your pup? ${PAW}`,
+              choices.map(c => c.title),
+              waToken, phoneNumberId);
+          } else {
+            await sendList(from,
+              `Which one for your pup? ${PAW}`,
+              [{ title: 'Options', rows: choices.map(c => ({ id: c.id, title: c.title })) }],
+              waToken, phoneNumberId, 'Pick one');
+          }
+          return;
+        }
+      } catch (e) {
+        console.error('[woofparade PATCH 50] variant picker fetch failed:', e.message);
+        // Fall through to auto-pick on error
+      }
+    }
     await handleSizePick(ctx, '__NO_SIZE__');
     return;
   }
@@ -1599,8 +1676,13 @@ async function handleSizePick(ctx, size) {
     if (fetched) {
       let v;
       if (isNoSize) {
-        // PATCH 42: sizeless products — first available variant wins
-        v = (fetched.variants || []).find(v => v.available !== false);
+        // PATCH 50: if a variant was preselected via the picker, honour it.
+        const preselId = r.preselectedVariantId;
+        if (preselId) {
+          v = (fetched.variants || []).find(v => String(v.id) === String(preselId) && v.available !== false);
+        }
+        // PATCH 42 fallback: sizeless products — first available variant wins
+        if (!v) v = (fetched.variants || []).find(v => v.available !== false);
       } else {
         v = (fetched.variants || []).find(v => {
           const opt = String(v.option1 || v.title || '').toUpperCase().trim();
