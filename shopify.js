@@ -1,5 +1,16 @@
 const axios = require('axios');
 
+// PATCH 52a: filter out unlisted/draft products. The admin API returns all
+// products by default — only this predicate keeps unlisted/draft items from
+// leaking into customer-facing browse/search lists.
+// Shopify status values: 'active' | 'draft' | 'archived' | 'unlisted'
+function isCustomerVisible(p) {
+  if (!p) return false;
+  if (p.status && p.status !== 'active') return false;
+  if (p.published_at === null || p.published_at === undefined) return false;
+  return true;
+}
+
 // ─── PUBLIC ENDPOINTS (no auth needed) ────────────────────────────────────
 async function getCollectionProductsPublic(shopDomain, handle, limit = 20) {
   try {
@@ -39,7 +50,12 @@ async function getProducts(shopDomain, accessToken) {
       url = nextMatch ? nextMatch[1] : null;
     }
     console.log(`✅ Total products fetched: ${allProducts.length}`);
-    return allProducts;
+    // PATCH 52a: drop unlisted/draft/archived before returning
+    const visible = allProducts.filter(isCustomerVisible);
+    if (visible.length < allProducts.length) {
+      console.log(`🔒 PATCH 52a: hid ${allProducts.length - visible.length} unlisted/draft products from getProducts`);
+    }
+    return visible;
   } catch (err) {
     console.error('❌ getProducts error:', err.message);
     return [];
@@ -68,7 +84,13 @@ async function getCollectionProductsPrivate(shopDomain, accessToken, handle) {
       `https://${shopDomain}/admin/api/2024-01/products.json?collection_id=${collection.id}&limit=50`,
       { headers: { 'X-Shopify-Access-Token': accessToken } }
     );
-    return prodRes.data.products || [];
+    // PATCH 52a: drop unlisted/draft/archived before returning
+    const all = prodRes.data.products || [];
+    const visible = all.filter(isCustomerVisible);
+    if (visible.length < all.length) {
+      console.log(`🔒 PATCH 52a: hid ${all.length - visible.length} unlisted/draft products from collection ${handle}`);
+    }
+    return visible;
   } catch (err) {
     console.error(`❌ getCollectionProductsPrivate(${handle}) error:`, err.message);
     return [];
@@ -290,7 +312,13 @@ async function getProductByHandle(tenant, handle) {
       `https://${tenant.shop_domain}/admin/api/2024-01/products.json?handle=${handle}&limit=1`,
       { headers: { 'X-Shopify-Access-Token': tenant.shopify_token } }
     );
-    return res.data.products?.[0] || null;
+    // PATCH 52a: hide unlisted/draft/archived even on direct handle lookup
+    const p = res.data.products?.[0];
+    if (p && !isCustomerVisible(p)) {
+      console.log(`🔒 PATCH 52a: getProductByHandle(${handle}) hidden — status=${p.status} published_at=${p.published_at}`);
+      return null;
+    }
+    return p || null;
   } catch (err) {
     console.error(`❌ getProductByHandle(${handle}) error:`, err.message);
     return null;
