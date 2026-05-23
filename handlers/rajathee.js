@@ -744,9 +744,17 @@ function variantMatchesColour(variantTitle, colourId) {
 }
 
 function filterProductsByColour(products, colourId) {
+  // C.5b (23 May): also check product title + tags for single-variant products
+  // where the colour lives in the name (e.g. "Blush Beauty | Baby Pink Cotton-Tissue Saree")
   return products.filter(p => {
     const variants = p.variants || [];
-    return variants.some(v => variantMatchesColour(v.option1 || v.title, colourId));
+    if (variants.some(v => variantMatchesColour(v.option1 || v.title, colourId))) return true;
+    // Fallback 1: product title
+    if (variantMatchesColour(p.title, colourId)) return true;
+    // Fallback 2: product tags (Shopify tags array, comma-joined for substring match)
+    const tagsStr = Array.isArray(p.tags) ? p.tags.join(' ') : (p.tags || '');
+    if (variantMatchesColour(tagsStr, colourId)) return true;
+    return false;
   });
 }
 
