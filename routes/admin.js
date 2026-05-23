@@ -252,7 +252,7 @@ router.get('/tenant/:id', async (req, res) => {
     if (!tenant) return res.status(404).send('Tenant not found');
 
     const convsRes = await pool.query(`
-      SELECT id, customer_phone, last_active, jsonb_array_length(messages) AS msg_count,
+      SELECT id, customer_phone, last_active, CASE WHEN jsonb_typeof(messages)='array' THEN jsonb_array_length(messages) ELSE 0 END AS msg_count,
         (messages->-1->>'content') AS last_msg,
         (messages->-1->>'role') AS last_role
       FROM conversations
