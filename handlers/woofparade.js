@@ -4556,7 +4556,7 @@ async function getLastOrderSummary(ctx) {
   // S03 Branch A: returns { pupName, productTitle } from most recent paid order, or null.
   try {
     const r = await pool.query(
-      `SELECT pup_name, items_json, created_at
+      `SELECT tagged_pup, items, created_at
          FROM orders
         WHERE tenant_id = $1 AND customer_phone = $2 AND status = 'paid'
         ORDER BY created_at DESC LIMIT 1`,
@@ -4566,10 +4566,10 @@ async function getLastOrderSummary(ctx) {
     const row = r.rows[0];
     let firstItem = null;
     try {
-      const items = typeof row.items_json === 'string' ? JSON.parse(row.items_json) : row.items_json;
+      const items = typeof row.items === 'string' ? JSON.parse(row.items) : row.items;
       if (Array.isArray(items) && items.length > 0) firstItem = items[0]?.title || items[0]?.name || null;
     } catch (_) {}
-    return { pupName: row.pup_name || null, productTitle: firstItem };
+    return { pupName: row.tagged_pup || null, productTitle: firstItem };
   } catch (e) {
     console.error('[woofparade getLastOrderSummary] error:', e.message);
     return null;
