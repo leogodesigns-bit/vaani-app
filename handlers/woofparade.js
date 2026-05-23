@@ -3500,6 +3500,36 @@ async function handlePupProfileMessage(ctx) {
     pupName.toLowerCase() === customerFirstName.toLowerCase();
   const tooShort = pupName.length < 2;
 
+  // Patch 48: detect question-like replies so customer's actual question gets answered
+  // instead of being saved as the pup's name.
+  // Examples: "What's the return process", "How do I track", "Where is my order?"
+  const lowerT = t.toLowerCase();
+  const looksLikeQuestion =
+    t.includes('?') ||
+    /^(what|whats|how|where|why|when|who|can|could|do|does|did|is|are|will|would|should|tell|help)\b/.test(lowerT) ||
+    t.length > 30;
+
+  if (looksLikeQuestion) {
+    console.log('[woofparade pupProfile] deferred — input looks like a question:',
+      JSON.stringify({ text: t.slice(0, 80) }));
+    // Clear the awaitingPupDetails flag so the next message routes normally.
+    // We don't recurse here — module exports only `handle` and recursing would
+    // re-trigger entry-level routing logic. Instead, ask the customer to repeat
+    // their question; their next message will route through `handle` cleanly
+    // because awaitingPupDetails is now false.
+    await upsertConversation(tenant.id, from, history, {
+      ...cart,
+      woofparade: {
+        ...(cart.woofparade || {}),
+        pupProfile: { awaitingPupDetails: false, deferredAt: Date.now() },
+      },
+    });
+    await sendMessage(from,
+      `No worries — happy to help with that ${PAW} Can you send your question again? I'll get right to it.`,
+      waToken, phoneNumberId);
+    return;
+  }
+
   if (tooShort || looksLikeAddress || isCustomerName) {
     console.log('[woofparade pupProfile] rejected invalid pup name input:',
       JSON.stringify({ pupName, customerFirstName, looksLikeAddress, isCustomerName, tooShort }));
