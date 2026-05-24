@@ -424,10 +424,20 @@ app.get('/api/dashboard-data', async (req, res) => {
     return res.status(400).json({ error: 'bad shop' });
   }
   // payload.dest looks like "https://shop.myshopify.com" — verify shop matches
+  // Allow mismatch if both resolve to the same dbShop (e.g. canonical vs admin domain)
   if (payload && payload.dest) {
     const destShop = (payload.dest || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
     if (destShop !== shop) {
-      return res.status(403).json({ error: 'shop mismatch' });
+      const _map = (typeof SHOP_DOMAIN_MAP !== 'undefined') ? SHOP_DOMAIN_MAP : {};
+      const destDb = _map[destShop] || destShop;
+      const shopDb = _map[shop] || shop;
+      // Also check shopify_admin_domain in DB for the resolved tenant
+      const t = await _getTenantDash(shopDb);
+      const adminMatches = t && (t.shopify_admin_domain === destShop || t.myshopify_canonical_domain === destShop);
+      if (destDb !== shopDb && !adminMatches) {
+        console.log('[dashboard-data] shop mismatch:', { destShop, shop, destDb, shopDb });
+        return res.status(403).json({ error: 'shop mismatch' });
+      }
     }
   }
 
