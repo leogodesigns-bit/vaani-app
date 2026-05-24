@@ -3154,7 +3154,10 @@ async function handleCheckoutConfirm(ctx) {
           pin: co.pin,
           altPhone: co.altPhone,
           subtotal: co.subtotal || 0,
-          discountAmount: co.discountAmount || 0,
+          // PATCH59 — BUG-I fix: cart stores `co.discount` (set at line 2964), NOT `co.discountAmount`.
+          // Old code read undefined → 0 → applied_discount block skipped in shopify.js → customer
+          // saw full price on Shopify checkout instead of discounted total promised on WhatsApp.
+          discountAmount: co.discount || co.discountAmount || 0,
           discountLabel: co.discountLabel || '',
           grandTotal: co.grand || 0,
           internalOrderId: orderId,
