@@ -122,6 +122,60 @@ const ACCESSORY_SUBCAT_TEXT_MATCHERS = {
   subcat_combos:    /^(combo|combos|combo set)$/i,
 };
 
+// PATCH BUG-E: Free-text matchers for top-level categories
+// Customer types these as plain text → bot routes to category as if they tapped the list row.
+// Keys are the WELCOME_ROW IDs (cat_casual, cat_festive, etc.) and values are regex tests.
+const CATEGORY_TEXT_MATCHERS = {
+  cat_festive: /^(kurta|kurtas|ethnic|lehenga|lehengas|frock|frocks|festive|festive fits|festive wear|banarasi|bandhani|assamese)$/i,
+  cat_casual:  /^(casual|casual wear|everyday|everyday wear|tshirt|t-shirt|t shirt|shirt|shirts|pet clothes|clothes|fits)$/i,
+  cat_ipl:     /^(jersey|jerseys|ipl|cricket|cricket jersey|seasonal wear|csk|csk jersey|rcb|rcb jersey|mi|mi jersey|dhoni|dhoni jersey|virat|virat jersey|bumrah|rohit|kohli)$/i,
+  cat_bestsellers: /^(bestseller|bestsellers|popular|best seller|best sellers|best selling|top selling|trending|favorites|favourites|most loved)$/i,
+  cat_accessories: /^(accessory|accessories|accessory wear|access)$/i,
+};
+
+// PATCH BUG-E: Custom Fit text triggers (not a category — uses special flow)
+const CUSTOM_FIT_TEXT_MATCHER = /^(custom|custom fit|custom outfit|made to measure|tailored|tailor made|tailormade|stitched|made for my pup|doesn't fit|doesnt fit|size doesn't fit|outfit for my pup|build my own|design my own)$/i;
+
+// PATCH BUG-E: Specific product keyword matchers (IPL-heavy because Kashmira's catalog
+// has 4 jerseys with named players). When customer types these, we route directly to
+// the product card rather than the category list.
+// Maps regex → product handle (or partial handle to fuzzy match in category fetch).
+const PRODUCT_KEYWORD_MATCHERS = [
+  { re: /(csk|chennai|dhoni)/i,  handle: 'csk-dhoni-jersey-yellow-dogs-cats',  category: 'cat_ipl' },
+  { re: /(rcb|bangalore|virat|kohli)/i, handle: 'rcb-virat-jersey-red-dogs-cats', category: 'cat_ipl' },
+  { re: /(rohit)/i, handle: 'mi-rohit-jersey-blue-dogs-cats', category: 'cat_ipl' },
+  { re: /(bumrah)/i, handle: 'mi-bumrah-jersey-blue-dogs-cats', category: 'cat_ipl' },
+  { re: /mi/i, handle: 'mi-rohit-jersey-blue-dogs-cats', category: 'cat_ipl' }, // ambiguous — pick Rohit default
+  { re: /(superman bandana|superman-bandana)/i, handle: 'accessories-superman-bandana-dogs', category: 'cat_accessories' },
+  { re: /(flash bandana|flash-bandana)/i, handle: 'accessories-bandana-flash-dogs', category: 'cat_accessories' },
+  { re: /(superman collar|superman-collar)/i, handle: 'superman-printed-collar-dogs', category: 'cat_accessories' },
+  { re: /(flash collar|flash-collar)/i, handle: 'accessories-collar-flash-dogs', category: 'cat_accessories' },
+  { re: /(reflective collar|reflective-collar)/i, handle: 'accessories-reflective-collar-dogs', category: 'cat_accessories' },
+  { re: /(reflective leash|reflective-leash)/i, handle: 'accessories-double-handle-reflective-leash-dogs', category: 'cat_accessories' },
+];
+
+// PATCH BUG-E: guard — only allow free-text intent matching when there's NO active flow.
+// If customer is mid-checkout, mid-measurement, mid-color-pick, etc., do NOT redirect them.
+function _bugEIntentGuard(ctx, isInteractive) {
+  if (isInteractive) return false; // tap reply — handled elsewhere
+  const wp = ctx.cart?.woofparade || {};
+  if (wp.awaitingColorPick) return false;
+  if (wp.awaitingSizeAfterColor) return false;
+  if (wp.awaitingVariantPick) return false;
+  if (wp.awaitingAccessorySubcat) return false;
+  if (wp.sizing?.awaitingMeasurements) return false;
+  if (wp.sizing?.awaitingRemindTime) return false;
+  if (wp.custom?.awaitingMeasurements) return false;
+  if (wp.custom?.awaitingPupName) return false;
+  if (wp.pupProfile?.awaitingPupDetails) return false;
+  if (wp.orderOps?.awaitingMod) return false;
+  if (wp.orderOps?.awaitingAddrChange) return false;
+  if (wp.orderOps?.awaitingUpiProof) return false;
+  if (ctx.cart?.checkout?.step) return false; // mid-checkout
+  return true;
+}
+
+
 // ─── PRODUCT CARD / DETAIL BUTTONS ────────────────────────────────────────
 
 const PRODUCT_BTN = {
@@ -613,6 +667,62 @@ async function handle(ctx) {
   }
 
   // ─── INTERACTIVE TAP DISPATCH ────────────────────────────────────────────
+
+  // PATCH BUG-E: free-text category matcher (typed, not tapped)
+  // Customers who type "kurta", "jersey", "csk", "rcb", "accessories", etc. route to the
+  // matching category as if they had tapped the welcome list row.
+  if (_bugEIntentGuard(ctx, isInteractive)) {
+    // Product keyword takes priority over category (more specific match)
+    const productMatch = PRODUCT_KEYWORD_MATCHERS.find(m => m.re.test(trimmed));
+    if (productMatch) {
+      console.log('[woofparade BUG-E] product keyword matched:', trimmed, '→', productMatch.handle);
+      try {
+        const fetched = await getProductByHandle(ctx.tenant, productMatch.handle);
+        if (fetched && fetched.handle) {
+          // Simulate the listReplyId = product_<handle> tap so existing flow takes over.
+          // We can't just set listReplyId (consts), so we directly call the same path:
+          // skip ahead — reuse the product-handle dispatcher at line 698.
+          // Easiest: re-enter handle by setting message-like state.
+          // Simplest: trigger the handler at line 698 by setting listReplyId via local var below.
+          // But since 'listReplyId' is const in the enclosing scope, we instead just inline:
+          ctx.cart = ctx.cart || {};
+          ctx.cart.woofparade = ctx.cart.woofparade || {};
+          ctx.cart.woofparade.product = {
+            handle: fetched.handle,
+            title: fetched.title,
+            id: fetched.id,
+          };
+          ctx.cart.woofparade.categoryRowId = productMatch.category;
+          ctx.cart.woofparade.accessorySubcat = null;
+          await sendProductDetail(ctx, fetched.handle);
+          return;
+        }
+      } catch (e) {
+        console.error('[woofparade BUG-E] product keyword fetch failed:', e.message);
+      }
+    }
+
+    // Top-level category by text
+    const catEntry = Object.entries(CATEGORY_TEXT_MATCHERS).find(([_, re]) => re.test(trimmed));
+    if (catEntry) {
+      const catRowId = catEntry[0];
+      console.log('[woofparade BUG-E] category text matched:', trimmed, '→', catRowId);
+      // Accessories text → subcat picker (consistent with Bug A tap behavior)
+      if (catRowId === WELCOME_ROW.ACCESSORIES) {
+        await sendAccessorySubcatPicker(ctx);
+        return;
+      }
+      await sendCategoryResults(ctx, catRowId, 0);
+      return;
+    }
+
+    // Custom Fit text — route to custom flow
+    if (CUSTOM_FIT_TEXT_MATCHER.test(trimmed)) {
+      console.log('[woofparade BUG-E] custom fit text matched:', trimmed);
+      await handleCustomFitStart(ctx);
+      return;
+    }
+  }
 
   // Welcome / category list rows
   if (listReplyId && CATEGORY_HANDLES[listReplyId]) {
