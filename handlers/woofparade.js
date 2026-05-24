@@ -156,6 +156,21 @@ const PRODUCT_KEYWORD_MATCHERS = [
 
 // PATCH BUG-E: guard — only allow free-text intent matching when there's NO active flow.
 // If customer is mid-checkout, mid-measurement, mid-color-pick, etc., do NOT redirect them.
+// PATCH BUG-E-FIX1: normalize text before matching — strips trailing punctuation
+// and common pleasantries so "Bandanas?" / "bandanas please" / "show me bandanas"
+// all reach the same matcher.
+function _bugEMatchText(raw) {
+  if (!raw) return '';
+  let s = String(raw).trim().toLowerCase();
+  // Strip leading politeness phrases
+  s = s.replace(/^(please|pls|plz|hey|hi|hello|yo|can i see|can you show|show me|i want|i need|give me|i'd like|i would like|looking for)\s+/i, '');
+  // Strip trailing politeness / pleas
+  s = s.replace(/\s+(please|pls|plz|thanks|thank you|tnx)\s*[?.!,]*\s*$/i, '');
+  // Strip remaining trailing punctuation (?, ., !, ,)
+  s = s.replace(/[?.!,]+\s*$/g, '');
+  return s.trim();
+}
+
 function _bugEIntentGuard(ctx, isInteractive) {
   if (isInteractive) return false; // tap reply — handled elsewhere
   const wp = ctx.cart?.woofparade || {};
@@ -672,8 +687,10 @@ async function handle(ctx) {
   // Customers who type "kurta", "jersey", "csk", "rcb", "accessories", etc. route to the
   // matching category as if they had tapped the welcome list row.
   if (_bugEIntentGuard(ctx, isInteractive)) {
+    // PATCH BUG-E-FIX1: normalize before matching (strips ?, .!,, common politeness)
+    const _normText = _bugEMatchText(trimmed);
     // Product keyword takes priority over category (more specific match)
-    const productMatch = PRODUCT_KEYWORD_MATCHERS.find(m => m.re.test(trimmed));
+    const productMatch = PRODUCT_KEYWORD_MATCHERS.find(m => m.re.test(_normText));
     if (productMatch) {
       console.log('[woofparade BUG-E] product keyword matched:', trimmed, '→', productMatch.handle);
       try {
@@ -702,8 +719,8 @@ async function handle(ctx) {
       }
     }
 
-    // Top-level category by text
-    const catEntry = Object.entries(CATEGORY_TEXT_MATCHERS).find(([_, re]) => re.test(trimmed));
+    // Top-level category by text (uses normalized form)
+    const catEntry = Object.entries(CATEGORY_TEXT_MATCHERS).find(([_, re]) => re.test(_normText));
     if (catEntry) {
       const catRowId = catEntry[0];
       console.log('[woofparade BUG-E] category text matched:', trimmed, '→', catRowId);
@@ -716,8 +733,8 @@ async function handle(ctx) {
       return;
     }
 
-    // Custom Fit text — route to custom flow
-    if (CUSTOM_FIT_TEXT_MATCHER.test(trimmed)) {
+    // Custom Fit text — route to custom flow (uses normalized form)
+    if (CUSTOM_FIT_TEXT_MATCHER.test(_normText)) {
       console.log('[woofparade BUG-E] custom fit text matched:', trimmed);
       await handleCustomFitStart(ctx);
       return;
@@ -748,8 +765,10 @@ async function handle(ctx) {
   // PATCH BUG-A + Bug-E partial: free-text subcat match (bandanas / collars / leashes / harnesses / combos)
   // Only fires when we're actively awaiting a subcat OR the user explicitly typed an accessory subcat name.
   {
+    // PATCH BUG-E-FIX1: normalize for accessory subcat matching too
+    const _subcatNormText = _bugEMatchText(trimmed);
     const subcatIdFromText = Object.entries(ACCESSORY_SUBCAT_TEXT_MATCHERS)
-      .find(([_, re]) => re.test(trimmed));
+      .find(([_, re]) => re.test(_subcatNormText));
     if (subcatIdFromText) {
       ctx.cart = ctx.cart || {};
       ctx.cart.woofparade = ctx.cart.woofparade || {};
