@@ -1692,6 +1692,19 @@ async function sendCategoryResults(ctx, rowId, page) {
     }
   }
 
+  // PATCH BUG-F-G (F): exclude combos from non-Combo subcats — when customer is
+  // browsing Collars/Bandanas/Leashes/Harnesses, don't mix combo SKUs into the list.
+  if (
+    rowId === WELCOME_ROW.ACCESSORIES &&
+    ctx.cart?.woofparade?.accessorySubcat &&
+    ctx.cart.woofparade.accessorySubcat !== 'subcat_combos'
+  ) {
+    const comboRe = ACCESSORY_SUBCATS.subcat_combos.match;
+    products = products.filter(p =>
+      !comboRe.test(p.handle || '') && !comboRe.test(p.title || '')
+    );
+  }
+
   // PATCH 43 bug #1: Shopify has festive kurtas double-tagged into pet-clothes.
   // For Casual category, exclude items whose title screams festive (kurta, lehenga, banarasi, etc.)
   if (rowId === WELCOME_ROW.CASUAL) {
@@ -2129,7 +2142,14 @@ async function handleSizePick(ctx, size) {
     ...history,
     { role: 'user', content: text },
     { role: 'assistant', content: `[woofparade size_added=${size} variant=${variantId}]` },
-  ], { ...cart, woofparade: { ...r, items } });
+  ], { ...cart, woofparade: {
+    ...r,
+    items,
+    // PATCH BUG-F-G (G): persist categoryRowId + accessorySubcat so "Continue shopping"
+    // can route the customer back where they were.
+    categoryRowId: r.categoryRowId || null,
+    accessorySubcat: r.accessorySubcat || null,
+  } });
 }
 
 async function handleCrossSell(ctx) {
@@ -2180,7 +2200,28 @@ async function handleCrossSell(ctx) {
 }
 
 async function handleContinueSection(ctx) {
+  // PATCH BUG-F-G (G): "Continue shopping" returns to the last subcat / category
+  // so customer doesn't lose their browsing context after adding to shortlist.
   const r = ctx.cart.woofparade || {};
+
+  // Preference order:
+  // 1. If they were in an Accessories subcat (Collars, Bandanas, etc.) — go back there
+  // 2. If they had a category context — return to that category
+  // 3. Otherwise — fall back to welcome
+  const lastCat = r.categoryRowId;
+  const lastSubcat = r.accessorySubcat;
+
+  if (lastCat === WELCOME_ROW.ACCESSORIES && lastSubcat && ACCESSORY_SUBCATS[lastSubcat]) {
+    // accessorySubcat is still set on cart — sendCategoryResults will filter automatically
+    await sendCategoryResults(ctx, lastCat, 0);
+    return;
+  }
+
+  if (lastCat && CATEGORY_HANDLES[lastCat]) {
+    await sendCategoryResults(ctx, lastCat, r.page || 0);
+    return;
+  }
+
   if (r.browseMode === 'category' && r.categoryRowId) {
     await sendCategoryResults(ctx, r.categoryRowId, r.page || 0);
     return;
