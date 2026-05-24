@@ -14,7 +14,7 @@ app.use(express.urlencoded({ extended: true }));
 // ── Shop domain remap (legacy dev → prod) ───────────────────
 const SHOP_DOMAIN_MAP = {
   'udhuxy-pc.myshopify.com': 'rajathee.myshopify.com',
-  'vs6xap-uz.myshopify.com': 'thewoofparade.com',
+  'vs6xap-uz.myshopify.com': 'vs6xap-uz.myshopify.com',
 };
 
 // ── HMAC verification using RAW query string ────────────────
@@ -59,7 +59,7 @@ function detectVariantByHmac(req) {
 
 // ── Pick the right client_id per shop for embedded shell rendering ───
 function pickApiKeyForShop(dbShop) {
-  if (dbShop === 'thewoofparade.com') return process.env.SHOPIFY_API_KEY_WOOF;
+  if (dbShop === 'thewoofparade.com' || dbShop === 'vs6xap-uz.myshopify.com') return process.env.SHOPIFY_API_KEY_WOOF;
   if (dbShop === 'rajathee.myshopify.com') return process.env.SHOPIFY_API_KEY_RAJATHEE;
   return process.env.SHOPIFY_API_KEY || process.env.SHOPIFY_API_KEY_CUSTOM;
 }
