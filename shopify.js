@@ -257,6 +257,12 @@ async function createCheckoutDraftOrder(shopDomain, accessToken, opts) {
       }
     );
     console.log('[createCheckoutDraftOrder] response keys:', Object.keys(res.data || {}));
+    // PATCH56 — log full response shape so we know what Shopify is returning
+    if (res.data && Array.isArray(res.data.draft_orders)) {
+      console.log('[createCheckoutDraftOrder] PATCH56 draft_orders count:', res.data.draft_orders.length);
+      console.log('[createCheckoutDraftOrder] PATCH56 draft_orders ids:', res.data.draft_orders.map(d => d.id));
+      console.log('[createCheckoutDraftOrder] PATCH56 last draft note_attrs:', JSON.stringify(res.data.draft_orders[res.data.draft_orders.length - 1]?.note_attributes));
+    }
     // Shopify normally returns draft_order (singular) on POST, but some API versions
     // return draft_orders (plural array). Handle both.
     let draft = res.data && res.data.draft_order;
@@ -267,10 +273,30 @@ async function createCheckoutDraftOrder(shopDomain, accessToken, opts) {
           a.name === 'vaani_internal_order_id' && a.value === internalOrderId
         )
       );
-      // Fallback: most recent draft if no match
+      // PATCH57 — Bug "already paid": REMOVED dangerous fallback that grabbed
+      // the most recent draft on the entire store. If our internalOrderId match
+      // fails, we DO NOT know which draft is ours, so we must abort. The previous
+      // fallback caused us to send a different customer's (potentially paid)
+      // invoice_url to a fresh customer.
+      //
+      // If draft_orders was returned but we couldn't match by internalOrderId,
+      // try matching by customer phone as a stronger secondary signal before
+      // giving up. Phone match + recency (within last 60s) is far safer than
+      // 'just take the last one'.
       if (!draft && res.data.draft_orders.length > 0) {
-        draft = res.data.draft_orders[res.data.draft_orders.length - 1];
-        console.warn('[createCheckoutDraftOrder] using last draft as fallback');
+        const sixtySecAgo = Date.now() - 60 * 1000;
+        draft = res.data.draft_orders.find(d => {
+          const phoneMatch = d.note_attributes && d.note_attributes.some(a =>
+            a.name === 'vaani_customer_phone' && a.value === `+${customerPhone}`
+          );
+          const createdAt = d.created_at ? new Date(d.created_at).getTime() : 0;
+          return phoneMatch && createdAt >= sixtySecAgo;
+        });
+        if (draft) {
+          console.log('[createCheckoutDraftOrder] PATCH57 matched by phone+recency:', draft.id);
+        } else {
+          console.error('[createCheckoutDraftOrder] PATCH57 could not safely match draft — REFUSING to use any from list');
+        }
       }
     }
     if (!draft) {
