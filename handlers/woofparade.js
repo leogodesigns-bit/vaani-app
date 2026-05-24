@@ -1691,6 +1691,24 @@ async function sendCategoryResults(ctx, rowId, page) {
   const label  = CATEGORY_LABEL[rowId];
   if (!handle) { await sendWelcome(ctx); return; }
 
+  // PATCH54b — Bug C fix: category switch resets stale productHandles + counters.
+  // When customer was browsing X (page 1, productHandles=[a,b,c]) and now starts
+  // browsing Y from page 0, the OLD productHandles must not leak — otherwise
+  // the cumulative globalIdx + stale productHandles cause typing "2" to fetch
+  // the WRONG product. Reset when (entering page 0 or undefined) AND category changed.
+  if (page === 0 || page === undefined || page === null) {
+    ctx.cart = ctx.cart || {};
+    ctx.cart.woofparade = ctx.cart.woofparade || {};
+    const prevRowId = ctx.cart.woofparade.categoryRowId;
+    if (prevRowId !== rowId) {
+      ctx.cart.woofparade.productHandles = [];
+      ctx.cart.woofparade.totalShown = 0;
+      ctx.cart.woofparade.offTopicCount = 0;
+      console.log(`[woofparade PATCH54b] category switch ${prevRowId} -> ${rowId} — productHandles reset`);
+    }
+  }
+
+
   let productsRaw = [];
   try { productsRaw = await getCollectionProducts(tenant, handle); }
   catch (e) { console.error('[woofparade] collection fetch failed:', e.message); }
