@@ -2137,6 +2137,43 @@ async function handleSizePick(ctx, size) {
       console.error('[woofparade S13] similar-products fetch failed:', e.message);
     }
 
+    // PATCH63 BUG-H: after showing image+caption for each candidate, also emit
+    // a tap-to-pick list so customer doesn't have to type the product name.
+    // Reuses the existing `product_<handle>` dispatcher at line 882 which calls
+    // sendProductDetail. Skipped entirely if 0 candidates surfaced.
+    if (similarShown > 0) {
+      // Re-fetch candidate list — cheap, getCollectionProducts is cached upstream.
+      // We need title+handle for list rows, which weren't kept after the image loop.
+      let pickCandidates = [];
+      try {
+        const categoryRowId2 = r.categoryRowId;
+        const categoryHandle2 = categoryRowId2 ? CATEGORY_HANDLES[categoryRowId2] : null;
+        if (categoryHandle2) {
+          const raw2 = await getCollectionProducts(tenant, categoryHandle2);
+          pickCandidates = (raw2 || [])
+            .filter(p => p.handle !== product.handle)
+            .filter(p => (p.variants || []).some(v => {
+              const opt = String(v.option1 || v.title || '').toUpperCase().trim();
+              return v.available !== false && opt === size;
+            }))
+            .slice(0, 3);
+        }
+      } catch (e) {
+        console.error('[woofparade PATCH63] candidate refetch failed:', e.message);
+      }
+      if (pickCandidates.length > 0) {
+        const pickRows = pickCandidates.map(p => ({
+          id: `product_${p.handle}`,
+          title: p.title.length > 24 ? p.title.slice(0, 21) + '...' : p.title,
+          description: `In stock in ${size}`.slice(0, 72),
+        }));
+        await sendList(from, `Tap one to see details ${PAW}`, [{
+          title: `In ${size}`,
+          rows: pickRows,
+        }], waToken, phoneNumberId, 'View options');
+      }
+    }
+
     // Always offer notify-me + back to menu (PDF S13 exact buttons)
     await sendMessage(from,
       `Or I can ping you when this one's back in stock.`,
