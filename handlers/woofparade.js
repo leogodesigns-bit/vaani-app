@@ -1166,6 +1166,9 @@ async function handle(ctx) {
     const handles = ctx.cart?.woofparade?.productHandles || [];
     const idx = parseInt(trimmed, 10) - 1;
     if (idx >= 0 && idx < handles.length) {
+      // PATCH 55 — happy path: reset off-topic counter on successful product pick
+      ctx.cart.woofparade = ctx.cart.woofparade || {};
+      ctx.cart.woofparade.offTopicCount = 0;
       await sendProductDetail(ctx, handles[idx]);
       return;
     }
@@ -1391,6 +1394,17 @@ async function handle(ctx) {
     const matched = await qa.matchFaq(trimmed, ctx.tenant.id);
     if (matched) {
       await qa.sendFaqMatch(ctx, matched);
+      await sendWelcome(ctx);
+      return;
+    }
+
+    // PATCH 53 — Bug D fix: short acknowledgements are NOT off-topic.
+    // Customer typing "ok", "thanks", "k", "yes", "no", "hi" etc. after a product
+    // card should get a gentle nudge back to the menu, not a strike + auto-mute.
+    const ACK_PATTERNS = /^(o+k+|kk+|kay|okay|okie|cool|nice|good|great|sure|hmm+|hm+|yep|yup|ya|yaa+|yeah|yes|no|nah|nope|right|fine|alright|got it|gotcha|done|thanks|thank you|thx|ty|tysm|tnx|tq|tc|bye|byee+|cya|see ya|👍|👌|🙏|❤️|❤|🧡|✅|✔️|🐾|haha+|lol|hehe+|🙂|😊|😄|😀)\s*[!.?]*$/i;
+    if (ACK_PATTERNS.test(trimmed)) {
+      console.log(`[woofparade PATCH53] acknowledgement detected: ${trimmed} — gentle nudge, no strike`);
+      await sendMessage(ctx.from, `Tail wags 🐾 What would you like to do next?`, ctx.waToken, ctx.phoneNumberId);
       await sendWelcome(ctx);
       return;
     }
@@ -1830,6 +1844,10 @@ async function sendCategoryResults(ctx, rowId, page) {
       categoryRowId: rowId,
       page: page,
       totalShown: totalShownAfter,
+      // PATCH 54 — Bug C fix: productHandles is the SOURCE OF TRUTH for number-reply.
+      // Always rebuilt from the current category's products + slice to totalShownAfter,
+      // so numbering 1..N always points to what the customer currently sees on screen.
+      // Category switch elsewhere clears totalShown/page back to 0 (see PATCH 54b).
       productHandles: products.slice(0, totalShownAfter).map(p => p.handle),
     },
   });
