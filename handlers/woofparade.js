@@ -103,6 +103,25 @@ const CATEGORY_LABEL = {
   [WELCOME_ROW.BESTSELLERS]: 'Bestsellers',
 };
 
+// PATCH BUG-A: Accessories subcategory step — after customer taps "Accessories",
+// show 5 subcategories first instead of jumping straight to mixed product list.
+const ACCESSORY_SUBCATS = {
+  subcat_bandanas:  { label: 'Bandanas',  match: /(bandana)/i },
+  subcat_leashes:   { label: 'Leashes',   match: /(leash)/i },
+  subcat_collars:   { label: 'Collars',   match: /(collar)/i },
+  subcat_harnesses: { label: 'Harnesses', match: /(harness)/i },
+  subcat_combos:    { label: 'Combos',    match: /(collar.*leash|harness.*leash|leash.*collar|leash.*harness|combo)/i },
+};
+
+// Map free-text input to subcat IDs so "bandanas", "collars", etc. work without buttons
+const ACCESSORY_SUBCAT_TEXT_MATCHERS = {
+  subcat_bandanas:  /^(bandana|bandanas)$/i,
+  subcat_leashes:   /^(leash|leashes)$/i,
+  subcat_collars:   /^(collar|collars)$/i,
+  subcat_harnesses: /^(harness|harnesses)$/i,
+  subcat_combos:    /^(combo|combos|combo set)$/i,
+};
+
 // ─── PRODUCT CARD / DETAIL BUTTONS ────────────────────────────────────────
 
 const PRODUCT_BTN = {
@@ -597,8 +616,38 @@ async function handle(ctx) {
 
   // Welcome / category list rows
   if (listReplyId && CATEGORY_HANDLES[listReplyId]) {
+    // PATCH BUG-A: Accessories taps go through a subcategory picker first
+    if (listReplyId === WELCOME_ROW.ACCESSORIES) {
+      await sendAccessorySubcatPicker(ctx);
+      return;
+    }
     await sendCategoryResults(ctx, listReplyId, 0);
     return;
+  }
+
+  // PATCH BUG-A: subcategory tap (after Accessories) → set subcat + fetch products
+  if (listReplyId && ACCESSORY_SUBCATS[listReplyId]) {
+    ctx.cart = ctx.cart || {};
+    ctx.cart.woofparade = ctx.cart.woofparade || {};
+    ctx.cart.woofparade.accessorySubcat = listReplyId;
+    ctx.cart.woofparade.awaitingAccessorySubcat = false;
+    await sendCategoryResults(ctx, WELCOME_ROW.ACCESSORIES, 0);
+    return;
+  }
+
+  // PATCH BUG-A + Bug-E partial: free-text subcat match (bandanas / collars / leashes / harnesses / combos)
+  // Only fires when we're actively awaiting a subcat OR the user explicitly typed an accessory subcat name.
+  {
+    const subcatIdFromText = Object.entries(ACCESSORY_SUBCAT_TEXT_MATCHERS)
+      .find(([_, re]) => re.test(trimmed));
+    if (subcatIdFromText) {
+      ctx.cart = ctx.cart || {};
+      ctx.cart.woofparade = ctx.cart.woofparade || {};
+      ctx.cart.woofparade.accessorySubcat = subcatIdFromText[0];
+      ctx.cart.woofparade.awaitingAccessorySubcat = false;
+      await sendCategoryResults(ctx, WELCOME_ROW.ACCESSORIES, 0);
+      return;
+    }
   }
   if (listReplyId === WELCOME_ROW.CUSTOM || /^custom\s*fit\b/i.test(trimmed) || /^custom\b/i.test(trimmed)) {
     await handleCustomFitStart(ctx);
@@ -1363,6 +1412,11 @@ async function sendBranchCWelcomeNoProduct(ctx) {
 }
 
 async function sendWelcome(ctx) {
+  // PATCH BUG-A: clear any sticky accessory subcat when returning to welcome
+  if (ctx.cart?.woofparade) {
+    ctx.cart.woofparade.accessorySubcat = null;
+    ctx.cart.woofparade.awaitingAccessorySubcat = false;
+  }
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
   const purchased = await hasPurchasedBefore(ctx);
 
@@ -1462,6 +1516,32 @@ async function sendOrderHelpMenu(ctx) {
   }], waToken, phoneNumberId);
 }
 
+// PATCH BUG-A: subcategory picker (sent BEFORE sendCategoryResults for accessories)
+async function sendAccessorySubcatPicker(ctx) {
+  const { from, waToken, phoneNumberId, history, text, tenant, cart } = ctx;
+  const rows = Object.entries(ACCESSORY_SUBCATS).map(([id, def]) => ({
+    id,
+    title: def.label,
+    description: '',
+  }));
+  await sendList(from,
+    `What kind of accessory? ${PAW}`,
+    [{ title: 'Accessories', rows }],
+    waToken, phoneNumberId, 'Choose');
+  // Persist that we are now awaiting a subcat tap (helps with free-text matchers)
+  await upsertConversation(tenant.id, from, [
+    ...(history || []),
+    { role: 'user', content: text || '' },
+    { role: 'assistant', content: '[woofparade accessory_subcat_picker presented]' },
+  ], {
+    ...(cart || {}),
+    woofparade: {
+      ...((cart && cart.woofparade) || {}),
+      awaitingAccessorySubcat: true,
+    },
+  });
+}
+
 async function sendCategoryResults(ctx, rowId, page) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
   const handle = CATEGORY_HANDLES[rowId];
@@ -1472,6 +1552,16 @@ async function sendCategoryResults(ctx, rowId, page) {
   try { productsRaw = await getCollectionProducts(tenant, handle); }
   catch (e) { console.error('[woofparade] collection fetch failed:', e.message); }
   let products = filterInStock(productsRaw);
+
+  // PATCH BUG-A: when viewing Accessories and a subcat is set, filter products
+  if (rowId === WELCOME_ROW.ACCESSORIES && ctx.cart?.woofparade?.accessorySubcat) {
+    const sub = ACCESSORY_SUBCATS[ctx.cart.woofparade.accessorySubcat];
+    if (sub) {
+      products = products.filter(p =>
+        sub.match.test(p.handle || '') || sub.match.test(p.title || '')
+      );
+    }
+  }
 
   // PATCH 43 bug #1: Shopify has festive kurtas double-tagged into pet-clothes.
   // For Casual category, exclude items whose title screams festive (kurta, lehenga, banarasi, etc.)
