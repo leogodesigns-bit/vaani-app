@@ -2048,9 +2048,24 @@ async function handleSizePick(ctx, size) {
 
   let variantId = null;
   let variantPrice = product.price;
+  // PATCH60 — BUG-G fix: if the current product is sizeless (accessory with Color/Material
+  // variants instead of S/M/L), a stray "M"/"L"/etc tap from a leftover size button of a
+  // previous clothing product must NOT be treated as a real size lookup — otherwise the
+  // option1='Color' variant never matches 'M', variantId stays null, and we fall into the
+  // per-size OOS branch yelling "sold out in M" for a collar that doesn't have sizes.
+  let fetchedForSizelessCheck = null;
+  try { fetchedForSizelessCheck = await getProductByHandle(tenant, product.handle); } catch (_) {}
+  if (fetchedForSizelessCheck) {
+    const sizes = detectInStockSizes(fetchedForSizelessCheck);
+    const productIsSizeless = sizes.length === 1 && sizes[0] === '__NO_SIZE__';
+    if (productIsSizeless && size !== '__NO_SIZE__') {
+      console.log(`[woofparade PATCH60] sizeless product ${product.handle} got stray size=${size} — coercing to __NO_SIZE__`);
+      size = '__NO_SIZE__';
+    }
+  }
   const isNoSize = size === '__NO_SIZE__';
   try {
-    const fetched = await getProductByHandle(tenant, product.handle);
+    const fetched = fetchedForSizelessCheck || await getProductByHandle(tenant, product.handle);
     if (fetched) {
       let v;
       if (isNoSize) {
