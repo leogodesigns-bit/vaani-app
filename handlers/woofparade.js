@@ -85,6 +85,12 @@ const WELCOME_ROW = {
 
 // Shopify collection handles for the 5 catalogue categories.
 // Founder review: confirm these match thewoofparade.com handles.
+//
+// DOMAIN RULE (PATCH61): tenant.shop_domain is the Shopify Admin API host
+// (e.g. vs6xap-uz.myshopify.com). It MUST NOT leak to customer-facing URLs.
+// For any customer-facing link (product, collection, share), use
+// tenant.customer_domain (e.g. thewoofparade.com) with fallback to shop_domain
+// then 'thewoofparade.com'.
 const CATEGORY_HANDLES = {
   [WELCOME_ROW.CASUAL]:      'pet-clothes',           // S05 PDF example
   [WELCOME_ROW.FESTIVE]:     'festive-fits',
@@ -1207,8 +1213,8 @@ async function handle(ctx) {
     const r = ctx.cart?.woofparade || {};
     const lastHandle = r.categoryRowId ? CATEGORY_HANDLES[r.categoryRowId] : null;
     const url = lastHandle
-      ? `https://${ctx.tenant.shop_domain || 'thewoofparade.com'}/collections/${lastHandle}`
-      : `https://${ctx.tenant.shop_domain || 'thewoofparade.com'}/collections/all`;
+      ? `https://${ctx.tenant.customer_domain || ctx.tenant.shop_domain || 'thewoofparade.com'}/collections/${lastHandle}`
+      : `https://${ctx.tenant.customer_domain || ctx.tenant.shop_domain || 'thewoofparade.com'}/collections/all`;
     await sendMessage(ctx.from, `Tap to browse the full collection on our site ${PAW}\n${url}`, ctx.waToken, ctx.phoneNumberId);
     return;
   }
@@ -1775,7 +1781,7 @@ async function sendCategoryResults(ctx, rowId, page) {
       `That's our full lineup in ${label} for now ${PAW}\n` +
       `Want to see more? Here's what we can do:`,
       waToken, phoneNumberId);
-    const fullCollectionUrl = `https://${tenant.shop_domain || 'thewoofparade.com'}/collections/${handle}`;
+    const fullCollectionUrl = `https://${tenant.customer_domain || tenant.shop_domain || 'thewoofparade.com'}/collections/${handle}`;
     await sendButtons(from, 'Choose:',
       [`See full on website`, 'Browse another category', 'Custom Fit'],
       waToken, phoneNumberId);
@@ -1810,7 +1816,7 @@ async function sendCategoryResults(ctx, rowId, page) {
       return sum + (qty !== null && !isNaN(qty) ? qty : 0);
     }, 0);
     const lowStock = totalInventory > 0 && totalInventory <= 3;
-    const url = `https://${tenant.shop_domain || 'thewoofparade.com'}/products/${p.handle}`;
+    const url = `https://${tenant.customer_domain || tenant.shop_domain || 'thewoofparade.com'}/products/${p.handle}`;
 
     const globalIdx = start + i;  // PDF v1.4 Bug #2: cumulative across pages
     const badge = NUMBER_BADGES[globalIdx] || `${globalIdx + 1}.`;
@@ -2116,7 +2122,7 @@ async function handleSizePick(ctx, size) {
           const v0 = p.variants?.[0];
           const img = p.images?.[0]?.src || v0?.featured_image?.src;
           const price = formatPrice(v0?.price);
-          const productUrl = `https://${tenant.shop_domain || 'thewoofparade.com'}/products/${p.handle}`;
+          const productUrl = `https://${tenant.customer_domain || tenant.shop_domain || 'thewoofparade.com'}/products/${p.handle}`;
           const caption =
             `${i + 1}. ${p.title}\n` +
             `${price}  •  In Stock ✅ (${size})\n` +
