@@ -3523,7 +3523,30 @@ async function handleCustomChatStart(ctx) {
 
 async function handleCustomPupNameMessage(ctx) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
-  const pupName = (text || '').trim().slice(0, 60);
+  // PATCH62 — BUG-PUPNAME fix: validate before accepting. Old code accepted ANY text
+  // (including "Rr\nL", "Hi hey", greetings, multi-line garbage) as the pup name.
+  // Now we sanitize: strip newlines, reject too-short / too-long / digit-containing /
+  // greeting-y / question-y / customer-own-name inputs, and re-prompt instead.
+  const raw = (text || '').replace(/[\r\n\t]+/g, ' ').trim();
+  const pupName = raw.slice(0, 60);
+  const co = cart.woofparade?.checkout || {};
+  const customerFirstName = String(co.name || '').trim().split(/\s+/)[0] || '';
+  const lower = pupName.toLowerCase();
+  const GREETING_RE = /^(hi|hey|hello|hola|yo|sup|ok|okay|yes|no|nope|yeah|yep|nah|thanks|thx|ty|cool|nice|good|great|fine|sure|maybe|idk|umm+|hmm+|huh|wtf|lol|lmao|skip|cancel|stop|wait|hmm|test|testing)(\s|$)/i;
+  const reasons = [];
+  if (pupName.length < 2) reasons.push('too short');
+  if (pupName.length > 40) reasons.push('too long');
+  if (/\d/.test(pupName)) reasons.push('contains digits');
+  if (GREETING_RE.test(lower)) reasons.push('greeting/ack word');
+  if (pupName.includes('?')) reasons.push('looks like question');
+  if (customerFirstName && lower === customerFirstName.toLowerCase()) reasons.push('matches customer name');
+  if (reasons.length) {
+    console.log('[woofparade PATCH62] custom pup-name rejected:', JSON.stringify({ pupName: pupName.slice(0, 40), reasons }));
+    await sendMessage(from,
+      `Just your pup's name ${PAW} — like *Rio* or *Mochi*. What should I call them?`,
+      waToken, phoneNumberId);
+    return;
+  }
   // S12 PDF v1.4 Branch B step 2: full intake in one message
   await sendMessage(from,
     `Lovely — *${pupName}*'s about to look like a showstopper ${PAW}\n\n` +
@@ -4007,7 +4030,17 @@ async function handlePupProfileFlow(ctx) {
 async function handlePupProfileMessage(ctx) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
   const t = (text || '').trim();
-  const pupName = t.split(/[,\n]/)[0].trim().slice(0, 60);
+  // PATCH62 — BUG-PUPNAME: also strip stray \r\t and reject greeting/ack words here.
+  const pupName = t.split(/[,\n\r]/)[0].replace(/[\t]+/g, ' ').trim().slice(0, 60);
+  const GREETING_RE_PUP = /^(hi|hey|hello|hola|yo|sup|ok|okay|yes|no|nope|yeah|yep|nah|thanks|thx|ty|cool|nice|good|great|fine|sure|maybe|idk|umm+|hmm+|huh|skip|cancel|stop|wait|test|testing)$/i;
+  if (GREETING_RE_PUP.test(pupName.toLowerCase())) {
+    console.log('[woofparade PATCH62 pupProfile] rejected greeting as pup name:', pupName);
+    await sendMessage(from,
+      `Just your pup's name ${PAW} — like *Rio* or *Mochi*. Or tap Skip.`,
+      waToken, phoneNumberId);
+    await sendButtons(from, 'Or:', [POSTPURCHASE_BTN.SKIP], waToken, phoneNumberId);
+    return;
+  }
 
   // Patch 37: reject if input doesn't look like a pup name.
   //   - empty / too short
