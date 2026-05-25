@@ -342,6 +342,12 @@ async function handle(ctx) {
     return;
   }
 
+  // ── Human takeover — bot stays silent when agent has taken over ──
+  if (ctx.cart?.rajathee?.human_takeover === true) {
+    console.log(`[rajathee] human takeover active for ${ctx.from} - bot silent`);
+    return;
+  }
+
   // ── PDF Section 13 — mute state (set after repeated off-topic) ──
   // Mute is cleared by: any interactive tap, OR any saree-related keyword.
   const isMuted = ctx.cart?.rajathee?.muted === true;

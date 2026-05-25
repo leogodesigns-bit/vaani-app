@@ -526,6 +526,12 @@ async function handle(ctx) {
     return;
   }
 
+  // ── Human takeover — bot stays silent when agent has taken over ──
+  if (ctx.cart?.woofparade?.human_takeover === true) {
+    console.log(`[woofparade] human takeover active for ${from} - bot silent`);
+    return;
+  }
+
   // ─── MUTE (S27 / S28 first strike) ───────────────────────────────────────
   const isMuted = ctx.cart?.woofparade?.muted === true;
   if (isMuted) {
