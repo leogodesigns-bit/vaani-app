@@ -504,19 +504,9 @@ async function handle(ctx) {
   }
 
   console.log(`[rajathee] no handler yet for: ${trimmed} (listId=${listReplyId}, btnId=${buttonReplyId})`);
-  // ── Smart Q&A — match against tenant's dashboard-managed FAQs ──
+  // ── Saree search FIRST — match free text to a specific product/collection ──
+  // (Runs before FAQ so single-word fabric queries like "Silk" show sarees, not care info.)
   if (trimmed && trimmed.length > 0) {
-    const matched = await qa.matchFaq(trimmed, ctx.tenant.id);
-    console.log(`[rajathee] FAQ match: ${matched ? matched.q : 'none'} for "${trimmed}"`);
-
-    if (matched) {
-      // FAQ answer + show welcome for next action.
-      await qa.sendFaqMatch(ctx, matched);
-      await sendWelcome(ctx);
-      return;
-    }
-
-    // ── Saree search — match free text to a specific product ──
     try {
       const search = await sareeSearch.findSareeFromText(ctx.tenant, trimmed);
       if (search.mode === 'high') {
@@ -567,6 +557,15 @@ async function handle(ctx) {
       }
     } catch (e) {
       console.error('[rajathee] saree-search error:', e.message);
+    }
+
+    // ── Smart Q&A — fallback if saree-search returns 'none' ──
+    const matched = await qa.matchFaq(trimmed, ctx.tenant.id);
+    console.log(`[rajathee] FAQ match: ${matched ? matched.q : 'none'} for "${trimmed}"`);
+    if (matched) {
+      await qa.sendFaqMatch(ctx, matched);
+      await sendWelcome(ctx);
+      return;
     }
 
     // Off-topic. Track count: 1st = warning, 2nd = mute.
