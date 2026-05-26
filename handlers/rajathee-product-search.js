@@ -125,12 +125,13 @@ async function findSareeFromText(tenant, userText) {
   return { mode: 'low', candidates, matched: top.matched };
 }
 
-function formatProductCard(product) {
+function formatProductCard(product, index) {
   const price = product.variants?.[0]?.price ? formatPrice(product.variants[0].price) : '';
   const url = `https://rajathee.com/products/${product.handle || ''}`;
+  const prefix = (typeof index === 'number' && index > 0) ? `${index}. ` : '';
   return {
     imageUrl: product.images?.[0]?.src || null,
-    caption: `*${product.title}*${price ? `\n${price}` : ''}\n\n${url}`,
+    caption: `*${prefix}${product.title}*${price ? `\n${price}` : ''}\n\n${url}`,
   };
 }
 

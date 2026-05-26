@@ -471,6 +471,18 @@ async function handle(ctx) {
     await handleSareeSearchShowMore(ctx);
     return;
   }
+
+  // ── Saree-search: type a number (1-99) to pick from results ──
+  if (ctx.cart?.rajathee?.sareeSearch?.allCandidates?.length > 0 && /^\s*\d{1,2}\s*$/.test(trimmed)) {
+    const pick = parseInt(trimmed, 10);
+    const all = ctx.cart.rajathee.sareeSearch.allCandidates;
+    if (pick >= 1 && pick <= all.length) {
+      const chosen = all[pick - 1];
+      console.log(`[rajathee] saree-search digit pick: ${pick} → ${chosen.handle}`);
+      await sendProductDetail(ctx, chosen.handle);
+      return;
+    }
+  }
   if (trimmed === 'Browse menu') {
     // Clear saree-search state and return to welcome
     if (ctx.cart?.rajathee?.sareeSearch) delete ctx.cart.rajathee.sareeSearch;
@@ -529,8 +541,9 @@ async function handle(ctx) {
         await sendMessage(ctx.from,
           `I found ${total} that might match. Which one were you thinking of? ✨`,
           ctx.waToken, ctx.phoneNumberId);
-        for (const p of firstBatch) {
-          const card = sareeSearch.formatProductCard(p);
+        for (let i = 0; i < firstBatch.length; i++) {
+          const p = firstBatch[i];
+          const card = sareeSearch.formatProductCard(p, i + 1);
           if (card.imageUrl) {
             await sendImage(ctx.from, card.imageUrl, card.caption, ctx.waToken, ctx.phoneNumberId);
           } else {
@@ -538,12 +551,33 @@ async function handle(ctx) {
           }
         }
 
-        // Save remaining matches + page index for "Show more" pagination
+        // Build a full ordered array of ALL candidates (for digit-typed shortcut + list pickers)
+        const allCandidates = search.candidates.map(p => ({
+          handle: p.handle, title: p.title, price: p.variants?.[0]?.price, image: p.images?.[0]?.src,
+        }));
+
+        // Send a tappable picker for the SAME batch we just showed (max 10 rows per list)
+        const pickerRows = firstBatch.slice(0, 10).map((p, i) => {
+          const num = i + 1;
+          const titleStr = `${num}. ${p.title}`;
+          return {
+            id: `product_${p.handle}`,
+            title: titleStr.length > 24 ? titleStr.slice(0, 21) + '...' : titleStr,
+            description: p.variants?.[0]?.price ? formatPrice(p.variants[0].price) : '',
+          };
+        });
+        await sendList(ctx.from, 'Or tap a saree to see colours, sizes & order details.',
+          [{ title: 'Showing 1-' + firstBatch.length, rows: pickerRows }],
+          ctx.waToken, ctx.phoneNumberId);
+
+        // Save state for Show more + digit-typed shortcut
         ctx.cart = ctx.cart || {};
         ctx.cart.rajathee = ctx.cart.rajathee || {};
         ctx.cart.rajathee.sareeSearch = {
+          allCandidates,                          // full list, 1-based via i+1
           remainingHandles: remaining.map(p => ({ id: p.id, handle: p.handle, title: p.title, price: p.variants?.[0]?.price, image: p.images?.[0]?.src })),
           page: 0,
+          shownCount: firstBatch.length,
           query: trimmed,
         };
 
@@ -2232,10 +2266,13 @@ async function handleSareeSearchShowMore(ctx) {
 
   console.log(`[rajathee] sareeSearch show-more: page=${nextPage} batchSize=${batchSize} stillRemaining=${stillRemaining.length}`);
 
-  for (const p of batch) {
+  const startNum = (state.shownCount || 0) + 1;
+  for (let i = 0; i < batch.length; i++) {
+    const p = batch[i];
+    const num = startNum + i;
     const card = {
       imageUrl: p.image || null,
-      caption: `*${p.title}*${p.price ? '\n' + formatPrice(p.price) : ''}\n\nhttps://rajathee.com/products/${p.handle || ''}`,
+      caption: `*${num}. ${p.title}*${p.price ? '\n' + formatPrice(p.price) : ''}\n\nhttps://rajathee.com/products/${p.handle || ''}`,
     };
     if (card.imageUrl) {
       await sendImage(ctx.from, card.imageUrl, card.caption, ctx.waToken, ctx.phoneNumberId);
@@ -2244,11 +2281,26 @@ async function handleSareeSearchShowMore(ctx) {
     }
   }
 
+  // Send a tappable picker for THIS batch
+  const pickerRows = batch.slice(0, 10).map((p, i) => {
+    const num = startNum + i;
+    const titleStr = `${num}. ${p.title}`;
+    return {
+      id: `product_${p.handle}`,
+      title: titleStr.length > 24 ? titleStr.slice(0, 21) + '...' : titleStr,
+      description: p.price ? formatPrice(p.price) : '',
+    };
+  });
+  await sendList(ctx.from, 'Or tap a saree to see colours, sizes & order details.',
+    [{ title: `Showing ${startNum}-${startNum + batch.length - 1}`, rows: pickerRows }],
+    ctx.waToken, ctx.phoneNumberId);
+
   // Update state
   ctx.cart.rajathee.sareeSearch = {
     ...state,
     page: nextPage,
     remainingHandles: stillRemaining,
+    shownCount: (state.shownCount || 0) + batch.length,
   };
 
   if (stillRemaining.length > 0) {
