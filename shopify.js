@@ -38,7 +38,7 @@ async function getProductByHandlePublic(shopDomain, handle) {
 async function getProducts(shopDomain, accessToken) {
   try {
     let allProducts = [];
-    let url = `https://${shopDomain}/admin/api/2024-01/products.json?limit=250&fields=id,title,variants,images,body_html`;
+    let url = `https://${shopDomain}/admin/api/2024-01/products.json?limit=250&fields=id,handle,title,status,published_at,variants,images,body_html`;
     while (url) {
       const res = await axios.get(url, {
         headers: { 'X-Shopify-Access-Token': accessToken }

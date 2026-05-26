@@ -25,6 +25,7 @@ const { getConversation, upsertConversation, saveOrder, getOrder, markOrderPaid 
 const Anthropic = require('@anthropic-ai/sdk');
 const edge = require('./rajathee-edge');
 const qa = require('./rajathee-qa');
+const sareeSearch = require('./rajathee-product-search');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const { getCollectionProducts, getProductByHandle, formatPrice, stripHtml } = require('../shopify');
@@ -501,6 +502,38 @@ async function handle(ctx) {
       await qa.sendFaqMatch(ctx, matched);
       await sendWelcome(ctx);
       return;
+    }
+
+    // ── Saree search — match free text to a specific product ──
+    try {
+      const search = await sareeSearch.findSareeFromText(ctx.tenant, trimmed);
+      if (search.mode === 'high') {
+        const card = sareeSearch.formatProductCard(search.best);
+        console.log(`[rajathee] saree-search HIGH: "${search.best.title}"`);
+        if (card.imageUrl) {
+          await sendImage(ctx.from, card.imageUrl, card.caption, ctx.waToken, ctx.phoneNumberId);
+        } else {
+          await sendMessage(ctx.from, card.caption, ctx.waToken, ctx.phoneNumberId);
+        }
+        return;
+      }
+      if (search.mode === 'low') {
+        console.log(`[rajathee] saree-search LOW: ${search.candidates.length} candidates`);
+        await sendMessage(ctx.from,
+          `I found a few that might match. Which one were you thinking of? ✨`,
+          ctx.waToken, ctx.phoneNumberId);
+        for (const p of search.candidates) {
+          const card = sareeSearch.formatProductCard(p);
+          if (card.imageUrl) {
+            await sendImage(ctx.from, card.imageUrl, card.caption, ctx.waToken, ctx.phoneNumberId);
+          } else {
+            await sendMessage(ctx.from, card.caption, ctx.waToken, ctx.phoneNumberId);
+          }
+        }
+        return;
+      }
+    } catch (e) {
+      console.error('[rajathee] saree-search error:', e.message);
     }
 
     // Off-topic. Track count: 1st = warning, 2nd = mute.
