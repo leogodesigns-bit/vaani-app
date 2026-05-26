@@ -566,9 +566,9 @@ async function handle(ctx) {
             description: p.variants?.[0]?.price ? formatPrice(p.variants[0].price) : '',
           };
         });
-        await sendList(ctx.from, 'Or tap a saree to see colours, sizes & order details.',
+        await sendList(ctx.from, 'Or tap below to pick a saree by number 👇',
           [{ title: 'Showing 1-' + firstBatch.length, rows: pickerRows }],
-          ctx.waToken, ctx.phoneNumberId);
+          ctx.waToken, ctx.phoneNumberId, 'Tap a saree');
 
         // Save state for Show more + digit-typed shortcut
         ctx.cart = ctx.cart || {};
@@ -2291,9 +2291,9 @@ async function handleSareeSearchShowMore(ctx) {
       description: p.price ? formatPrice(p.price) : '',
     };
   });
-  await sendList(ctx.from, 'Or tap a saree to see colours, sizes & order details.',
+  await sendList(ctx.from, 'Or tap below to pick a saree by number 👇',
     [{ title: `Showing ${startNum}-${startNum + batch.length - 1}`, rows: pickerRows }],
-    ctx.waToken, ctx.phoneNumberId);
+    ctx.waToken, ctx.phoneNumberId, 'Tap a saree');
 
   // Update state
   ctx.cart.rajathee.sareeSearch = {
