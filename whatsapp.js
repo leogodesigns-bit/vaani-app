@@ -6,6 +6,7 @@ const axios = require('axios');
 // conversations.messages so the dashboard can show the real reply text
 // instead of debug placeholders like "[woofparade S01 welcome]".
 const __sentQueue = new Map();
+const __wamidQueue = new Map();
 
 function __push(to, kind, content) {
   if (!__sentQueue.has(to)) __sentQueue.set(to, []);
@@ -17,6 +18,16 @@ function __push(to, kind, content) {
   });
 }
 
+function __wamidPush(to, wamid) {
+  if (!wamid) return;
+  if (!__wamidQueue.has(to)) __wamidQueue.set(to, []);
+  __wamidQueue.get(to).push(wamid);
+}
+function drainWamids(to) {
+  const q = __wamidQueue.get(to) || [];
+  __wamidQueue.delete(to);
+  return q;
+}
 function drainSentMessages(to) {
   const q = __sentQueue.get(to) || [];
   __sentQueue.delete(to);
@@ -43,13 +54,16 @@ function __renderList(bodyText, sections, buttonText) {
 
 async function sendMessage(to, text, token, phoneNumberId) {
   try {
-    await axios.post(
+    const _r = await axios.post(
       `https://graph.facebook.com/v25.0/${phoneNumberId}/messages`,
       { messaging_product: 'whatsapp', to, type: 'text', text: { body: text } },
       { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
     );
     __push(to, 'text', text);
     console.log(`✅ Message sent to ${to}`);
+    const _wm = _r?.data?.messages?.[0]?.id || null;
+    __wamidPush(to, _wm);
+    return _wm;
   } catch (err) {
     console.error('❌ sendMessage error:', err.response?.data || err.message);
   }
@@ -57,7 +71,7 @@ async function sendMessage(to, text, token, phoneNumberId) {
 
 async function sendButtons(to, bodyText, buttons, token, phoneNumberId) {
   try {
-    await axios.post(
+    const _rb = await axios.post(
       `https://graph.facebook.com/v25.0/${phoneNumberId}/messages`,
       {
         messaging_product: 'whatsapp',
@@ -78,6 +92,9 @@ async function sendButtons(to, bodyText, buttons, token, phoneNumberId) {
     );
     __push(to, 'buttons', __renderButtons(bodyText, buttons));
     console.log(`✅ Buttons sent to ${to}`);
+    const _wb = _rb?.data?.messages?.[0]?.id || null;
+    __wamidPush(to, _wb);
+    return _wb;
   } catch (err) {
     console.error('❌ sendButtons error:', err.response?.data || err.message);
   }
@@ -85,7 +102,7 @@ async function sendButtons(to, bodyText, buttons, token, phoneNumberId) {
 
 async function sendList(to, bodyText, sections, token, phoneNumberId, buttonText) {
   try {
-    await axios.post(
+    const _rl = await axios.post(
       `https://graph.facebook.com/v25.0/${phoneNumberId}/messages`,
       {
         messaging_product: 'whatsapp',
@@ -104,6 +121,9 @@ async function sendList(to, bodyText, sections, token, phoneNumberId, buttonText
     );
     __push(to, 'list', __renderList(bodyText, sections, buttonText));
     console.log(`✅ List sent to ${to}`);
+    const _wl = _rl?.data?.messages?.[0]?.id || null;
+    __wamidPush(to, _wl);
+    return _wl;
   } catch (err) {
     console.error('❌ sendList error:', err.response?.data || err.message);
   }
@@ -111,7 +131,7 @@ async function sendList(to, bodyText, sections, token, phoneNumberId, buttonText
 
 async function sendImage(to, imageUrl, caption, token, phoneNumberId) {
   try {
-    await axios.post(
+    const _ri = await axios.post(
       `https://graph.facebook.com/v25.0/${phoneNumberId}/messages`,
       {
         messaging_product: 'whatsapp',
@@ -123,9 +143,12 @@ async function sendImage(to, imageUrl, caption, token, phoneNumberId) {
     );
     __push(to, 'image', '[image] ' + (caption || imageUrl));
     console.log(`✅ Image sent to ${to}`);
+    const _wi = _ri?.data?.messages?.[0]?.id || null;
+    __wamidPush(to, _wi);
+    return _wi;
   } catch (err) {
     console.error('❌ sendImage error:', err.response?.data || err.message);
   }
 }
 
-module.exports = { sendMessage, sendButtons, sendList, sendImage, drainSentMessages };
+module.exports = { sendMessage, sendButtons, sendList, sendImage, drainSentMessages, drainWamids };

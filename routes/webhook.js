@@ -4,7 +4,7 @@ router.use((req, res, next) => { console.log(`🔵 INCOMING ${req.method} ${req.
 // Pool now imported from ../db
 const { getConversation, upsertConversation } = require('../db');
 const { getAIResponse, detectLanguage } = require('../ai');
-const { sendMessage, sendButtons, sendList, sendImage } = require('../whatsapp');
+const { sendMessage, sendButtons, sendList, sendImage, drainWamids } = require('../whatsapp');
 const { getProducts, createDraftOrder } = require('../shopify');
 const { categorizeProducts } = require('../utils/categorize');
 const { generateCategories } = require('../utils/autoCategorize');
@@ -325,6 +325,16 @@ router.post('/', async (req, res) => {
       await rajatheeHandler.handle({
         tenant, message, from, text, phoneNumberId, waToken, history, cart
       });
+      // record wamids for delivery ticks
+      try {
+        const _wamids = drainWamids(from);
+        for (const _wid of _wamids) {
+          if (_wid) await pool.query(
+            'INSERT INTO team_messages (tenant_id, wamid, recipient_phone, recipient_role, conversation_id, message_ts) VALUES ($1,$2,$3,$4,$5,NOW()) ON CONFLICT (wamid) DO NOTHING',
+            [tenant.id, _wid, from, 'bot', conv?.id || null]
+          );
+        }
+      } catch(_we) { console.error('[wamid-record] rajathee', _we.message); }
       return;
     }
 
@@ -332,6 +342,16 @@ router.post('/', async (req, res) => {
       await woofparadeHandler.handle({
         tenant, message, from, text, phoneNumberId, waToken, history, cart
       });
+      // record wamids for delivery ticks
+      try {
+        const _wamids = drainWamids(from);
+        for (const _wid of _wamids) {
+          if (_wid) await pool.query(
+            'INSERT INTO team_messages (tenant_id, wamid, recipient_phone, recipient_role, conversation_id, message_ts) VALUES ($1,$2,$3,$4,$5,NOW()) ON CONFLICT (wamid) DO NOTHING',
+            [tenant.id, _wid, from, 'bot', conv?.id || null]
+          );
+        }
+      } catch(_we) { console.error('[wamid-record] woofparade', _we.message); }
       return;
     }
 
