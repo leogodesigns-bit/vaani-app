@@ -466,6 +466,18 @@ async function handle(ctx) {
     return;
   }
 
+  // ── Saree-search pagination buttons (must come BEFORE FABRIC_BTN.SHOW_MORE to win when sareeSearch state exists) ──
+  if (trimmed === 'Show more' && ctx.cart?.rajathee?.sareeSearch?.remainingHandles?.length > 0) {
+    await handleSareeSearchShowMore(ctx);
+    return;
+  }
+  if (trimmed === 'Browse menu') {
+    // Clear saree-search state and return to welcome
+    if (ctx.cart?.rajathee?.sareeSearch) delete ctx.cart.rajathee.sareeSearch;
+    await sendWelcome(ctx);
+    return;
+  }
+
   // ── Pagination + control buttons ──
   if (trimmed === FABRIC_BTN.SHOW_MORE) { await handleShowMore(ctx); return; }
   if (trimmed === FABRIC_BTN.SWITCH_FABRIC) { await sendFabricPicker(ctx); return; }
@@ -518,11 +530,16 @@ async function handle(ctx) {
         return;
       }
       if (search.mode === 'low') {
-        console.log(`[rajathee] saree-search LOW: ${search.candidates.length} candidates`);
+        console.log(`[rajathee] saree-search LOW: ${search.candidates.length} total candidates`);
+        const total = search.candidates.length;
+        const firstBatchSize = sareeSearch.batchSizeForPage(0);
+        const firstBatch = search.candidates.slice(0, firstBatchSize);
+        const remaining = search.candidates.slice(firstBatchSize);
+
         await sendMessage(ctx.from,
-          `I found a few that might match. Which one were you thinking of? ✨`,
+          `I found ${total} that might match. Which one were you thinking of? ✨`,
           ctx.waToken, ctx.phoneNumberId);
-        for (const p of search.candidates) {
+        for (const p of firstBatch) {
           const card = sareeSearch.formatProductCard(p);
           if (card.imageUrl) {
             await sendImage(ctx.from, card.imageUrl, card.caption, ctx.waToken, ctx.phoneNumberId);
@@ -530,6 +547,22 @@ async function handle(ctx) {
             await sendMessage(ctx.from, card.caption, ctx.waToken, ctx.phoneNumberId);
           }
         }
+
+        // Save remaining matches + page index for "Show more" pagination
+        ctx.cart = ctx.cart || {};
+        ctx.cart.rajathee = ctx.cart.rajathee || {};
+        ctx.cart.rajathee.sareeSearch = {
+          remainingHandles: remaining.map(p => ({ id: p.id, handle: p.handle, title: p.title, price: p.variants?.[0]?.price, image: p.images?.[0]?.src })),
+          page: 0,
+          query: trimmed,
+        };
+
+        if (remaining.length > 0) {
+          await sendButtons(ctx.from, `Want to see more? (${remaining.length} left)`,
+            ['Show more', 'Browse menu'],
+            ctx.waToken, ctx.phoneNumberId);
+        }
+        await upsertConversation(ctx.tenant.id, ctx.from, ctx.history || [], ctx.cart);
         return;
       }
     } catch (e) {
@@ -2182,6 +2215,54 @@ async function handleInStockFilter(ctx) {
 function isAmbiguous(message, trimmed) {
   if (!trimmed) return true;
   return false;
+}
+
+// ─── Saree-search "Show more" pagination handler ──────────────────────────
+async function handleSareeSearchShowMore(ctx) {
+  const state = ctx.cart?.rajathee?.sareeSearch;
+  if (!state || !state.remainingHandles || state.remainingHandles.length === 0) {
+    console.log('[rajathee] sareeSearch show-more called but no state');
+    await sendWelcome(ctx);
+    return;
+  }
+
+  const nextPage = (state.page || 0) + 1;
+  const batchSize = sareeSearch.batchSizeForPage(nextPage);
+  const batch = state.remainingHandles.slice(0, batchSize);
+  const stillRemaining = state.remainingHandles.slice(batchSize);
+
+  console.log(`[rajathee] sareeSearch show-more: page=${nextPage} batchSize=${batchSize} stillRemaining=${stillRemaining.length}`);
+
+  for (const p of batch) {
+    const card = {
+      imageUrl: p.image || null,
+      caption: `*${p.title}*${p.price ? '\n' + formatPrice(p.price) : ''}\n\nhttps://rajathee.com/products/${p.handle || ''}`,
+    };
+    if (card.imageUrl) {
+      await sendImage(ctx.from, card.imageUrl, card.caption, ctx.waToken, ctx.phoneNumberId);
+    } else {
+      await sendMessage(ctx.from, card.caption, ctx.waToken, ctx.phoneNumberId);
+    }
+  }
+
+  // Update state
+  ctx.cart.rajathee.sareeSearch = {
+    ...state,
+    page: nextPage,
+    remainingHandles: stillRemaining,
+  };
+
+  if (stillRemaining.length > 0) {
+    await sendButtons(ctx.from, `Want to see more? (${stillRemaining.length} left)`,
+      ['Show more', 'Browse menu'],
+      ctx.waToken, ctx.phoneNumberId);
+  } else {
+    delete ctx.cart.rajathee.sareeSearch;
+    await sendButtons(ctx.from, `That's all I found! Want to keep browsing?`,
+      ['Browse by fabric', 'Browse by colour'],
+      ctx.waToken, ctx.phoneNumberId);
+  }
+  await upsertConversation(ctx.tenant.id, ctx.from, ctx.history || [], ctx.cart);
 }
 
 module.exports = {
