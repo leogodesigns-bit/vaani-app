@@ -296,6 +296,23 @@ router.post('/', async (req, res) => {
       );
     }
 
+    // ── bot on/off check ─────────────────────────────────────────────────────
+    const _botSettingsRow = await pool.query(
+      'SELECT bot_active FROM tenant_settings WHERE tenant_id = $1',
+      [tenant.id]
+    );
+    const _botActive = _botSettingsRow.rows.length === 0 || _botSettingsRow.rows[0].bot_active !== false;
+    if (!_botActive) {
+      console.log('[webhook] bot OFF for tenant ' + tenant.id + ' — ignoring from ' + from);
+      return;
+    }
+
+        // bot-active-check
+    const _bsr = await pool.query('SELECT bot_active FROM tenant_settings WHERE tenant_id = $1', [tenant.id]);
+    if (_bsr.rows.length > 0 && _bsr.rows[0].bot_active === false) {
+      console.log('[webhook] bot OFF for tenant ' + tenant.id);
+      return;
+    }
     const conv = await getConversation(tenant.id, from);
     const history = conv?.messages || [];
     // cart holds: { current_category, product_offset, shortlist, pending_product, ... }
