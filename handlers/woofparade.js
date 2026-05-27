@@ -2547,6 +2547,16 @@ async function handleSizingRemind(ctx, when) {
       `Send me a time (e.g. "tomorrow 6pm" or "in 4 hours") and I'll remind you. ${PAW}`,
       waToken, phoneNumberId);
     return;
+  } else if (when) {
+    // PATCH 53b - Customer typed a free-text time directly (e.g. "Tomorrow 12 pm")
+    // instead of tapping one of the 3 buttons. Try parsing it.
+    console.log('[woofparade S07 PATCH53b] free-text reminder reply:', JSON.stringify(when));
+    const parsed = parseRemindTime(when);
+    if (parsed && parsed.getTime() > Date.now()) {
+      fireAt = parsed;
+      const whenStr = parsed.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Kolkata' });
+      note = `Got it — I'll nudge you on *${whenStr}*.`;
+    }
   }
 
   if (fireAt) {
