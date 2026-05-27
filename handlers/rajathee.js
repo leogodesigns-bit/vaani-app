@@ -593,6 +593,14 @@ async function handle(ctx) {
       console.error('[rajathee] saree-search error:', e.message);
     }
 
+    // ── Order inquiry detection (exchange/track handoff to Nikita+Apurv) ──
+    const orderNum = detectOrderNumber(trimmed);
+    if (orderNum) {
+      console.log(`[rajathee] Order inquiry detected: #${orderNum} from ${ctx.from}`);
+      await handleOrderInquiry(ctx, orderNum);
+      return;
+    }
+
     // ── Smart Q&A — fallback if saree-search returns 'none' ──
     const matched = await qa.matchFaq(trimmed, ctx.tenant.id);
     console.log(`[rajathee] FAQ match: ${matched ? matched.q : 'none'} for "${trimmed}"`);
@@ -2490,3 +2498,39 @@ async function tryParseBulkDetails(ctx) {
   }
 }
 
+
+// ─── ORDER NUMBER DETECTION (Exchange/Track handoff) ───────────────────────
+// Catches customer-typed order numbers like "#1002", "order 1002", "order number #1002".
+// Hands off to Nikita + Apurv via pingTeam; bot does not attempt exchange logic itself.
+
+const ORDER_NUMBER_RE = /(?:^|\s)(?:order\s*(?:number|id|no\.?|#)?\s*#?|#)(\d{3,7})(?:\s|$)/i;
+
+function detectOrderNumber(text) {
+  if (!text || typeof text !== 'string') return null;
+  const m = text.match(ORDER_NUMBER_RE);
+  return m ? m[1] : null;
+}
+
+async function handleOrderInquiry(ctx, orderNumber) {
+  const { from, phoneNumberId, waToken } = ctx;
+
+  // 1. Acknowledge to customer.
+  await sendMessage(from,
+    `Got it! I've shared your order *#${orderNumber}* with our team 💛\n\n` +
+    `Nikita will reach out within a few hours to help you with exchange or any other request.\n\n` +
+    `In the meantime, feel free to ask me anything else.`,
+    waToken, phoneNumberId);
+
+  // 2. Alert Nikita + Apurv.
+  const alert =
+    '🔄 *RAJATHEE — ORDER INQUIRY*\n\n' +
+    '*Order*: #' + orderNumber + '\n' +
+    '*Customer Phone*: +' + from + '\n\n' +
+    'Customer messaged about this order on WhatsApp. Likely exchange/return/track request.\n' +
+    'Please look up the order in Shopify and reach out to the customer.';
+
+  await pingTeam(ctx, 'ops', alert, {
+    sosType: 'ORDER INQUIRY',
+    summary: `Order inquiry #${orderNumber} from +${from}`,
+  });
+}
