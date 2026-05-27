@@ -516,6 +516,15 @@ async function handle(ctx) {
   }
 
   console.log(`[rajathee] no handler yet for: ${trimmed} (listId=${listReplyId}, btnId=${buttonReplyId})`);
+
+  // ── Order inquiry detection — runs BEFORE saree-search to catch "#1002", "Order id- 1002", etc.
+  const orderNum = detectOrderNumber(trimmed);
+  if (orderNum) {
+    console.log(`[rajathee] Order inquiry detected: #${orderNum} from ${ctx.from}`);
+    await handleOrderInquiry(ctx, orderNum);
+    return;
+  }
+
   // ── Saree search FIRST — match free text to a specific product/collection ──
   // (Runs before FAQ so single-word fabric queries like "Silk" show sarees, not care info.)
   if (trimmed && trimmed.length > 0) {
@@ -591,14 +600,6 @@ async function handle(ctx) {
       }
     } catch (e) {
       console.error('[rajathee] saree-search error:', e.message);
-    }
-
-    // ── Order inquiry detection (exchange/track handoff to Nikita+Apurv) ──
-    const orderNum = detectOrderNumber(trimmed);
-    if (orderNum) {
-      console.log(`[rajathee] Order inquiry detected: #${orderNum} from ${ctx.from}`);
-      await handleOrderInquiry(ctx, orderNum);
-      return;
     }
 
     // ── Smart Q&A — fallback if saree-search returns 'none' ──
@@ -2503,7 +2504,7 @@ async function tryParseBulkDetails(ctx) {
 // Catches customer-typed order numbers like "#1002", "order 1002", "order number #1002".
 // Hands off to Nikita + Apurv via pingTeam; bot does not attempt exchange logic itself.
 
-const ORDER_NUMBER_RE = /(?:^|\s)(?:order\s*(?:number|id|no\.?|#)?\s*#?|#)(\d{3,7})(?:\s|$)/i;
+const ORDER_NUMBER_RE = /(?:^|\s)(?:order\s*(?:number|num|id|no\.?|#)?\s*[-:#]*\s*|#)(\d{3,7})\b/i;
 
 function detectOrderNumber(text) {
   if (!text || typeof text !== 'string') return null;
