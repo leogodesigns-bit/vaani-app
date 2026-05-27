@@ -598,7 +598,6 @@ async function handle(ctx) {
     console.log(`[rajathee] FAQ match: ${matched ? matched.q : 'none'} for "${trimmed}"`);
     if (matched) {
       await qa.sendFaqMatch(ctx, matched);
-      await sendWelcome(ctx);
       return;
     }
 
