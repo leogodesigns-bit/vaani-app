@@ -618,7 +618,6 @@ async function handle(ctx) {
 
     if (count === 1) {
       await qa.sendOffTopicWarning(ctx);
-      await sendWelcome(ctx);
     } else {
       // Second strike: send mute message and enter silent mode.
       ctx.cart.rajathee.muted = true;
