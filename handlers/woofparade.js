@@ -1427,6 +1427,9 @@ async function handle(ctx) {
     const count = (ctx.cart.woofparade.offTopicCount || 0) + 1;
     ctx.cart.woofparade.offTopicCount = count;
 
+    // PATCH 53e — flag for human review: bot couldn't handle this message
+    await flagNeedsAttention(ctx, trimmed, 'off_topic_strike_' + count);
+
     if (count === 1) {
       await qa.sendOffTopicWarning(ctx);
       await sendWelcome(ctx);
@@ -1452,6 +1455,24 @@ async function handle(ctx) {
 // ════════════════════════════════════════════════════════════════════════════
 // PART 2 — WELCOME, BROWSE, SIZING, CHECKOUT
 // ════════════════════════════════════════════════════════════════════════════
+
+// ─── NEEDS-ATTENTION FLAG (PATCH 53e) ───────────────────────────────────────
+// Marks a conversation so the dashboard can surface it for a human when the bot
+// can't handle a message (off-topic strikes, deferred questions, etc.).
+async function flagNeedsAttention(ctx, message, reason) {
+  try {
+    ctx.cart = ctx.cart || {};
+    ctx.cart.needsAttention = {
+      at: new Date().toISOString(),
+      message: String(message || '').slice(0, 300),
+      reason: reason || 'unhandled',
+    };
+    await upsertConversation(ctx.tenant.id, ctx.from, ctx.history || [], ctx.cart);
+    console.log('[woofparade needsAttention] flagged:', reason, '-', String(message || '').slice(0, 80));
+  } catch (e) {
+    console.error('[woofparade flagNeedsAttention] failed:', e.message);
+  }
+}
 
 async function sendShowstopperWelcome(ctx) {
   // S01 PDF v1.4: when customer taps "Make my pet a showstopper" CTA on website.
@@ -4145,6 +4166,11 @@ async function handlePupProfileMessage(ctx) {
     // because awaitingPupDetails is now false.
     await upsertConversation(tenant.id, from, history, {
       ...cart,
+      needsAttention: {
+        at: new Date().toISOString(),
+        message: String(t || '').slice(0, 300),
+        reason: 'pup_name_question_defer',
+      },
       woofparade: {
         ...(cart.woofparade || {}),
         pupProfile: { awaitingPupDetails: false, deferredAt: Date.now() },
