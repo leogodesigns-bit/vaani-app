@@ -14,7 +14,7 @@
 // Template sends are stubbed until Meta approval lands. Until then they log
 // "[cron-nudges] template not yet approved" and skip without erroring.
 
-const { pool, getDueNudges, markNudgeSent, markNudgeError, getConversation } = require('./db');
+const { pool, getDueNudges, markNudgeSent, markNudgeError, getConversation, upsertConversation } = require('./db');
 const { sendMessage } = require('./whatsapp');
 // PATCH 23 — wire real template sends with freeform fallback for in-window cases.
 const { sendTemplateOrFreeform } = require('./templates');
@@ -55,6 +55,7 @@ async function sendBranchA(creds, phone, payload) {
     `If you'd like, I can show you a few based on your pup, or help with sizing.\n\n` +
     `— ${sig}`;
   await sendMessage(phone, text, creds.waToken, creds.phoneNumberId);
+  return text;
 }
 
 async function sendBranchB(creds, phone, payload) {
@@ -172,8 +173,10 @@ async function dispatchOne(nudge) {
       // PATCH 26 — Customer asked to be reminded about sizing.
       // In-window freeform send (no template required because customer
       // explicitly opted-in by tapping a reminder button).
-      await sendSizingRemind(creds, phone, payload);
-      return { sent: true };
+      {
+        const logText = await sendSizingRemind(creds, phone, payload);
+        return { sent: true, logText };
+      }
     default:
       throw new Error(`unknown nudge kind: ${nudge.kind}`);
   }
@@ -195,6 +198,17 @@ async function tick() {
         const result = await dispatchOne(nudge);
         if (result?.sent) {
           await markNudgeSent(nudge.id);
+          // PATCH 53c — log outgoing nudge into the conversation so it shows on the dashboard
+          if (result.logText) {
+            try {
+              const _conv = await getConversation(nudge.tenant_id, nudge.customer_phone);
+              const _msgs = (_conv && _conv.messages) ? _conv.messages : [];
+              _msgs.push({ role: 'assistant', content: result.logText });
+              await upsertConversation(nudge.tenant_id, nudge.customer_phone, _msgs, (_conv && _conv.cart) ? _conv.cart : {});
+            } catch (logErr) {
+              console.error('[cron-nudges] conversation log failed (non-fatal):', logErr.message);
+            }
+          }
           console.log(`[cron-nudges] ✅ sent id=${nudge.id} kind=${nudge.kind} phone=${nudge.customer_phone}`);
         } else if (result?.skipped) {
           // Mark sent so we don't retry forever — template path will be re-implemented when ready.
