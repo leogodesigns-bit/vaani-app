@@ -2508,6 +2508,18 @@ async function handleSizingRemind(ctx, when) {
   // S07 PDF v1.4 Branch B: first tap = "All good! When should I nudge you? 🐾"
   // then [In 2 hours] [Tomorrow morning] [Pick a time]
   if (when === SIZE_BTN.REMIND || when === 'No, remind me later') {
+    // PATCH 53d — set awaitingRemindTime now so a directly-typed time
+    // (e.g. "today 3pm") is caught even if the customer never taps "Pick a time".
+    ctx.cart = ctx.cart || {};
+    ctx.cart.woofparade = ctx.cart.woofparade || {};
+    ctx.cart.woofparade.sizing = {
+      ...(ctx.cart.woofparade.sizing || {}),
+      awaitingRemindTime: true,
+    };
+    await upsertConversation(tenant.id, from, [
+      ...(history || []),
+      { role: 'assistant', content: '[woofparade sizing_awaiting_remind_time]' },
+    ], ctx.cart);
     await sendButtons(from,
       `All good! When should I nudge you? ${PAW}`,
       [SIZE_BTN.IN_2_HOURS, SIZE_BTN.TOMORROW, SIZE_BTN.PICK_TIME],
@@ -2573,6 +2585,13 @@ async function handleSizingRemind(ctx, when) {
     } catch (e) {
       console.error('[woofparade S07] scheduleNudge failed:', e.message);
     }
+    // PATCH 53d — clear awaitingRemindTime now that the reminder is scheduled
+    try {
+      ctx.cart = ctx.cart || {};
+      ctx.cart.woofparade = ctx.cart.woofparade || {};
+      ctx.cart.woofparade.sizing = { ...(ctx.cart.woofparade.sizing || {}), awaitingRemindTime: false };
+      await upsertConversation(tenant.id, from, [...(history || [])], ctx.cart);
+    } catch (e) {}
   }
 
   await sendMessage(from, `${note || "Got it — I'll remind you later."} ${PAW}`, waToken, phoneNumberId);
