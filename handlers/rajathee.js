@@ -1855,6 +1855,10 @@ async function handlePaymentMenu(ctx) {
   const co = r.checkout || {};
   const items = r.items || [];
 
+  if (!items.length) {
+    await sendMessage(from, 'Your bag is empty — tap *Browse Products* to add a saree first 🌸', waToken, phoneNumberId);
+    return;
+  }
   if (!co.name || !co.address1 || !co.city || !co.state || !co.pin) {
     await sendMessage(from, 'A few details are missing — let me walk through them again.', waToken, phoneNumberId);
     return;
@@ -1891,6 +1895,10 @@ async function handlePaymentCard(ctx) {
   const co = r.checkout || {};
   const items = r.items || [];
 
+  if (!items.length) {
+    await sendMessage(from, 'Your bag is empty — tap *Browse Products* to add a saree first 🌸', waToken, phoneNumberId);
+    return;
+  }
   if (!co.name || !co.address1 || !co.city || !co.state || !co.pin) {
     await sendMessage(from, 'A few details are missing — let me walk through them again.', waToken, phoneNumberId);
     return;
@@ -1976,6 +1984,10 @@ async function handlePaymentUPI(ctx) {
   const co = r.checkout || {};
   const items = r.items || [];
 
+  if (!items.length) {
+    await sendMessage(from, 'Your bag is empty — tap *Browse Products* to add a saree first 🌸', waToken, phoneNumberId);
+    return;
+  }
   if (!co.name || !co.address1 || !co.city || !co.state || !co.pin) {
     await sendMessage(from, 'A few details are missing — let me walk through them again.', waToken, phoneNumberId);
     return;
@@ -2022,6 +2034,10 @@ async function handlePaymentCOD(ctx) {
   const co = r.checkout || {};
   const items = r.items || [];
 
+  if (!items.length) {
+    await sendMessage(from, 'Your bag is empty — tap *Browse Products* to add a saree first 🌸', waToken, phoneNumberId);
+    return;
+  }
   if (!co.name || !co.address1 || !co.city || !co.state || !co.pin) {
     await sendMessage(from, 'A few details are missing — let me walk through them again.', waToken, phoneNumberId);
     return;
@@ -2172,6 +2188,10 @@ async function handleCheckoutConfirm(ctx) {
   const co = r.checkout || {};
   const items = r.items || [];
 
+  if (!items.length) {
+    await sendMessage(from, 'Your bag is empty — tap *Browse Products* to add a saree first 🌸', waToken, phoneNumberId);
+    return;
+  }
   if (!co.name || !co.address1 || !co.city || !co.state || !co.pin) {
     await sendMessage(from, 'A few details are missing — let me walk through them again.', waToken, phoneNumberId);
     return;
