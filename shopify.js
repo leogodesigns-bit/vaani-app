@@ -229,7 +229,7 @@ async function createCheckoutDraftOrder(shopDomain, accessToken, opts) {
           { name: 'vaani_source', value: sourceTag || 'vaani-woofparade' },
           { name: 'vaani_customer_phone', value: `+${customerPhone}` },
         ],
-        tags: `vaani, whatsapp, ${sourceTag || 'woofparade'}`,
+        tags: `vaani, whatsapp, ${sourceTag || 'woofparade'}${internalOrderId ? ', ' + internalOrderId : ''}`,
         use_customer_default_address: false,
       },
     };

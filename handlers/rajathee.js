@@ -2002,6 +2002,22 @@ async function handlePaymentUPI(ctx) {
     await saveOrder(orderId, tenant.id, from, items, co, subtotal, shipping, grand);
   } catch (e) { console.error('[rajathee upi] saveOrder failed:', e.message); }
 
+  // Record in Shopify as a draft (searchable by RAJ-xxx tag). UPI is paid via the QR, so no link is sent.
+  const draftItems = shipping > 0
+    ? [...items, { kind: 'shipping', productTitle: 'Shipping', price: shipping, quantity: 1 }]
+    : items;
+  if (tenant.shopify_token && tenant.shop_domain) {
+    try {
+      const d = await createCheckoutDraftOrder(tenant.shop_domain, tenant.shopify_token, {
+        items: draftItems, customerPhone: from, customerName: co.name,
+        address1: co.address1, city: co.city, state: co.state, pin: co.pin,
+        subtotal, discountAmount: co.discount || 0, discountLabel: co.discountLabel || '',
+        grandTotal: grand, internalOrderId: orderId, sourceTag: 'vaani-rajathee, UPI',
+      });
+      if (d && d.shopify_draft_id) await saveShopifyDraftRef(orderId, d.shopify_draft_id);
+    } catch (e) { console.error('[rajathee upi] draft create failed:', e.message); }
+  }
+
   const qrUrl = VAANI_PUBLIC_URL + '/qr/' + orderId + '.png';
   await sendImage(from, qrUrl, '📲 Scan to pay ' + formatPrice(grand) + ' via any UPI app', waToken, phoneNumberId);
   await sendMessage(from,
@@ -2053,6 +2069,24 @@ async function handlePaymentCOD(ctx) {
     await saveOrder(orderId, tenant.id, from, items, co, subtotal, shipping, grand);
   } catch (e) { console.error('[rajathee cod] saveOrder failed:', e.message); }
 
+  // Record the COD order in Shopify as a draft (tagged COD + RAJ-xxx). Team confirms later.
+  const draftItems = shipping > 0
+    ? [...items, { kind: 'shipping', productTitle: 'Shipping', price: shipping, quantity: 1 }]
+    : items;
+  let codInvoiceUrl = null;
+  if (tenant.shopify_token && tenant.shop_domain) {
+    try {
+      const d = await createCheckoutDraftOrder(tenant.shop_domain, tenant.shopify_token, {
+        items: draftItems, customerPhone: from, customerName: co.name,
+        address1: co.address1, city: co.city, state: co.state, pin: co.pin,
+        subtotal, discountAmount: co.discount || 0, discountLabel: co.discountLabel || '',
+        grandTotal: grand, internalOrderId: orderId, sourceTag: 'vaani-rajathee, COD',
+      });
+      if (d && d.shopify_draft_id) await saveShopifyDraftRef(orderId, d.shopify_draft_id);
+      if (d && d.invoice_url) codInvoiceUrl = d.invoice_url;
+    } catch (e) { console.error('[rajathee cod] draft create failed:', e.message); }
+  }
+
   await sendMessage(from,
     '📦 *Cash on Delivery*\n\n' +
     'Order *' + orderId + '* — total *' + formatPrice(grand) + '*.\n' +
@@ -2082,7 +2116,7 @@ async function handlePaymentCOD(ctx) {
     rajathee: {
       ...r,
       items: [],
-      checkout: { ...co, step: CHECKOUT_STEP.CONFIRMED, orderId, paymentMethod: 'cod', codBalance: balance },
+      checkout: { ...co, step: CHECKOUT_STEP.CONFIRMED, orderId, paymentMethod: 'cod', codBalance: balance, invoiceUrl: codInvoiceUrl },
       lastOrderId: orderId,
     },
   });
@@ -2128,6 +2162,20 @@ async function handleCodSwitchCard(ctx) {
     await sendMessage(from, 'I lost track of that order — let me know if you would like to start again.', waToken, phoneNumberId);
     return;
   }
+  // Reuse the draft already created at COD time — avoids a duplicate Shopify draft.
+  if (co.invoiceUrl) {
+    await sendMessage(from,
+      '💳 *Pay securely here:*\n' + co.invoiceUrl + '\n\n' +
+      'The moment your payment is in, I will confirm your order right here ✨',
+      waToken, phoneNumberId);
+    await upsertConversation(tenant.id, from, [
+      ...history,
+      { role: 'user', content: text },
+      { role: 'assistant', content: '[rajathee cod_switch_card=' + orderId + ']' },
+    ], { ...cart, rajathee: { ...r, checkout: { ...co, paymentMethod: 'card' } } });
+    return;
+  }
+
   const order = await getOrder(orderId).catch(() => null);
   if (!order) {
     await sendMessage(from, 'I could not find that order — let me know if you would like to start again.', waToken, phoneNumberId);
