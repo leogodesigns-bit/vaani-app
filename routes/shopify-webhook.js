@@ -88,6 +88,9 @@ function getWebhookSecret(tenant) {
       tenant.myshopify_canonical_domain === 'vs6xap-uz.myshopify.com') {
     return process.env.SHOPIFY_WEBHOOK_SECRET_WOOF;
   }
+  if (tenant.shop_domain === 'rajathee.myshopify.com') {
+    return process.env.SHOPIFY_WEBHOOK_SECRET_RAJATHEE;
+  }
   return null;
 }
 
@@ -240,10 +243,13 @@ async function handleOrderPaid(tenant, payload) {
   }
 
   const customerPhone = ourOrder.customer_phone;
-  const message =
-    `Payment confirmed! 🎉\n` +
-    `Order #${ourOrder.order_id} is on its way to being a showstopper.\n` +
-    `Tracking link will land here once it ships (usually 1–2 days). 🐾`;
+  const message = (tenant.flow_template === 'rajathee')
+    ? `Payment received — thank you! ✨\n` +
+      `Your order #${ourOrder.order_id} is confirmed.\n` +
+      `We'll share tracking here once it ships (5–7 working days).`
+    : `Payment confirmed! 🎉\n` +
+      `Order #${ourOrder.order_id} is on its way to being a showstopper.\n` +
+      `Tracking link will land here once it ships (usually 1–2 days). 🐾`;
 
   try {
     await sendMessage(customerPhone, message, creds.waToken, creds.phoneNumberId);
@@ -255,10 +261,12 @@ async function handleOrderPaid(tenant, payload) {
   // PATCH 23 — Pay Now path PDF S11: "→ S30 fires next: post-purchase pup
   // profile / confirmation." Wait a beat so customer reads the confirmation
   // before the pup-profile prompt arrives.
-  setTimeout(() => {
-    firePostPurchasePupProfile(tenant, customerPhone, creds.waToken, creds.phoneNumberId)
-      .catch(e => console.error('[orders/paid S30] firePostPurchasePupProfile failed:', e.message));
-  }, 1500);
+  if (tenant.flow_template === 'woofparade') {
+    setTimeout(() => {
+      firePostPurchasePupProfile(tenant, customerPhone, creds.waToken, creds.phoneNumberId)
+        .catch(e => console.error('[orders/paid S30] firePostPurchasePupProfile failed:', e.message));
+    }, 1500);
+  }
 }
 
 // ─── orders/fulfilled → tracking link (PDF S32 Branch 1) ──────────────────

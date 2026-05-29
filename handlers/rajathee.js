@@ -21,14 +21,14 @@
 //   C.11 — Section 13 Edge cases
 
 const { sendMessage, sendButtons, sendList, sendImage } = require('../whatsapp');
-const { getConversation, upsertConversation, saveOrder, getOrder, markOrderPaid } = require('../db');
+const { getConversation, upsertConversation, saveOrder, getOrder, markOrderPaid, saveShopifyDraftRef } = require('../db');
 const Anthropic = require('@anthropic-ai/sdk');
 const edge = require('./rajathee-edge');
 const qa = require('./rajathee-qa');
 const sareeSearch = require('./rajathee-product-search');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const { getCollectionProducts, getProductByHandle, formatPrice, stripHtml } = require('../shopify');
+const { getCollectionProducts, getProductByHandle, formatPrice, stripHtml, createCheckoutDraftOrder } = require('../shopify');
 const { getTenantSettings } = require('../settings-cache');
 const { sendTemplateOrFreeform } = require('../templates');
 
@@ -265,6 +265,7 @@ const CHECKOUT_STEP = {
   STATE:    'state',
   PIN:      'pin',
   REVIEW:   'review',
+  PAYMENT:  'payment_method',
   CONFIRMED:'confirmed',
 };
 
@@ -276,6 +277,23 @@ const CHECKOUT_BTN = {
   EDIT_STATE: 'Edit state',
   EDIT_PIN:   'Edit PIN',
   CANCEL:     'Cancel checkout',
+};
+
+// ─── Payment-mode buttons (Card / UPI / COD) ──────────────────────────────
+const PAYMENT_BTN = {
+  CARD: 'Pay by Card',
+  UPI:  'Pay by UPI',
+  COD:  'Cash on Delivery',
+};
+
+const VAANI_PUBLIC_URL = process.env.RAILWAY_PUBLIC_DOMAIN
+  ? 'https://' + process.env.RAILWAY_PUBLIC_DOMAIN
+  : 'https://vaani-app-production-6407.up.railway.app';
+
+const COD_ADVANCE = 100;
+const COD_SWITCH_BTN = {
+  FULL_UPI:  'Pay full by UPI',
+  FULL_CARD: 'Pay full by Card',
 };
 
 // ─── PDF Section 9 — Post-purchase ────────────────────────────────────────
@@ -444,7 +462,12 @@ async function handle(ctx) {
   if (trimmed === CART_BTN.CHECKOUT)    { await handleCheckout(ctx);   return; }
 
   // ── Checkout flow buttons + edit list rows ──
-  if (trimmed === CHECKOUT_BTN.CONFIRM)    { await handleCheckoutConfirm(ctx); return; }
+  if (trimmed === CHECKOUT_BTN.CONFIRM)    { await handlePaymentMenu(ctx); return; }
+  if (trimmed === PAYMENT_BTN.CARD)         { await handlePaymentCard(ctx);    return; }
+  if (trimmed === PAYMENT_BTN.UPI)          { await handlePaymentUPI(ctx);     return; }
+  if (trimmed === PAYMENT_BTN.COD)          { await handlePaymentCOD(ctx);     return; }
+  if (trimmed === COD_SWITCH_BTN.FULL_UPI)  { await handleCodSwitchUPI(ctx);   return; }
+  if (trimmed === COD_SWITCH_BTN.FULL_CARD) { await handleCodSwitchCard(ctx);  return; }
   if (trimmed === CHECKOUT_BTN.CANCEL)     { await handleCheckoutCancel(ctx);  return; }
   if (trimmed === CHECKOUT_BTN.EDIT_ADDR)  { await handleCheckoutEdit(ctx, CHECKOUT_STEP.ADDRESS1); return; }
   if (listReplyId === 'checkout_edit_name')  { await handleCheckoutEdit(ctx, CHECKOUT_STEP.NAME);     return; }
@@ -1822,6 +1845,324 @@ async function sendOwnerAlert(ctx, items, checkout, orderId) {
   await pingTeam(ctx, 'ops', alert, {
     sosType: 'NEW ORDER',
     summary: `New order ${orderId} — ${formatPrice(grand)}`,
+  });
+}
+
+// ─── Payment-mode menu — shown after address is collected ─────────────────
+async function handlePaymentMenu(ctx) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const r = cart.rajathee || {};
+  const co = r.checkout || {};
+  const items = r.items || [];
+
+  if (!co.name || !co.address1 || !co.city || !co.state || !co.pin) {
+    await sendMessage(from, 'A few details are missing — let me walk through them again.', waToken, phoneNumberId);
+    return;
+  }
+
+  const subtotal = items.reduce((s, it) => s + (it.price || 0), 0);
+  const shipping = calcShipping(subtotal);
+  const grand = subtotal + shipping;
+
+  await sendButtons(from,
+    '*How would you like to pay?*\n\n' +
+    'Order total: ' + formatPrice(grand) +
+    (shipping === 0 ? ' (free shipping)' : ' incl. ' + formatPrice(shipping) + ' shipping') + '\n\n' +
+    '💳 *Card* — pay securely online\n' +
+    '📲 *UPI* — scan & pay\n' +
+    '📦 *COD* — ₹100 advance now, rest on delivery',
+    [PAYMENT_BTN.CARD, PAYMENT_BTN.UPI, PAYMENT_BTN.COD],
+    waToken, phoneNumberId);
+
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: '[rajathee payment_menu_shown]' },
+  ], {
+    ...cart,
+    rajathee: { ...r, checkout: { ...co, step: CHECKOUT_STEP.PAYMENT } },
+  });
+}
+
+// ─── Card branch — Shopify checkout link (auto-confirm comes via orders/paid webhook) ─
+async function handlePaymentCard(ctx) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const r = cart.rajathee || {};
+  const co = r.checkout || {};
+  const items = r.items || [];
+
+  if (!co.name || !co.address1 || !co.city || !co.state || !co.pin) {
+    await sendMessage(from, 'A few details are missing — let me walk through them again.', waToken, phoneNumberId);
+    return;
+  }
+
+  const orderId  = generateOrderId(co.phone || from);
+  const subtotal = items.reduce((s, it) => s + (it.price || 0), 0);
+  const shipping = calcShipping(subtotal);
+  const grand    = subtotal + shipping;
+
+  try {
+    await saveOrder(orderId, tenant.id, from, items, co, subtotal, shipping, grand);
+  } catch (e) { console.error('[rajathee card] saveOrder failed:', e.message); }
+
+  // Add shipping as a line item so the Shopify total matches Tara exactly.
+  const draftItems = shipping > 0
+    ? [...items, { kind: 'shipping', productTitle: 'Shipping', price: shipping, quantity: 1 }]
+    : items;
+
+  let linkSent = false;
+  if (tenant.shopify_token && tenant.shop_domain) {
+    try {
+      const draft = await createCheckoutDraftOrder(tenant.shop_domain, tenant.shopify_token, {
+        items: draftItems,
+        customerPhone: from,
+        customerName: co.name,
+        address1: co.address1,
+        city: co.city,
+        state: co.state,
+        pin: co.pin,
+        subtotal,
+        discountAmount: co.discount || 0,
+        discountLabel: co.discountLabel || '',
+        grandTotal: grand,
+        internalOrderId: orderId,
+        sourceTag: 'vaani-rajathee',
+      });
+      if (draft && draft.invoice_url) {
+        try { await saveShopifyDraftRef(orderId, draft.shopify_draft_id); }
+        catch (e) { console.error('[rajathee card] saveShopifyDraftRef failed:', e.message); }
+        await sendMessage(from,
+          '💳 *Pay securely here:*\n' + draft.invoice_url + '\n\n' +
+          'The moment your payment is in, I\'ll confirm your order right here ✨\n' +
+          'Estimated delivery after payment: 5–7 working days.',
+          waToken, phoneNumberId);
+        linkSent = true;
+        console.log('[rajathee card] draft ' + draft.shopify_draft_id + ' invoice sent for ' + orderId);
+      }
+    } catch (e) { console.error('[rajathee card] draft creation failed:', e.message); }
+  }
+
+  if (!linkSent) {
+    await sendMessage(from,
+      'Got your order ✨ Our team will send you a payment link shortly — usually within an hour.',
+      waToken, phoneNumberId);
+    await pingTeam(ctx, 'ops',
+      '⚠️ Vaani: Shopify card link FAILED for ' + orderId + '\n' +
+      'Customer: ' + co.name + ' (+' + from + ')\nPlease send a manual payment link.',
+      { sosType: 'NEW ORDER', summary: 'Card link failed for ' + orderId });
+  }
+
+  await sendOwnerAlert(ctx, items, co, orderId);
+
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: '[rajathee card_order=' + orderId + ']' },
+  ], {
+    ...cart,
+    rajathee: {
+      ...r,
+      items: [],
+      checkout: { ...co, step: CHECKOUT_STEP.CONFIRMED, orderId, paymentMethod: 'card' },
+      lastOrderId: orderId,
+    },
+  });
+}
+
+// ─── UPI branch — dynamic QR; team confirms on dashboard / via 'confirmed RAJ-XXX' ─
+async function handlePaymentUPI(ctx) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const r = cart.rajathee || {};
+  const co = r.checkout || {};
+  const items = r.items || [];
+
+  if (!co.name || !co.address1 || !co.city || !co.state || !co.pin) {
+    await sendMessage(from, 'A few details are missing — let me walk through them again.', waToken, phoneNumberId);
+    return;
+  }
+
+  const orderId  = generateOrderId(co.phone || from);
+  const subtotal = items.reduce((s, it) => s + (it.price || 0), 0);
+  const shipping = calcShipping(subtotal);
+  const grand    = subtotal + shipping;
+
+  try {
+    await saveOrder(orderId, tenant.id, from, items, co, subtotal, shipping, grand);
+  } catch (e) { console.error('[rajathee upi] saveOrder failed:', e.message); }
+
+  const qrUrl = VAANI_PUBLIC_URL + '/qr/' + orderId + '.png';
+  await sendImage(from, qrUrl, '📲 Scan to pay ' + formatPrice(grand) + ' via any UPI app', waToken, phoneNumberId);
+  await sendMessage(from,
+    'Order *' + orderId + '* — total *' + formatPrice(grand) + '*.\n\n' +
+    'Once you have paid, reply here with your *UPI reference number* (the 12-digit ref in your payment app) or a screenshot. ' +
+    'Our team will verify it and your confirmation will land right here ✨',
+    waToken, phoneNumberId);
+
+  await sendOwnerAlert(ctx, items, co, orderId);
+
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: '[rajathee upi_order=' + orderId + ']' },
+  ], {
+    ...cart,
+    rajathee: {
+      ...r,
+      items: [],
+      checkout: { ...co, step: CHECKOUT_STEP.CONFIRMED, orderId, paymentMethod: 'upi' },
+      lastOrderId: orderId,
+    },
+  });
+}
+
+// ─── COD branch — ₹100 advance via UPI QR; switch-to-full buttons ──────────
+async function handlePaymentCOD(ctx) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const r = cart.rajathee || {};
+  const co = r.checkout || {};
+  const items = r.items || [];
+
+  if (!co.name || !co.address1 || !co.city || !co.state || !co.pin) {
+    await sendMessage(from, 'A few details are missing — let me walk through them again.', waToken, phoneNumberId);
+    return;
+  }
+
+  const orderId  = generateOrderId(co.phone || from);
+  const subtotal = items.reduce((s, it) => s + (it.price || 0), 0);
+  const shipping = calcShipping(subtotal);
+  const grand    = subtotal + shipping;
+  const balance  = grand - COD_ADVANCE;
+
+  try {
+    await saveOrder(orderId, tenant.id, from, items, co, subtotal, shipping, grand);
+  } catch (e) { console.error('[rajathee cod] saveOrder failed:', e.message); }
+
+  await sendMessage(from,
+    '📦 *Cash on Delivery*\n\n' +
+    'Order *' + orderId + '* — total *' + formatPrice(grand) + '*.\n' +
+    'To confirm a COD order we take a small *₹100 advance* now. It is adjusted from your bill, so you pay *' + formatPrice(balance) + '* on delivery.',
+    waToken, phoneNumberId);
+
+  const qrUrl = VAANI_PUBLIC_URL + '/qr/' + orderId + '.png?amt=' + COD_ADVANCE;
+  await sendImage(from, qrUrl, '📲 Scan to pay the ₹100 advance', waToken, phoneNumberId);
+  await sendMessage(from,
+    'After paying ₹100, reply with your *UPI reference number* (or a screenshot). ' +
+    'Once we verify it, your COD order is locked in ✨',
+    waToken, phoneNumberId);
+
+  await sendButtons(from,
+    'Or pay the *full amount* now instead:',
+    [COD_SWITCH_BTN.FULL_UPI, COD_SWITCH_BTN.FULL_CARD],
+    waToken, phoneNumberId);
+
+  await sendOwnerAlert(ctx, items, co, orderId);
+
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: '[rajathee cod_order=' + orderId + ']' },
+  ], {
+    ...cart,
+    rajathee: {
+      ...r,
+      items: [],
+      checkout: { ...co, step: CHECKOUT_STEP.CONFIRMED, orderId, paymentMethod: 'cod', codBalance: balance },
+      lastOrderId: orderId,
+    },
+  });
+}
+
+// Switch a pending COD order to full UPI payment (reuses the same order).
+async function handleCodSwitchUPI(ctx) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const r = cart.rajathee || {};
+  const co = r.checkout || {};
+  const orderId = co.orderId || r.lastOrderId;
+  if (!orderId) {
+    await sendMessage(from, 'I lost track of that order — let me know if you would like to start again.', waToken, phoneNumberId);
+    return;
+  }
+  const order = await getOrder(orderId).catch(() => null);
+  const grand = order ? Number(order.grand_total) : 0;
+
+  const qrUrl = VAANI_PUBLIC_URL + '/qr/' + orderId + '.png';
+  await sendImage(from, qrUrl, '📲 Scan to pay ' + formatPrice(grand) + ' in full via UPI', waToken, phoneNumberId);
+  await sendMessage(from,
+    'Paying the full *' + formatPrice(grand) + '* for order *' + orderId + '*.\n\n' +
+    'After paying, reply with your *UPI reference number* (or screenshot) and we will confirm here ✨',
+    waToken, phoneNumberId);
+
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: '[rajathee cod_switch_upi=' + orderId + ']' },
+  ], {
+    ...cart,
+    rajathee: { ...r, checkout: { ...co, paymentMethod: 'upi' } },
+  });
+}
+
+// Switch a pending COD order to full Card payment (Shopify checkout link).
+async function handleCodSwitchCard(ctx) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const r = cart.rajathee || {};
+  const co = r.checkout || {};
+  const orderId = co.orderId || r.lastOrderId;
+  if (!orderId) {
+    await sendMessage(from, 'I lost track of that order — let me know if you would like to start again.', waToken, phoneNumberId);
+    return;
+  }
+  const order = await getOrder(orderId).catch(() => null);
+  if (!order) {
+    await sendMessage(from, 'I could not find that order — let me know if you would like to start again.', waToken, phoneNumberId);
+    return;
+  }
+
+  let items = order.items;
+  if (typeof items === 'string') { try { items = JSON.parse(items); } catch (e) { items = []; } }
+  if (!Array.isArray(items)) items = [];
+  const shipping = Number(order.shipping || 0);
+  const grand = Number(order.grand_total || 0);
+  const draftItems = shipping > 0
+    ? [...items, { kind: 'shipping', productTitle: 'Shipping', price: shipping, quantity: 1 }]
+    : items;
+
+  let linkSent = false;
+  if (tenant.shopify_token && tenant.shop_domain) {
+    try {
+      const draft = await createCheckoutDraftOrder(tenant.shop_domain, tenant.shopify_token, {
+        items: draftItems,
+        customerPhone: from,
+        customerName: co.name,
+        address1: co.address1, city: co.city, state: co.state, pin: co.pin,
+        subtotal: Number(order.subtotal || 0),
+        discountAmount: 0, discountLabel: '',
+        grandTotal: grand,
+        internalOrderId: orderId,
+        sourceTag: 'vaani-rajathee',
+      });
+      if (draft && draft.invoice_url) {
+        try { await saveShopifyDraftRef(orderId, draft.shopify_draft_id); }
+        catch (e) { console.error('[rajathee cod-switch-card] saveShopifyDraftRef failed:', e.message); }
+        await sendMessage(from,
+          '💳 *Pay securely here:*\n' + draft.invoice_url + '\n\n' +
+          'The moment your payment is in, I will confirm your order right here ✨',
+          waToken, phoneNumberId);
+        linkSent = true;
+      }
+    } catch (e) { console.error('[rajathee cod-switch-card] draft failed:', e.message); }
+  }
+  if (!linkSent) {
+    await sendMessage(from, 'Our team will send you a payment link shortly — sorry for the small delay!', waToken, phoneNumberId);
+  }
+
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: '[rajathee cod_switch_card=' + orderId + ']' },
+  ], {
+    ...cart,
+    rajathee: { ...r, checkout: { ...co, paymentMethod: 'card' } },
   });
 }
 

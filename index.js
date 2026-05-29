@@ -623,6 +623,7 @@ app.use(express.static(__dirname + '/public'));
 app.use('/shopify', require('./routes/install'));
 app.use('/webhook', require('./routes/webhook'));
 app.use('/shopify-webhook', require('./routes/shopify-webhook'));
+app.use('/qr', require('./routes/qr'));
 app.use('/shopify', require('./routes/compliance'));
 app.use('/gdpr', require('./routes/gdpr'));
 app.use('/webhooks', require('./routes/gdpr'));
