@@ -171,6 +171,20 @@ router.post('/', async (req, res) => {
 
     const from = message.from;
 
+    // WhatsApp profile name capture (dashboard shows it for unknown numbers)
+    try {
+      const _waName = entry && entry.contacts && entry.contacts[0] && entry.contacts[0].profile && entry.contacts[0].profile.name;
+      if (_waName) {
+        pool.query(
+          `INSERT INTO conversations (tenant_id, customer_phone, customer_name)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (tenant_id, customer_phone)
+           DO UPDATE SET customer_name = EXCLUDED.customer_name`,
+          [tenant.id, from, String(_waName).slice(0, 120)]
+        ).catch(e => console.error("[customer_name] capture failed (non-fatal):", e.message));
+      }
+    } catch (e) { console.error("[customer_name] capture error (non-fatal):", e.message); }
+
     // ─── DEDUP GUARD: prevent Meta webhook retries from re-processing ────────
     // Meta retries webhook delivery if the server is slow or returns non-200.
     // Without this, the same message can run handle() twice — causing the bot
