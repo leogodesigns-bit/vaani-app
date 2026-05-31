@@ -248,14 +248,78 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
   const state = { name:'', phone:'', store:'', persona:'', category:'', channel:'' };
 
   const catData = {
-    fashion:   { subcats:['Kurtas','Sarees','Tops','Dresses'], products:[{name:'Pastel Pink Saree',price:'₹2,499',amount:2499,emoji:'🌸'},{name:'Embroidered Kurta',price:'₹1,899',amount:1899,emoji:'🌿'},{name:'Linen Co-ord',price:'₹3,299',amount:3299,emoji:'✨'}] },
-    jewellery: { subcats:['Earrings','Necklaces','Rings','Bracelets'], products:[{name:'Pearl Drop Earrings',price:'₹1,299',amount:1299,emoji:'🪷'},{name:'Kundan Necklace',price:'₹4,499',amount:4499,emoji:'💎'},{name:'Gold-plated Ring',price:'₹899',amount:899,emoji:'✨'}] },
-    pets:      { subcats:['Food','Toys','Accessories','Grooming'], products:[{name:'Tropical Bandana',price:'₹499',amount:499,emoji:'🌴'},{name:'Leather Collar',price:'₹899',amount:899,emoji:'🐕'},{name:'Salmon Treats',price:'₹349',amount:349,emoji:'🍣'}] },
-    food:      { subcats:['Snacks','Sweets','Beverages','Healthy'], products:[{name:'Mango Pickle (500g)',price:'₹299',amount:299,emoji:'🥭'},{name:'Roasted Makhana',price:'₹199',amount:199,emoji:'🥜'},{name:'Kaju Katli (250g)',price:'₹449',amount:449,emoji:'🍡'}] },
-    home:      { subcats:['Cushions','Planters','Wall Art','Lamps'], products:[{name:'Brass Diya Set',price:'₹699',amount:699,emoji:'🪔'},{name:'Block-print Cushion',price:'₹599',amount:599,emoji:'🛋️'},{name:'Terracotta Vase',price:'₹999',amount:999,emoji:'🏺'}] },
-    beauty:    { subcats:['Skincare','Nail Art','Haircare','Makeup'], products:[{name:'Rose Glow Serum',price:'₹899',amount:899,emoji:'🌹'},{name:'Coconut Hair Oil',price:'₹399',amount:399,emoji:'🥥'},{name:'Saffron Face Mist',price:'₹649',amount:649,emoji:'💛'}] },
-    kids:      { subcats:['Toys','Clothing','Books','Accessories'], products:[{name:'Cotton Romper',price:'₹699',amount:699,emoji:'👶'},{name:'Wooden Puzzle',price:'₹499',amount:499,emoji:'🧩'},{name:'Bedtime Storybook',price:'₹349',amount:349,emoji:'📚'}] },
-    art:       { subcats:['Prints','Handmade','Stationery','Kits'], products:[{name:'Floral Art Print',price:'₹899',amount:899,emoji:'🌺'},{name:'Handmade Journal',price:'₹599',amount:599,emoji:'📓'},{name:'Watercolor Kit',price:'₹1,299',amount:1299,emoji:'🎨'}] }
+    fashion: {
+      subcats: ['Kurtas','Sarees','Tops','Dresses'],
+      products: {
+        'Kurtas':  [{name:'Embroidered Anarkali',price:'₹2,199',emoji:'🌿'},{name:'Cotton Straight Kurta',price:'₹1,299',emoji:'🪻'},{name:'Silk Festive Kurta',price:'₹2,899',emoji:'✨'}],
+        'Sarees':  [{name:'Pastel Pink Saree',price:'₹2,499',emoji:'🌸'},{name:'Banarasi Silk Saree',price:'₹4,499',emoji:'💛'},{name:'Chiffon Floral Saree',price:'₹1,899',emoji:'🌺'}],
+        'Tops':    [{name:'Linen Crop Top',price:'₹999',emoji:'🌾'},{name:'Tie-Dye T-Shirt',price:'₹699',emoji:'🎨'},{name:'Off-Shoulder Top',price:'₹1,299',emoji:'☀️'}],
+        'Dresses': [{name:'Floral Maxi Dress',price:'₹1,899',emoji:'🌷'},{name:'Wrap Midi Dress',price:'₹2,299',emoji:'🌼'},{name:'Cotton Day Dress',price:'₹1,499',emoji:'🌻'}]
+      }
+    },
+    jewellery: {
+      subcats: ['Earrings','Necklaces','Rings','Bracelets'],
+      products: {
+        'Earrings':  [{name:'Pearl Drop Earrings',price:'₹1,299',emoji:'🪷'},{name:'Gold Hoops',price:'₹1,799',emoji:'✨'},{name:'Kundan Studs',price:'₹2,199',emoji:'💛'}],
+        'Necklaces': [{name:'Kundan Necklace',price:'₹4,499',emoji:'💎'},{name:'Pearl Choker',price:'₹2,699',emoji:'🤍'},{name:'Layered Chain',price:'₹1,899',emoji:'✨'}],
+        'Rings':     [{name:'Gold-plated Ring',price:'₹899',emoji:'💍'},{name:'Cocktail Ring',price:'₹1,599',emoji:'💎'},{name:'Stackable Ring Set',price:'₹1,299',emoji:'🌟'}],
+        'Bracelets': [{name:'Beaded Bracelet',price:'₹699',emoji:'📿'},{name:'Charm Bracelet',price:'₹1,299',emoji:'✨'},{name:'Cuff Bangle',price:'₹1,599',emoji:'🌙'}]
+      }
+    },
+    pets: {
+      subcats: ['Food','Toys','Accessories','Grooming'],
+      products: {
+        'Food':        [{name:'Premium Kibble (5kg)',price:'₹2,499',emoji:'🥩'},{name:'Wet Food Tray',price:'₹399',emoji:'🍗'},{name:'Grain-free Mix',price:'₹1,899',emoji:'🌾'}],
+        'Toys':        [{name:'Squeaky Chew Toy',price:'₹349',emoji:'🦴'},{name:'Rope Tug Toy',price:'₹299',emoji:'🪢'},{name:'Treat Puzzle Ball',price:'₹699',emoji:'🎾'}],
+        'Accessories': [{name:'Leather Collar',price:'₹899',emoji:'🐕'},{name:'LED Leash',price:'₹599',emoji:'💡'},{name:'Tropical Bandana',price:'₹499',emoji:'🌴'}],
+        'Grooming':    [{name:'Oatmeal Shampoo',price:'₹449',emoji:'🧴'},{name:'Grooming Brush',price:'₹399',emoji:'🪮'},{name:'Paw Balm',price:'₹299',emoji:'🐾'}]
+      }
+    },
+    food: {
+      subcats: ['Snacks','Sweets','Beverages','Healthy'],
+      products: {
+        'Snacks':    [{name:'Roasted Makhana',price:'₹199',emoji:'🥜'},{name:'Banana Chips',price:'₹149',emoji:'🍌'},{name:'Trail Mix',price:'₹299',emoji:'🌰'}],
+        'Sweets':    [{name:'Kaju Katli (250g)',price:'₹449',emoji:'🍡'},{name:'Besan Ladoo',price:'₹349',emoji:'🟡'},{name:'Chocolate Truffles',price:'₹399',emoji:'🍫'}],
+        'Beverages': [{name:'Masala Chai Mix',price:'₹249',emoji:'🍵'},{name:'Cold Brew Pack',price:'₹399',emoji:'☕'},{name:'Saffron Latte Mix',price:'₹349',emoji:'🥛'}],
+        'Healthy':   [{name:'Quinoa Khichdi',price:'₹199',emoji:'🥣'},{name:'Millet Pancake Mix',price:'₹279',emoji:'🥞'},{name:'Oats Energy Bar',price:'₹149',emoji:'🌾'}]
+      }
+    },
+    home: {
+      subcats: ['Cushions','Planters','Wall Art','Lamps'],
+      products: {
+        'Cushions': [{name:'Block-print Cushion',price:'₹599',emoji:'🛋️'},{name:'Velvet Throw Pillow',price:'₹799',emoji:'💛'},{name:'Boho Tassel Cushion',price:'₹699',emoji:'✨'}],
+        'Planters': [{name:'Ceramic Pot',price:'₹499',emoji:'🪴'},{name:'Macrame Hanger',price:'₹599',emoji:'🌿'},{name:'Terracotta Planter',price:'₹399',emoji:'🏺'}],
+        'Wall Art': [{name:'Floral Art Print',price:'₹899',emoji:'🌺'},{name:'Brass Wall Hook',price:'₹699',emoji:'🔱'},{name:'Mirror Mosaic',price:'₹1,499',emoji:'🪞'}],
+        'Lamps':    [{name:'Brass Diya Set',price:'₹699',emoji:'🪔'},{name:'Paper Lantern',price:'₹499',emoji:'🏮'},{name:'Marble Table Lamp',price:'₹1,899',emoji:'💡'}]
+      }
+    },
+    beauty: {
+      subcats: ['Skincare','Nail Art','Haircare','Makeup'],
+      products: {
+        'Skincare': [{name:'Rose Glow Serum',price:'₹899',emoji:'🌹'},{name:'Vitamin C Cream',price:'₹1,199',emoji:'🍊'},{name:'Aloe Face Mist',price:'₹449',emoji:'🌿'}],
+        'Nail Art': [{name:'Nude Polish Set',price:'₹599',emoji:'💅'},{name:'Nail Art Stickers',price:'₹199',emoji:'✨'},{name:'Top Coat Trio',price:'₹399',emoji:'💎'}],
+        'Haircare': [{name:'Coconut Hair Oil',price:'₹399',emoji:'🥥'},{name:'Onion Shampoo',price:'₹499',emoji:'🧴'},{name:'Hair Mask',price:'₹599',emoji:'💛'}],
+        'Makeup':   [{name:'Matte Lipstick',price:'₹449',emoji:'💄'},{name:'Liquid Eyeliner',price:'₹349',emoji:'🖊️'},{name:'Blush Compact',price:'₹599',emoji:'🌸'}]
+      }
+    },
+    kids: {
+      subcats: ['Toys','Clothing','Books','Accessories'],
+      products: {
+        'Toys':        [{name:'Wooden Puzzle',price:'₹499',emoji:'🧩'},{name:'Plush Bunny',price:'₹399',emoji:'🐰'},{name:'Building Blocks',price:'₹699',emoji:'🧱'}],
+        'Clothing':    [{name:'Cotton Romper',price:'₹699',emoji:'👶'},{name:'Printed T-shirt',price:'₹399',emoji:'👕'},{name:'Frilly Frock',price:'₹899',emoji:'👗'}],
+        'Books':       [{name:'Bedtime Storybook',price:'₹349',emoji:'📚'},{name:'Activity Book',price:'₹249',emoji:'📒'},{name:'Picture Atlas',price:'₹599',emoji:'🗺️'}],
+        'Accessories': [{name:'Animal Backpack',price:'₹599',emoji:'🎒'},{name:'Cotton Cap',price:'₹299',emoji:'🧢'},{name:'Soft Slippers',price:'₹399',emoji:'🥿'}]
+      }
+    },
+    art: {
+      subcats: ['Prints','Handmade','Stationery','Kits'],
+      products: {
+        'Prints':     [{name:'Floral Art Print',price:'₹899',emoji:'🌺'},{name:'Botanical Set of 3',price:'₹1,499',emoji:'🌿'},{name:'Abstract Poster',price:'₹699',emoji:'🎨'}],
+        'Handmade':   [{name:'Hand-thrown Mug',price:'₹699',emoji:'☕'},{name:'Macrame Wall Hanging',price:'₹999',emoji:'🪢'},{name:'Beaded Coaster Set',price:'₹499',emoji:'🧿'}],
+        'Stationery': [{name:'Handmade Journal',price:'₹599',emoji:'📓'},{name:'Wax-seal Stamp',price:'₹399',emoji:'📜'},{name:'Calligraphy Pens',price:'₹449',emoji:'🖋️'}],
+        'Kits':       [{name:'Watercolor Kit',price:'₹1,299',emoji:'🎨'},{name:'Embroidery Starter Kit',price:'₹899',emoji:'🧵'},{name:'Pottery DIY Kit',price:'₹1,499',emoji:'🏺'}]
+      }
+    }
   };
 
   function showStep(n){
@@ -289,10 +353,11 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
       updateSetupBtn();
     });
   });
+  const capFirst = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
   $('storeForm').addEventListener('submit', e => {
     e.preventDefault();
-    state.store = $('storeName').value.trim();
-    state.persona = $('personaName').value.trim();
+    state.store = capFirst($('storeName').value.trim());
+    state.persona = capFirst($('personaName').value.trim());
     showStep(3);
   });
 
@@ -411,17 +476,18 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
     addUserMsg(subcat);
     clearQuickReplies();
     const c = catData[state.category];
+    const items = c.products[subcat] || [];
     showTyping(() => {
       addBotMsg('Lovely pick! Here are some ' + subcat.toLowerCase() + ' our customers love 💛');
-      c.products.forEach((p, i) => {
+      items.forEach((p, i) => {
         setTimeout(() => addProductCard(p), 350 * (i + 1));
       });
       setTimeout(() => {
-        setQuickReplies(c.products.map(p => ({
+        setQuickReplies(items.map(p => ({
           label: '❤️ Shortlist ' + p.name.split(' ')[0],
           onclick: () => runTurn3(p)
         })));
-      }, 350 * c.products.length + 200);
+      }, 350 * items.length + 200);
     });
   }
 
