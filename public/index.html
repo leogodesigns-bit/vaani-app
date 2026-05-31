@@ -58,6 +58,33 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .quick-replies{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.6rem}
 .qr{background:white;border:1px solid var(--border);border-radius:100px;padding:.3rem .7rem;font-size:.68rem;color:#0066CC;cursor:pointer}
 
+.insta-section{padding:5rem 0 6rem}
+.insta-grid{display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center}
+.insta-text .section-label{margin-bottom:1.2rem}
+.insta-text h2{font-family:'Playfair Display',serif;font-size:clamp(2rem,4vw,3rem);font-weight:400;letter-spacing:-.02em;margin-bottom:1.2rem;line-height:1.2}
+.insta-text h2 em{font-style:italic;color:var(--warm)}
+.insta-text p{font-size:.95rem;color:var(--muted);line-height:1.75;max-width:440px}
+.insta-mockup{background:#000;border-radius:24px;padding:1.2rem;box-shadow:0 40px 80px rgba(26,23,20,.18),0 8px 24px rgba(26,23,20,.08);max-width:360px;margin:0 auto}
+.insta-header{display:flex;align-items:center;gap:.8rem;padding-bottom:1rem;margin-bottom:1.2rem;border-bottom:1px solid rgba(255,255,255,.08)}
+.insta-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(45deg,#FED373,#F15245,#D92E7F,#9028CD,#2E72FF);padding:2px;flex-shrink:0}
+.insta-avatar-inner{width:100%;height:100%;border-radius:50%;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;letter-spacing:-.02em}
+.insta-handle{font-size:.85rem;font-weight:600;color:#fff;letter-spacing:.01em}
+.insta-active{font-size:.65rem;color:rgba(255,255,255,.45);margin-top:1px}
+.insta-thread{display:flex;flex-direction:column}
+.insta-bubble{display:flex;flex-direction:column;margin-bottom:.5rem}
+.insta-bubble.user{align-items:flex-end}
+.insta-bubble.bot{align-items:flex-start}
+.insta-bubble .b{padding:.55rem .9rem;border-radius:20px;font-size:.8rem;line-height:1.45;max-width:80%}
+.insta-bubble.user .b{background:linear-gradient(135deg,#F58529,#DD2A7B 55%,#8134AF);color:#fff;border-bottom-right-radius:6px}
+.insta-bubble.bot .b{background:#262626;color:#fff;border-bottom-left-radius:6px}
+.insta-time{font-size:.58rem;color:rgba(255,255,255,.4);margin-top:3px;padding:0 .5rem}
+.insta-product-card{background:#1A1A1A;border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:.5rem;max-width:68%;margin-bottom:.5rem;align-self:flex-start}
+.insta-product-img{height:120px;background:linear-gradient(135deg,#3D2818,#5C3A20);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:2.4rem;margin-bottom:.5rem}
+.insta-product-handle{font-size:.58rem;color:rgba(255,255,255,.5);padding:0 .2rem}
+.insta-product-title{font-size:.76rem;color:#fff;font-weight:500;line-height:1.3;padding:.1rem .2rem 0}
+.insta-product-price{font-size:.78rem;color:#fff;font-weight:600;padding:.3rem .2rem 0}
+.insta-product-btn{background:linear-gradient(135deg,#F58529,#DD2A7B);color:#fff;text-align:center;padding:.42rem;border-radius:8px;font-size:.64rem;font-weight:600;margin-top:.45rem;letter-spacing:.06em;text-transform:uppercase}
+
 .proof-section{padding:4rem 0;text-align:center;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
 .proof-label{font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:2rem}
 .proof-logos{display:flex;align-items:center;justify-content:center;gap:3.5rem;flex-wrap:wrap}
@@ -98,7 +125,7 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .channel-card h3{font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:600;margin-bottom:.5rem;letter-spacing:-.01em;color:var(--cream)}
 .channel-card p{font-size:.82rem;color:rgba(255,255,255,.55);line-height:1.6}
 
-@media(max-width:768px){nav{padding:1.2rem 1.5rem}.nav-links{display:none}.hero{padding:4rem 1.5rem 3rem}.steps{grid-template-columns:1fr}.channels-grid{grid-template-columns:1fr}.features-strip .inner{grid-template-columns:repeat(2,1fr)}footer{flex-direction:column;gap:2rem;text-align:center;padding:2rem 1.5rem}.footer-right{text-align:center}}
+@media(max-width:768px){nav{padding:1.2rem 1.5rem}.nav-links{display:none}.hero{padding:4rem 1.5rem 3rem}.steps{grid-template-columns:1fr}.channels-grid{grid-template-columns:1fr}.insta-grid{grid-template-columns:1fr;gap:2.5rem}.insta-text{text-align:center}.insta-text p{margin:0 auto}.features-strip .inner{grid-template-columns:repeat(2,1fr)}footer{flex-direction:column;gap:2rem;text-align:center;padding:2rem 1.5rem}.footer-right{text-align:center}}
 </style>
 </head>
 <body>
@@ -189,6 +216,47 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
       <span class="qr">❤️ Shortlist Chrome Noir</span>
       <span class="qr">Show more →</span>
       <span class="qr">View Cart</span>
+    </div>
+  </div>
+</section>
+
+<section class="container insta-section">
+  <div class="insta-grid">
+    <div class="insta-text">
+      <div class="section-label fade-up">Instagram · New</div>
+      <h2 class="fade-up delay-1">Now on Instagram.<br><em>Same Vaani, new channel.</em></h2>
+      <p class="fade-up delay-2">Vaani replies to DMs, responds to comment triggers, and sends product cards — automatically.</p>
+    </div>
+    <div class="insta-mockup-wrapper fade-up delay-2">
+      <div class="insta-mockup">
+        <div class="insta-header">
+          <div class="insta-avatar"><div class="insta-avatar-inner">WP</div></div>
+          <div>
+            <div class="insta-handle">thewoofparade</div>
+            <div class="insta-active">Active now</div>
+          </div>
+        </div>
+        <div class="insta-thread">
+          <div class="insta-bubble user">
+            <div class="b">Hi! Saw your bandana on Insta — got it in red? 🐶</div>
+            <div class="insta-time">2:14 PM</div>
+          </div>
+          <div class="insta-bubble bot">
+            <div class="b">Hi 🐾 Yes! Here's the Red Plaid Bandana:</div>
+          </div>
+          <div class="insta-product-card">
+            <div class="insta-product-img">🐕</div>
+            <div class="insta-product-handle">thewoofparade.com</div>
+            <div class="insta-product-title">Red Plaid Bandana</div>
+            <div class="insta-product-price">₹699</div>
+            <div class="insta-product-btn">View Product →</div>
+          </div>
+          <div class="insta-bubble user">
+            <div class="b">Perfect 😍 add to cart please</div>
+            <div class="insta-time">2:15 PM</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
