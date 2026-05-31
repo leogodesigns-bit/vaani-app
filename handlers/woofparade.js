@@ -693,7 +693,18 @@ async function handle(ctx) {
     return;
   }
 
-  // ─── INTERACTIVE TAP DISPATCH ────────────────────────────────────────────
+  // AD INTERCEPT: any message containing 'harness' → skip to harness results
+  if (!isInteractive && /harness/i.test(trimmed) && !ctx.cart?.checkout?.step) {
+    console.log('[woofparade AD-INTERCEPT] harness keyword in message, routing to harness results');
+    ctx.cart = ctx.cart || {};
+    ctx.cart.woofparade = ctx.cart.woofparade || {};
+    ctx.cart.woofparade.accessorySubcat = 'subcat_harnesses';
+    ctx.cart.woofparade.awaitingAccessorySubcat = false;
+    await sendCategoryResults(ctx, WELCOME_ROW.ACCESSORIES, 0);
+    return;
+  }
+
+    // ─── INTERACTIVE TAP DISPATCH ────────────────────────────────────────────
 
   // PATCH BUG-E: free-text category matcher (typed, not tapped)
   // Customers who type "kurta", "jersey", "csk", "rcb", "accessories", etc. route to the
