@@ -62,7 +62,21 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .bottom-cta h2 em{font-style:italic;color:var(--warm)}
 .bottom-cta p{font-size:.9rem;color:#7A7068;margin-bottom:2rem}
 
-@media(max-width:768px){nav{padding:1.2rem 1.5rem}.nav-links{display:none}.feature-block{grid-template-columns:1fr;gap:2.5rem}.feature-block.reverse{direction:ltr}.page-hero{padding:4rem 0 2rem}.bottom-cta{padding:2.5rem 1.5rem}footer{flex-direction:column;gap:2rem;text-align:center;padding:2rem 1.5rem}.footer-right{text-align:center}}
+section.feature-block{display:block;padding:5rem 0;border-top:1px solid var(--border)}
+.feature-split{display:grid;grid-template-columns:1fr 1fr;gap:5rem;align-items:center}
+
+.ig-mockup-card{background:white;border:1px solid var(--border);border-radius:14px;padding:1.4rem;display:flex;flex-direction:column;gap:.6rem}
+.ig-label{font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:var(--warm);margin-bottom:.6rem;font-weight:500;padding-bottom:.6rem;border-bottom:1px solid var(--border)}
+.ig-msg{font-size:.82rem;line-height:1.45;padding:.65rem .9rem;border-radius:14px;max-width:82%}
+.ig-msg.bot{background:#F4EFE8;color:var(--ink);align-self:flex-start;border-bottom-left-radius:4px}
+.ig-msg.user{background:var(--warm);color:white;align-self:flex-end;border-bottom-right-radius:4px}
+
+.calls-teaser{padding:6rem 0;text-align:center;border-top:1px solid var(--border)}
+.calls-teaser h2{font-family:'Playfair Display',serif;font-size:clamp(2rem,4vw,3rem);font-weight:400;letter-spacing:-.02em;line-height:1.15;margin-bottom:1rem}
+.calls-teaser h2 em{font-style:italic;color:var(--warm)}
+.calls-teaser .section-sub{font-size:.95rem;color:var(--muted);line-height:1.7;max-width:540px;margin:0 auto}
+
+@media(max-width:768px){nav{padding:1.2rem 1.5rem}.nav-links{display:none}.feature-block{grid-template-columns:1fr;gap:2.5rem}.feature-block.reverse{direction:ltr}.feature-split{grid-template-columns:1fr;gap:2.5rem}.page-hero{padding:4rem 0 2rem}.bottom-cta{padding:2.5rem 1.5rem}.calls-teaser{padding:4rem 0}footer{flex-direction:column;gap:2rem;text-align:center;padding:2rem 1.5rem}.footer-right{text-align:center}}
 </style>
 </head>
 <body>
@@ -132,6 +146,30 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
     </div>
   </div>
 
+  <section class="feature-block">
+    <div class="container feature-split">
+      <div class="feature-text">
+        <p class="section-label">INSTAGRAM</p>
+        <h2>Now selling on Instagram.<br><em>Same Vaani, new channel.</em></h2>
+        <p>Your customers discover you on Instagram — now Vaani meets them there too. DM replies, comment triggers, product cards, and Shopify orders — all inside Instagram.</p>
+        <ul class="feature-list">
+          <li>→ DM replies triggered by comments</li>
+          <li>→ Product cards sent inside DMs</li>
+          <li>→ Shopify draft order from Instagram</li>
+          <li>→ Same brand voice across both channels</li>
+        </ul>
+      </div>
+      <div class="feature-visual">
+        <div class="ig-mockup-card">
+          <p class="ig-label">INSTAGRAM DM</p>
+          <p class="ig-msg bot">Hi! Loved your post 💛 Want to see the full collection?</p>
+          <p class="ig-msg user">Yes please!</p>
+          <p class="ig-msg bot">Here are our top picks — tap to shortlist ✨</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <div class="feature-block fade-up">
     <div class="feature-text">
       <div class="section-label">Custom Chat Flow</div>
@@ -182,9 +220,17 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
     </div>
   </div>
 
+  <section class="calls-teaser">
+    <div class="container">
+      <p class="section-label">COMING SOON</p>
+      <h2>Up next: Voice.<br><em>Vaani picks up the phone too.</em></h2>
+      <p class="section-sub">AI voice sales assistant for inbound calls and follow-ups. Same Vaani, your brand's voice, on a call.</p>
+    </div>
+  </section>
+
   <div class="bottom-cta fade-up">
     <h2>Ready to put Vaani<br>to work for <em>your brand?</em></h2>
-    <p>Join the waitlist and get early access pricing before we open to the public.</p>
+    <p>Talk to us on WhatsApp and we'll have you live in under a week.</p>
     <a href="https://wa.me/919403345612" class="btn-primary">GET STARTED →</a>
   </div>
 </div>
