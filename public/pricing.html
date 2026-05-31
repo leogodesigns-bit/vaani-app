@@ -510,6 +510,22 @@
   @media (max-width: 580px) {
     .pricing-grid { grid-template-columns: 1fr; }
   }
+
+  .plan-cta {
+    display: inline-block;
+    background: var(--warm);
+    color: white;
+    padding: 0.75rem 1.4rem;
+    border-radius: 100px;
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    font-weight: 500;
+    text-decoration: none;
+    margin-top: 1.2rem;
+    transition: background 0.2s;
+    text-align: center;
+  }
+  .plan-cta:hover { background: #9E5E28; }
 </style>
 </head>
 <body>
@@ -529,31 +545,28 @@
 <section class="hero">
   <div class="hero-label">Simple, transparent pricing</div>
   <h1>Sell more while<br>you <em>sleep.</em></h1>
-  <p>Vaani handles product discovery, shortlisting, and payment — right inside WhatsApp. No app. No friction. Start free, scale as you grow.</p>
+  <p>Vaani handles product discovery, shortlisting, and payment — on WhatsApp and Instagram. No app. No friction. Start free, scale as you grow.</p>
 </section>
 
 <div class="pricing-grid">
 
-  <!-- Demo -->
+  <!-- Simulation -->
   <div class="plan">
-    <div class="plan-badge">Free Demo</div>
-    <div class="plan-name">Demo</div>
-    <div class="plan-sub">Test Vaani with your own products</div>
+    <div class="plan-badge">TRY IT FREE</div>
+    <div class="plan-name">Simulation</div>
+    <div class="plan-sub">See exactly what your customers experience</div>
     <div class="plan-price">
       <div class="price-amount">₹0</div>
-      <div class="price-period">14-day demo</div>
-      <div class="price-setup" style="background:var(--warm-light);color:var(--warm);">Self-serve setup</div>
+      <div class="price-period">No signup needed</div>
     </div>
     <div class="divider"></div>
     <ul class="features">
-      <li><span class="check">✓</span> 50 chats over 14 days</li>
-      <li><span class="check">✓</span> Connect Shopify in 2 mins</li>
-      <li><span class="check">✓</span> Auto-syncs your products</li>
-      <li><span class="check">✓</span> Shared demo number</li>
-      <li><span class="check">✓</span> English only · You only</li>
-      <li><span class="check" style="background:#F5EEE8;color:#C4A882;">—</span> <span class="dim">No customer-facing WhatsApp</span></li>
-      <li><span class="check" style="background:#F5EEE8;color:#C4A882;">—</span> <span class="dim">No real payments</span></li>
+      <li><span class="check">✓</span> Try WhatsApp + Instagram flows</li>
+      <li><span class="check">✓</span> Pick your store category</li>
+      <li><span class="check">✓</span> See product cards + payment link</li>
+      <li><span class="check">✓</span> Powered by real AI</li>
     </ul>
+    <a href="/demo.html" class="plan-cta">Try the demo →</a>
   </div>
 
   <!-- Basic -->
@@ -614,6 +627,7 @@
     <ul class="features">
       <li><span class="check">✓</span> 1,000 chats / month</li>
       <li><span class="check">✓</span> Everything in Pro</li>
+      <li><span class="check">✓</span> Instagram included</li>
       <li><span class="check">✓</span> Multilingual (EN / HI / Regional)</li>
       <li><span class="check">✓</span> Brand-owner WhatsApp alerts</li>
       <li><span class="check">✓</span> Priority support</li>
@@ -635,6 +649,7 @@
     <div class="divider"></div>
     <ul class="features">
       <li><span class="check">✓</span> Everything in Brand</li>
+      <li><span class="check">✓</span> Instagram included</li>
       <li><span class="check">✓</span> 1,000 chats / month</li>
       <li><span class="check">✓</span> One month free (save ₹2,499)</li>
       <li><span class="check">✓</span> Reduced setup (₹4K vs ₹5K)</li>
