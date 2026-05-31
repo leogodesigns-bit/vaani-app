@@ -707,6 +707,9 @@ async function handle(ctx) {
     const _adSubcatMatch = _adSubcatMap.find(m => m.re.test(_adMsg));
     if (_adSubcatMatch) {
       console.log('[woofparade AD-INTERCEPT] accessory keyword matched:', _adSubcatMatch.subcat);
+      if (_adSubcatMatch.subcat === 'subcat_harnesses') {
+        await sendMessage(ctx.phoneNumberId, ctx.from, ctx.waToken, { type: 'text', text: { body: '🏷️ Use code *WOOF10* at checkout for 10% off on harnesses! 🐾' } });
+      }
       ctx.cart = ctx.cart || {};
       ctx.cart.woofparade = ctx.cart.woofparade || {};
       ctx.cart.woofparade.accessorySubcat = _adSubcatMatch.subcat;
