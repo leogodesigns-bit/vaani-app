@@ -108,7 +108,7 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .typing span:nth-child(3){animation-delay:.4s}
 @keyframes typing{0%,60%,100%{opacity:.35;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
 
-.quick-replies{padding:.7rem;background:white;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:.4rem;justify-content:flex-end;min-height:0}
+.quick-replies{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;padding:12px 16px;background:white;border-top:1px solid var(--border)}
 .quick-btn{background:var(--warm);color:white;border:none;border-radius:100px;padding:.55rem 1rem;font-size:.76rem;cursor:pointer;font-family:inherit;transition:background .2s,transform .15s;font-weight:500;letter-spacing:.02em}
 .quick-btn:hover{background:var(--warm-dark);transform:translateY(-1px)}
 .quick-btn.outline{background:white;color:var(--warm);border:1.5px solid var(--warm)}
@@ -251,25 +251,25 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
     fashion: {
       subcats: ['Kurtas','Sarees','Tops','Dresses'],
       products: {
-        'Kurtas':  [{name:'Embroidered Anarkali',price:'₹2,199',emoji:'🌿'},{name:'Cotton Straight Kurta',price:'₹1,299',emoji:'🪻'},{name:'Silk Festive Kurta',price:'₹2,899',emoji:'✨'}],
-        'Sarees':  [{name:'Pastel Pink Saree',price:'₹2,499',emoji:'🌸'},{name:'Banarasi Silk Saree',price:'₹4,499',emoji:'💛'},{name:'Chiffon Floral Saree',price:'₹1,899',emoji:'🌺'}],
-        'Tops':    [{name:'Linen Crop Top',price:'₹999',emoji:'🌾'},{name:'Tie-Dye T-Shirt',price:'₹699',emoji:'🎨'},{name:'Off-Shoulder Top',price:'₹1,299',emoji:'☀️'}],
-        'Dresses': [{name:'Floral Maxi Dress',price:'₹1,899',emoji:'🌷'},{name:'Wrap Midi Dress',price:'₹2,299',emoji:'🌼'},{name:'Cotton Day Dress',price:'₹1,499',emoji:'🌻'}]
+        'Kurtas':  [{name:'Block Print Kurta',price:'₹1,299',emoji:'🪻'},{name:'Embroidered Kurta',price:'₹1,899',emoji:'🌿'},{name:'Linen Kurta Set',price:'₹2,199',emoji:'✨'}],
+        'Sarees':  [{name:'Kanjivaram Silk',price:'₹4,999',emoji:'💎'},{name:'Cotton Handloom',price:'₹1,899',emoji:'🌾'},{name:'Chiffon Printed',price:'₹2,299',emoji:'🌸'}],
+        'Tops':    [{name:'Crop Top',price:'₹699',emoji:'🌾'},{name:'Floral Blouse',price:'₹899',emoji:'🌷'},{name:'Shirt Collar Top',price:'₹1,099',emoji:'👔'}],
+        'Dresses': [{name:'Midi Wrap Dress',price:'₹1,899',emoji:'🌼'},{name:'Linen Shift Dress',price:'₹1,599',emoji:'🌿'},{name:'Printed Maxi',price:'₹2,499',emoji:'🌺'}]
       }
     },
     jewellery: {
       subcats: ['Earrings','Necklaces','Rings','Bracelets'],
       products: {
-        'Earrings':  [{name:'Pearl Drop Earrings',price:'₹1,299',emoji:'🪷'},{name:'Gold Hoops',price:'₹1,799',emoji:'✨'},{name:'Kundan Studs',price:'₹2,199',emoji:'💛'}],
-        'Necklaces': [{name:'Kundan Necklace',price:'₹4,499',emoji:'💎'},{name:'Pearl Choker',price:'₹2,699',emoji:'🤍'},{name:'Layered Chain',price:'₹1,899',emoji:'✨'}],
-        'Rings':     [{name:'Gold-plated Ring',price:'₹899',emoji:'💍'},{name:'Cocktail Ring',price:'₹1,599',emoji:'💎'},{name:'Stackable Ring Set',price:'₹1,299',emoji:'🌟'}],
-        'Bracelets': [{name:'Beaded Bracelet',price:'₹699',emoji:'📿'},{name:'Charm Bracelet',price:'₹1,299',emoji:'✨'},{name:'Cuff Bangle',price:'₹1,599',emoji:'🌙'}]
+        'Earrings':  [{name:'Jhumka Set',price:'₹899',emoji:'🪷'},{name:'Gold Hoops',price:'₹1,299',emoji:'✨'},{name:'Oxidised Danglers',price:'₹699',emoji:'🌙'}],
+        'Necklaces': [{name:'Layered Chain',price:'₹1,499',emoji:'✨'},{name:'Choker Set',price:'₹999',emoji:'💎'},{name:'Pearl Strand',price:'₹1,899',emoji:'🤍'}],
+        'Rings':     [{name:'Stackable Ring Set',price:'₹799',emoji:'🌟'},{name:'Stone Solitaire',price:'₹1,299',emoji:'💎'},{name:'Twisted Band',price:'₹699',emoji:'💍'}],
+        'Bracelets': [{name:'Charm Bracelet',price:'₹899',emoji:'✨'},{name:'Beaded Stack',price:'₹599',emoji:'📿'},{name:'Gold Bangle',price:'₹1,499',emoji:'🌙'}]
       }
     },
     pets: {
       subcats: ['Food','Toys','Accessories','Grooming'],
       products: {
-        'Food':        [{name:'Premium Kibble (5kg)',price:'₹2,499',emoji:'🥩'},{name:'Wet Food Tray',price:'₹399',emoji:'🍗'},{name:'Grain-free Mix',price:'₹1,899',emoji:'🌾'}],
+        'Food':        [{name:'Dry Fruit Box',price:'₹899',emoji:'🌰'},{name:'Artisan Honey',price:'₹599',emoji:'🍯'},{name:'Trail Mix Pack',price:'₹449',emoji:'🥜'}],
         'Toys':        [{name:'Squeaky Chew Toy',price:'₹349',emoji:'🦴'},{name:'Rope Tug Toy',price:'₹299',emoji:'🪢'},{name:'Treat Puzzle Ball',price:'₹699',emoji:'🎾'}],
         'Accessories': [{name:'Leather Collar',price:'₹899',emoji:'🐕'},{name:'LED Leash',price:'₹599',emoji:'💡'},{name:'Tropical Bandana',price:'₹499',emoji:'🌴'}],
         'Grooming':    [{name:'Oatmeal Shampoo',price:'₹449',emoji:'🧴'},{name:'Grooming Brush',price:'₹399',emoji:'🪮'},{name:'Paw Balm',price:'₹299',emoji:'🐾'}]
@@ -287,8 +287,8 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
     home: {
       subcats: ['Cushions','Planters','Wall Art','Lamps'],
       products: {
-        'Cushions': [{name:'Block-print Cushion',price:'₹599',emoji:'🛋️'},{name:'Velvet Throw Pillow',price:'₹799',emoji:'💛'},{name:'Boho Tassel Cushion',price:'₹699',emoji:'✨'}],
-        'Planters': [{name:'Ceramic Pot',price:'₹499',emoji:'🪴'},{name:'Macrame Hanger',price:'₹599',emoji:'🌿'},{name:'Terracotta Planter',price:'₹399',emoji:'🏺'}],
+        'Cushions': [{name:'Velvet Cushion',price:'₹899',emoji:'💛'},{name:'Block Print Cover',price:'₹699',emoji:'🪻'},{name:'Tasselled Throw',price:'₹1,299',emoji:'✨'}],
+        'Planters': [{name:'Terracotta Pot',price:'₹499',emoji:'🏺'},{name:'Hanging Planter',price:'₹699',emoji:'🪴'},{name:'Ceramic Bowl',price:'₹599',emoji:'🥣'}],
         'Wall Art': [{name:'Floral Art Print',price:'₹899',emoji:'🌺'},{name:'Brass Wall Hook',price:'₹699',emoji:'🔱'},{name:'Mirror Mosaic',price:'₹1,499',emoji:'🪞'}],
         'Lamps':    [{name:'Brass Diya Set',price:'₹699',emoji:'🪔'},{name:'Paper Lantern',price:'₹499',emoji:'🏮'},{name:'Marble Table Lamp',price:'₹1,899',emoji:'💡'}]
       }
@@ -296,27 +296,27 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
     beauty: {
       subcats: ['Skincare','Nail Art','Haircare','Makeup'],
       products: {
-        'Skincare': [{name:'Rose Glow Serum',price:'₹899',emoji:'🌹'},{name:'Vitamin C Cream',price:'₹1,199',emoji:'🍊'},{name:'Aloe Face Mist',price:'₹449',emoji:'🌿'}],
-        'Nail Art': [{name:'Nude Polish Set',price:'₹599',emoji:'💅'},{name:'Nail Art Stickers',price:'₹199',emoji:'✨'},{name:'Top Coat Trio',price:'₹399',emoji:'💎'}],
-        'Haircare': [{name:'Coconut Hair Oil',price:'₹399',emoji:'🥥'},{name:'Onion Shampoo',price:'₹499',emoji:'🧴'},{name:'Hair Mask',price:'₹599',emoji:'💛'}],
-        'Makeup':   [{name:'Matte Lipstick',price:'₹449',emoji:'💄'},{name:'Liquid Eyeliner',price:'₹349',emoji:'🖊️'},{name:'Blush Compact',price:'₹599',emoji:'🌸'}]
+        'Skincare': [{name:'Vitamin C Serum',price:'₹899',emoji:'🍊'},{name:'Clay Face Mask',price:'₹699',emoji:'🌿'},{name:'Rose Toner',price:'₹599',emoji:'🌹'}],
+        'Nail Art': [{name:'Chrome Noir Kit',price:'₹1,299',emoji:'💅'},{name:'Silver Foil Set',price:'₹899',emoji:'✨'},{name:'Gel Polish Pack',price:'₹1,099',emoji:'💎'}],
+        'Haircare': [{name:'Argan Oil',price:'₹799',emoji:'🌰'},{name:'Hair Mask',price:'₹599',emoji:'💛'},{name:'Scalp Serum',price:'₹899',emoji:'🧴'}],
+        'Makeup':   [{name:'Lip Gloss Set',price:'₹699',emoji:'💋'},{name:'Kajal Duo',price:'₹499',emoji:'👁️'},{name:'Setting Spray',price:'₹799',emoji:'💨'}]
       }
     },
     kids: {
       subcats: ['Toys','Clothing','Books','Accessories'],
       products: {
-        'Toys':        [{name:'Wooden Puzzle',price:'₹499',emoji:'🧩'},{name:'Plush Bunny',price:'₹399',emoji:'🐰'},{name:'Building Blocks',price:'₹699',emoji:'🧱'}],
-        'Clothing':    [{name:'Cotton Romper',price:'₹699',emoji:'👶'},{name:'Printed T-shirt',price:'₹399',emoji:'👕'},{name:'Frilly Frock',price:'₹899',emoji:'👗'}],
-        'Books':       [{name:'Bedtime Storybook',price:'₹349',emoji:'📚'},{name:'Activity Book',price:'₹249',emoji:'📒'},{name:'Picture Atlas',price:'₹599',emoji:'🗺️'}],
+        'Toys':        [{name:'Wooden Puzzle',price:'₹499',emoji:'🧩'},{name:'Soft Plush Bear',price:'₹699',emoji:'🧸'},{name:'Stacking Blocks',price:'₹399',emoji:'🧱'}],
+        'Clothing':    [{name:'Cotton Romper',price:'₹699',emoji:'👶'},{name:'Printed Frock',price:'₹899',emoji:'👗'},{name:'Dungaree Set',price:'₹1,199',emoji:'👕'}],
+        'Books':       [{name:'Bedtime Stories',price:'₹349',emoji:'📚'},{name:'Colouring Book',price:'₹249',emoji:'🖍️'},{name:'ABC Flashcards',price:'₹299',emoji:'🔤'}],
         'Accessories': [{name:'Animal Backpack',price:'₹599',emoji:'🎒'},{name:'Cotton Cap',price:'₹299',emoji:'🧢'},{name:'Soft Slippers',price:'₹399',emoji:'🥿'}]
       }
     },
     art: {
       subcats: ['Prints','Handmade','Stationery','Kits'],
       products: {
-        'Prints':     [{name:'Floral Art Print',price:'₹899',emoji:'🌺'},{name:'Botanical Set of 3',price:'₹1,499',emoji:'🌿'},{name:'Abstract Poster',price:'₹699',emoji:'🎨'}],
+        'Prints':     [{name:'Botanical Print',price:'₹799',emoji:'🌿'},{name:'City Map Art',price:'₹999',emoji:'🗺️'},{name:'Abstract Canvas',price:'₹1,499',emoji:'🎨'}],
         'Handmade':   [{name:'Hand-thrown Mug',price:'₹699',emoji:'☕'},{name:'Macrame Wall Hanging',price:'₹999',emoji:'🪢'},{name:'Beaded Coaster Set',price:'₹499',emoji:'🧿'}],
-        'Stationery': [{name:'Handmade Journal',price:'₹599',emoji:'📓'},{name:'Wax-seal Stamp',price:'₹399',emoji:'📜'},{name:'Calligraphy Pens',price:'₹449',emoji:'🖋️'}],
+        'Stationery': [{name:'Washi Tape Set',price:'₹399',emoji:'🎀'},{name:'Kraft Notebook',price:'₹299',emoji:'📓'},{name:'Stamp Kit',price:'₹599',emoji:'🖋️'}],
         'Kits':       [{name:'Watercolor Kit',price:'₹1,299',emoji:'🎨'},{name:'Embroidery Starter Kit',price:'₹899',emoji:'🧵'},{name:'Pottery DIY Kit',price:'₹1,499',emoji:'🏺'}]
       }
     }
@@ -372,8 +372,10 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 
   // ---- Step 4: chat sim ----
   function setHeader(){
-    $('phoneAvatar').textContent = (state.persona[0] || 'V').toUpperCase();
-    $('phoneName').textContent = state.persona + ' · ' + state.store;
+    const persona = capFirst(state.persona || '');
+    const store = capFirst(state.store || '');
+    $('phoneAvatar').textContent = (persona[0] || 'V').toUpperCase();
+    $('phoneName').textContent = persona + ' · ' + store;
     const h = $('phoneHeader');
     h.classList.remove('whatsapp','instagram');
     h.classList.add(state.channel);
@@ -467,7 +469,7 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
   function runTurn1(){
     const c = catData[state.category];
     showTyping(() => {
-      addBotMsg('Hi! Welcome to ' + state.store + ' ✨ I\'m ' + state.persona + ', your personal shopping assistant. What are you looking for today?');
+      addBotMsg('Hi! Welcome to ' + capFirst(state.store) + ' ✨ I\'m ' + capFirst(state.persona) + ', your personal shopping assistant. What are you looking for today?');
       setQuickReplies(c.subcats.map(sub => ({ label: sub, onclick: () => runTurn2(sub) })));
     });
   }
