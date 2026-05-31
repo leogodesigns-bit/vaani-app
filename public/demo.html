@@ -378,6 +378,16 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
     state.name = $('leadName').value.trim();
     state.phone = '91' + v.digits;
     try { localStorage.setItem('vaani_demo_lead', JSON.stringify({name:state.name, phone:state.phone, ts:Date.now()})); } catch(e){}
+    fetch('/api/demo-leads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: state.name,
+        phone: state.phone,
+        timestamp: new Date().toISOString(),
+        source: 'demo-simulation'
+      })
+    }).catch(() => {});
     showStep(2);
   });
 
