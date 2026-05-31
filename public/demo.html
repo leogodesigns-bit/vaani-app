@@ -49,6 +49,9 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .btn-outline:hover{background:var(--warm-light);color:var(--warm-dark);border-color:var(--warm-dark)}
 .form-note{font-size:.75rem;color:var(--muted);text-align:center;margin-top:.9rem;line-height:1.5}
 .form-error{font-size:.75rem;color:#C44A4A;margin-top:.45rem;min-height:1em;line-height:1.4}
+.form-helper{font-size:.72rem;color:var(--muted);margin-top:.4rem;line-height:1.5}
+.checkbox-row{display:flex;align-items:flex-start;gap:.6rem;margin:1.3rem 0 .2rem;cursor:pointer;font-size:.82rem;line-height:1.5;color:var(--ink)}
+.checkbox-row input[type=checkbox]{accent-color:var(--warm);width:17px;height:17px;cursor:pointer;margin-top:1px;flex-shrink:0}
 
 .category-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem;margin:.8rem 0 2rem}
 .cat-btn{background:white;border:1.5px solid var(--border);border-radius:14px;padding:1rem .4rem;cursor:pointer;font-family:inherit;font-size:.75rem;color:var(--ink);transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:.4rem;font-weight:400}
@@ -154,10 +157,15 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
         <label class="form-label" for="leadPhone">WhatsApp number</label>
         <div class="phone-prefix">
           <div class="prefix">+91</div>
-          <input id="leadPhone" type="tel" inputmode="numeric" placeholder="98765 43210" required>
+          <input id="leadPhone" type="tel" inputmode="numeric" placeholder="Your WhatsApp number" required>
         </div>
         <p class="form-error" id="leadPhoneError"></p>
+        <p class="form-helper">We'll reach out on this number — make sure it's active on WhatsApp</p>
       </div>
+      <label class="checkbox-row" for="leadConsent">
+        <input type="checkbox" id="leadConsent">
+        <span>✓ I agree to be contacted on this number by the Vaani team</span>
+      </label>
       <button type="submit" class="btn-primary" id="leadSubmit" disabled>Continue →</button>
       <p class="form-note">We'll reach out after your demo</p>
     </form>
@@ -336,21 +344,33 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
     if (c.length === 12 && c.startsWith('91')) c = c.slice(2);
     return c;
   }
+  function isSequential(digits){
+    const a = digits.split('').map(Number);
+    const asc = a.every((d, i) => i === 0 || d === (a[i-1] + 1) % 10);
+    const desc = a.every((d, i) => i === 0 || d === (a[i-1] + 9) % 10);
+    return asc || desc;
+  }
   function validatePhone(raw){
     if (!raw.trim()) return { ok:false, empty:true };
     const c = normalizePhone(raw);
     if (/[^0-9]/.test(c)) return { ok:false, msg:'Numbers only please' };
-    if (c.length !== 10) return { ok:false, msg:'Please enter a valid 10-digit WhatsApp number' };
+    if (c.length < 10) return { ok:false, partial:true };
+    if (c.length !== 10) return { ok:false, msg:'Please enter a valid Indian mobile number' };
+    if (!/^[6-9]/.test(c)) return { ok:false, msg:'Please enter a valid Indian mobile number' };
+    if (/^(\d)\1{9}$/.test(c)) return { ok:false, msg:'Please enter a valid Indian mobile number' };
+    if (isSequential(c)) return { ok:false, msg:'Please enter a valid Indian mobile number' };
     return { ok:true, digits:c };
   }
   function updateLeadBtn(){
     const nameOk = $('leadName').value.trim().length > 0;
     const v = validatePhone($('leadPhone').value);
-    $('leadPhoneError').textContent = (v.empty || v.ok) ? '' : v.msg;
-    $('leadSubmit').disabled = !(nameOk && v.ok);
+    const consent = $('leadConsent').checked;
+    $('leadPhoneError').textContent = (v.empty || v.partial || v.ok) ? '' : v.msg;
+    $('leadSubmit').disabled = !(nameOk && v.ok && consent);
   }
   $('leadName').addEventListener('input', updateLeadBtn);
   $('leadPhone').addEventListener('input', updateLeadBtn);
+  $('leadConsent').addEventListener('change', updateLeadBtn);
   $('leadForm').addEventListener('submit', e => {
     e.preventDefault();
     const v = validatePhone($('leadPhone').value);
