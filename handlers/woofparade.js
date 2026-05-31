@@ -693,15 +693,40 @@ async function handle(ctx) {
     return;
   }
 
-  // AD INTERCEPT: any message containing 'harness' → skip to harness results
-  if (!isInteractive && /harness/i.test(trimmed) && !ctx.cart?.checkout?.step) {
-    console.log('[woofparade AD-INTERCEPT] harness keyword in message, routing to harness results');
-    ctx.cart = ctx.cart || {};
-    ctx.cart.woofparade = ctx.cart.woofparade || {};
-    ctx.cart.woofparade.accessorySubcat = 'subcat_harnesses';
-    ctx.cart.woofparade.awaitingAccessorySubcat = false;
-    await sendCategoryResults(ctx, WELCOME_ROW.ACCESSORIES, 0);
-    return;
+  // AD INTERCEPT: keyword in message → route directly to matching category/subcat
+  if (!isInteractive && !ctx.cart?.checkout?.step) {
+    const _adMsg = trimmed.toLowerCase();
+    // Accessory subcats
+    const _adSubcatMap = [
+      { re: /harness/, subcat: 'subcat_harnesses' },
+      { re: /bandana/, subcat: 'subcat_bandanas' },
+      { re: /leash/,   subcat: 'subcat_leashes' },
+      { re: /collar/,  subcat: 'subcat_collars' },
+      { re: /combo/,   subcat: 'subcat_combos' },
+    ];
+    const _adSubcatMatch = _adSubcatMap.find(m => m.re.test(_adMsg));
+    if (_adSubcatMatch) {
+      console.log('[woofparade AD-INTERCEPT] accessory keyword matched:', _adSubcatMatch.subcat);
+      ctx.cart = ctx.cart || {};
+      ctx.cart.woofparade = ctx.cart.woofparade || {};
+      ctx.cart.woofparade.accessorySubcat = _adSubcatMatch.subcat;
+      ctx.cart.woofparade.awaitingAccessorySubcat = false;
+      await sendCategoryResults(ctx, WELCOME_ROW.ACCESSORIES, 0);
+      return;
+    }
+    // Top-level categories
+    const _adCatMap = [
+      { re: /shirt|tshirt|t-shirt|casual/,             cat: 'cat_casual' },
+      { re: /kurta|ethnic|festive|lehenga|frock/,      cat: 'cat_festive' },
+      { re: /jersey|ipl|csk|rcb|cricket/,              cat: 'cat_ipl' },
+      { re: /bestseller|popular|trending|best seller/,  cat: 'cat_bestsellers' },
+    ];
+    const _adCatMatch = _adCatMap.find(m => m.re.test(_adMsg));
+    if (_adCatMatch) {
+      console.log('[woofparade AD-INTERCEPT] category keyword matched:', _adCatMatch.cat);
+      await sendCategoryResults(ctx, _adCatMatch.cat, 0);
+      return;
+    }
   }
 
     // ─── INTERACTIVE TAP DISPATCH ────────────────────────────────────────────
