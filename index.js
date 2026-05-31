@@ -631,6 +631,7 @@ app.use('/dashboard', require('./routes/dashboard'));
 app.use('/embedded-bridge', require('./routes/embedded-bridge'));
 app.use('/admin', require('./routes/admin'));
 app.use('/team-timeline', require('./routes/team-timeline'));
+app.use('/api/demo-leads', require('./routes/demo-leads'));
 
 // ── BILLING ROUTES ──────────────────────────────────────────
 app.get('/terms', (req, res) => {

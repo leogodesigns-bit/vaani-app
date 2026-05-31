@@ -69,6 +69,16 @@ async function initDB() {
       score INTEGER DEFAULT 0,
       PRIMARY KEY (tenant_id, product_id)
     );
+
+    CREATE TABLE IF NOT EXISTS demo_leads (
+      id BIGSERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      source TEXT,
+      client_ts TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_demo_leads_phone_created ON demo_leads (phone, created_at DESC);
   `);
 
   console.log('✅ Database tables ready');
