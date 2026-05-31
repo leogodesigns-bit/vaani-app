@@ -169,6 +169,10 @@ router.post('/', async (req, res) => {
     const message = entry?.messages?.[0];
     if (!message) return;
 
+    // ─── Ad referral detection ───────────────────────────────────────
+    const adReferral = message.referral || null;
+    if (adReferral) console.log(`[ad-referral] from=${message.from} ad_id=${adReferral.ad_id} headline=${adReferral.headline}`);
+
     const from = message.from;
 
     // WhatsApp profile name capture (dashboard shows it for unknown numbers)
