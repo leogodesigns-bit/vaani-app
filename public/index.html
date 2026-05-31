@@ -85,7 +85,19 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .early-access h2 em{font-style:italic;color:var(--warm)}
 .early-access .section-sub{font-size:.95rem;color:var(--muted);margin-bottom:2.5rem;line-height:1.7}
 
-@media(max-width:768px){nav{padding:1.2rem 1.5rem}.nav-links{display:none}.hero{padding:4rem 1.5rem 3rem}.steps{grid-template-columns:1fr}.features-strip .inner{grid-template-columns:repeat(2,1fr)}footer{flex-direction:column;gap:2rem;text-align:center;padding:2rem 1.5rem}.footer-right{text-align:center}}
+.channels-section{padding:1rem 0 3rem}
+.channels-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+.channel-card{background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:1.8rem;transition:transform .2s,border-color .2s}
+.channel-card:hover{transform:translateY(-2px);border-color:var(--warm-light)}
+.channel-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem}
+.channel-icon{font-size:1.6rem;line-height:1}
+.channel-badge{font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;padding:.3rem .7rem;border-radius:100px;font-weight:500;white-space:nowrap}
+.channel-badge.live{background:var(--green-light);color:var(--green)}
+.channel-badge.soon{background:var(--border);color:var(--muted)}
+.channel-card h3{font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:600;margin-bottom:.5rem;letter-spacing:-.01em}
+.channel-card p{font-size:.82rem;color:var(--muted);line-height:1.6}
+
+@media(max-width:768px){nav{padding:1.2rem 1.5rem}.nav-links{display:none}.hero{padding:4rem 1.5rem 3rem}.steps{grid-template-columns:1fr}.channels-grid{grid-template-columns:1fr}.features-strip .inner{grid-template-columns:repeat(2,1fr)}footer{flex-direction:column;gap:2rem;text-align:center;padding:2rem 1.5rem}.footer-right{text-align:center}}
 </style>
 </head>
 <body>
@@ -111,6 +123,35 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
       <a href="features.html" class="btn-outline">See How It Works</a>
     </div>
     <p class="hero-note fade-up delay-5">WhatsApp · Instagram · Shopify-native · Multilingual</p>
+  </div>
+</section>
+
+<section class="container channels-section">
+  <div class="channels-grid">
+    <div class="channel-card fade-up delay-1">
+      <div class="channel-card-top">
+        <span class="channel-icon">💬</span>
+        <span class="channel-badge live">Live</span>
+      </div>
+      <h3>WhatsApp</h3>
+      <p>Product discovery, orders, payments</p>
+    </div>
+    <div class="channel-card fade-up delay-2">
+      <div class="channel-card-top">
+        <span class="channel-icon">📸</span>
+        <span class="channel-badge live">Live · New</span>
+      </div>
+      <h3>Instagram</h3>
+      <p>DM replies, comment triggers, product cards</p>
+    </div>
+    <div class="channel-card fade-up delay-3">
+      <div class="channel-card-top">
+        <span class="channel-icon">🎙️</span>
+        <span class="channel-badge soon">Coming Soon</span>
+      </div>
+      <h3>Voice Calls</h3>
+      <p>AI voice sales assistant, inbound + follow-up</p>
+    </div>
   </div>
 </section>
 
