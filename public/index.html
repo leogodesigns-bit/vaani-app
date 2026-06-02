@@ -49,7 +49,7 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .hero-badge-dot{width:6px;height:6px;border-radius:50%;background:var(--warm);animation:pulse 2s infinite}
 .hero h1{font-family:'Playfair Display',serif;font-size:clamp(3rem,7vw,5.5rem);font-weight:400;line-height:1.05;letter-spacing:-.03em;margin-bottom:1.8rem}
 .hero h1 em{font-style:italic;color:var(--warm)}
-.hero p{font-size:1.1rem;color:var(--muted);line-height:1.75;max-width:520px;margin:0 auto 3rem}
+.hero p{font-size:1.1rem;color:var(--muted);line-height:1.75;max-width:780px;margin:0 auto 3rem}
 .hero-actions{display:flex;align-items:center;justify-content:center;gap:1rem;flex-wrap:wrap}
 .hero-note{font-size:.72rem;color:var(--muted);margin-top:1.2rem;letter-spacing:.04em}
 .hero-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin:2.5rem 0 0}
@@ -57,6 +57,7 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .hero-stat-num{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:700;color:var(--ink);letter-spacing:-.02em;line-height:1;margin-bottom:.4rem}
 .hero-stat-title{font-size:.78rem;font-weight:500;color:var(--ink);margin-bottom:.2rem;letter-spacing:.02em}
 .hero-stat-sub{font-size:.7rem;color:var(--muted);line-height:1.4}
+.hero-stat-em{color:var(--warm);font-weight:600}
 
 .mockup-section{padding:2rem 0 6rem}
 .mockup-wrapper{max-width:400px;margin:0 auto;background:#E5DDD4;border-radius:24px;padding:1.5rem;box-shadow:0 40px 80px rgba(26,23,20,.12),0 8px 24px rgba(26,23,20,.06)}
@@ -143,7 +144,7 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .channel-card p{font-size:.82rem;color:rgba(255,255,255,.55);line-height:1.6}
 .channel-stat{margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,.08);font-size:.7rem;color:var(--warm-light);font-weight:500;letter-spacing:.04em;text-transform:uppercase;opacity:.85}
 
-@media(max-width:768px){nav{padding:1.2rem 1.5rem}.nav-links{display:none}.hamburger{display:flex}.hero{padding:4rem 1.5rem 3rem}.steps{grid-template-columns:1fr}.channels-grid{grid-template-columns:1fr}.insta-grid{grid-template-columns:1fr;gap:2.5rem}.insta-text{text-align:center}.insta-text p{margin:0 auto}.features-strip .inner{grid-template-columns:repeat(2,1fr)}.hero-stats{grid-template-columns:repeat(2,1fr)}footer{flex-direction:column;gap:2rem;text-align:center;padding:2rem 1.5rem}.footer-right{text-align:center}}
+@media(max-width:768px){nav{padding:1.2rem 1.5rem}.nav-links{display:none}.hamburger{display:flex}.hero{padding:4rem 1.5rem 3rem}.steps{grid-template-columns:1fr}.channels-grid{grid-template-columns:1fr}.insta-grid{grid-template-columns:1fr;gap:2.5rem}.insta-text{text-align:center}.insta-text p{margin:0 auto}.features-strip .inner{grid-template-columns:repeat(2,1fr)}.hero-stats{grid-template-columns:repeat(2,1fr)}.hero-actions{flex-wrap:nowrap;gap:.6rem}.hero-actions .btn-primary,.hero-actions .btn-outline{padding:.7rem 1.1rem;font-size:.68rem;letter-spacing:.06em;white-space:nowrap}footer{flex-direction:column;gap:2rem;text-align:center;padding:2rem 1.5rem}.footer-right{text-align:center}}
 </style>
 </head>
 <body>
@@ -219,8 +220,8 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
     <div class="hero-stats fade-up delay-5">
       <div class="hero-stat">
         <div class="hero-stat-num">3</div>
-        <div class="hero-stat-title">Brands</div>
-        <div class="hero-stat-sub">onboarded since June 2026</div>
+        <div class="hero-stat-title">Brands onboarded</div>
+        <div class="hero-stat-sub">Since launch · <span class="hero-stat-em">June 2026</span></div>
       </div>
       <div class="hero-stat">
         <div class="hero-stat-num" id="stat-orders">10+</div>
@@ -385,9 +386,12 @@ document.querySelector('.hamburger').addEventListener('click',function(){
   this.setAttribute('aria-expanded', this.classList.contains('open'));
 });
 fetch('/api/stats').then(r=>r.json()).then(d=>{
-  if(d.orders>0)document.getElementById('stat-orders').textContent=d.orders.toLocaleString('en-IN');
-  if(d.revenue>0)document.getElementById('stat-revenue').textContent='₹'+d.revenue.toLocaleString('en-IN');
-  if(d.conversations>0)document.getElementById('stat-conversations').textContent=d.conversations.toLocaleString('en-IN');
+  const orders=Math.max(d.orders||0,10);
+  const revenue=Math.max(d.revenue||0,7000);
+  const conversations=Math.max(d.conversations||0,50);
+  document.getElementById('stat-orders').textContent=orders.toLocaleString('en-IN')+'+';
+  document.getElementById('stat-revenue').textContent='₹'+revenue.toLocaleString('en-IN')+'+';
+  document.getElementById('stat-conversations').textContent=conversations.toLocaleString('en-IN')+'+';
 }).catch(()=>{});
 </script>
 </body>
