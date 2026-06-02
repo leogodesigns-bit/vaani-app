@@ -638,10 +638,36 @@ app.get('/api/stats', async (req, res) => {
   try {
     const orders = await pool.query("SELECT COUNT(*)::int AS c, COALESCE(SUM(grand_total),0)::numeric AS s FROM orders WHERE status = 'paid'");
     const convos = await pool.query("SELECT COUNT(*)::int AS c FROM conversations");
+    const dbOrders = orders.rows[0].c;
+    const dbRevenue = Number(orders.rows[0].s);
+    const dbConversations = convos.rows[0].c;
+
+    let shopifyOrders = 0;
+    let shopifyRevenue = 0;
+    if (process.env.IKAA_SHOPIFY_TOKEN) {
+      try {
+        let url = 'https://ikaajewellery.myshopify.com/admin/api/2024-01/orders.json?status=any&limit=250&fields=total_price';
+        while (url) {
+          const resp = await axios.get(url, {
+            headers: { 'X-Shopify-Access-Token': process.env.IKAA_SHOPIFY_TOKEN },
+            timeout: 10000,
+          });
+          const pageOrders = resp.data.orders || [];
+          shopifyOrders += pageOrders.length;
+          shopifyRevenue += pageOrders.reduce((sum, o) => sum + Number(o.total_price || 0), 0);
+          const linkHeader = resp.headers.link || resp.headers.Link;
+          const nextMatch = linkHeader && linkHeader.match(/<([^>]+)>;\s*rel="next"/);
+          url = nextMatch ? nextMatch[1] : null;
+        }
+      } catch (shopifyErr) {
+        console.error('[api/stats shopify]', shopifyErr.message);
+      }
+    }
+
     res.json({
-      orders: orders.rows[0].c,
-      revenue: Number(orders.rows[0].s),
-      conversations: convos.rows[0].c,
+      orders: dbOrders + shopifyOrders,
+      revenue: dbRevenue + shopifyRevenue,
+      conversations: dbConversations,
     });
   } catch (e) {
     console.error('[api/stats]', e.message);
