@@ -217,13 +217,24 @@ async function upsertConversation(tenantId, customerPhone, messages, cart) {
     console.error('[upsertConversation] sent-message merge failed (non-fatal):', e.message);
   }
 
+  // Dedupe consecutive identical user messages. The webhook layer now
+  // appends the incoming user message to history before invoking the handler.
+  // Existing handlers also append the same {role:'user', content:text} before
+  // saving — this collapses that pair so only one copy is persisted.
+  const dedupedMessages = [];
+  for (const m of (messages || [])) {
+    const last = dedupedMessages[dedupedMessages.length - 1];
+    if (last && last.role === 'user' && m.role === 'user' && last.content === m.content) continue;
+    dedupedMessages.push(m);
+  }
+
   const res = await pool.query(
     `INSERT INTO conversations (tenant_id, customer_phone, messages, cart, last_active)
      VALUES ($1, $2, $3, $4, NOW())
      ON CONFLICT (tenant_id, customer_phone)
      DO UPDATE SET messages = $3, cart = $4, last_active = NOW()
      RETURNING *`,
-    [tenantId, customerPhone, JSON.stringify(messages), JSON.stringify(cart)]
+    [tenantId, customerPhone, JSON.stringify(dedupedMessages), JSON.stringify(cart)]
   );
   return res.rows[0];
 }

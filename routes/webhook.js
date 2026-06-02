@@ -332,7 +332,12 @@ router.post('/', async (req, res) => {
       return;
     }
     const conv = await getConversation(tenant.id, from);
-    const history = conv?.messages || [];
+    // Append current incoming user message (typed text OR button/list tap title)
+    // so downstream handlers always have it logged, even on save paths that
+    // currently persist `ctx.history` without re-appending. Dedupe at db layer
+    // collapses any handler that also appends the same message.
+    const _baseHistory = conv?.messages || [];
+    const history = text ? [..._baseHistory, { role: 'user', content: text }] : _baseHistory;
     // cart holds: { current_category, product_offset, shortlist, pending_product, ... }
     const cart = conv?.cart || {};
 
