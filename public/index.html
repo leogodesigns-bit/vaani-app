@@ -466,9 +466,9 @@ fetch('/api/stats').then(r=>r.json()).then(d=>{
   const thread=document.getElementById('chat-thread');
   if(!thread)return;
   const PRODUCTS=[
-    {img:'https://ikaajewellery.com/cdn/shop/files/1_89c827a9-e17c-47b6-be25-31cee8007e8b.jpg?v=1740578465&width=640',name:'Padmika Ring',price:'₹350'},
-    {img:'https://ikaajewellery.com/cdn/shop/files/3copy.jpg?v=1740804798&width=640',name:'Antique Gold Ring',price:'₹1,299'},
-    {img:'https://ikaajewellery.com/cdn/shop/files/4copy_24b30aa0-57a1-4f06-b75f-0d12a753c4e1.jpg?v=1735837289&width=640',name:'Pearl Stack Ring',price:'₹899'}
+    {img:'https://ikaajewellery.com/cdn/shop/files/3copy.jpg?v=1740804798&width=640',name:'Lina Ring',price:'Rs. 350'},
+    {img:'https://ikaajewellery.com/cdn/shop/files/1_89c827a9-e17c-47b6-be25-31cee8007e8b.jpg?v=1740578465&width=640',name:'Padmika Ring',price:'Rs. 350'},
+    {img:'https://ikaajewellery.com/cdn/shop/files/2_401aed9c-d4c1-413d-b454-ed8a8e1a3aa6.jpg?v=1741070768&width=1200',name:'Arzoo Ring',price:'Rs. 540'}
   ];
   const sequence=[
     {type:'user',text:'I want to discover Ikaa',time:'11:42 PM'},
@@ -478,7 +478,7 @@ fetch('/api/stats').then(r=>r.json()).then(d=>{
     {type:'user',text:'Rings',time:'11:43 PM'},
     {type:'bot',text:'Three pieces to start with — reply with a number to explore.',time:'11:43 PM',products:PRODUCTS},
     {type:'user',text:'2',time:'11:44 PM'},
-    {type:'bot',text:'Antique Gold Ring ₹1,299 — 22k gold-plated brass. Designed to layer. Want to add this to your shortlist?',time:'11:44 PM',options:['Add to shortlist','See more like this']},
+    {type:'bot',text:'Padmika Ring · Rs. 350 — handcrafted, oxidised silver. Designed to layer. Want to add this to your shortlist?',time:'11:44 PM',options:['Add to shortlist','See more like this']},
     {type:'user',text:'Add to shortlist',time:'11:44 PM'},
     {type:'bot',text:"Added ✨ Here's your secure checkout link: ikaa.in/checkout — Payment confirms your order instantly.",time:'11:44 PM'}
   ];
