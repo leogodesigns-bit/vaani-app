@@ -644,16 +644,24 @@ app.get('/api/stats', async (req, res) => {
 
     let shopifyOrders = 0;
     let shopifyRevenue = 0;
-    if (process.env.IKAA_SHOPIFY_TOKEN) {
-      try {
-        const countResp = await axios.get('https://ikaajewellery.myshopify.com/admin/api/2024-01/orders/count.json?status=any', {
-          headers: { 'X-Shopify-Access-Token': process.env.IKAA_SHOPIFY_TOKEN },
-          timeout: 10000,
-        });
-        shopifyOrders = countResp.data.count || 0;
-      } catch (shopifyErr) {
-        console.error('[api/stats shopify]', shopifyErr.message);
+    try {
+      const { getTenant } = require('./db');
+      const ikaaTenant = await getTenant('ikaajewellery.myshopify.com');
+      const ikaaToken = ikaaTenant?.shopify_token;
+      if (ikaaToken) {
+        let url = 'https://ikaajewellery.myshopify.com/admin/api/2024-01/orders.json?status=any&limit=250&fields=total_price';
+        while (url) {
+          const resp = await axios.get(url, { headers: { 'X-Shopify-Access-Token': ikaaToken }, timeout: 10000 });
+          const pageOrders = resp.data.orders || [];
+          shopifyOrders += pageOrders.length;
+          shopifyRevenue += pageOrders.reduce((sum, o) => sum + Number(o.total_price || 0), 0);
+          const linkHeader = resp.headers.link || resp.headers.Link;
+          const nextMatch = linkHeader && linkHeader.match(/<([^>]+)>;\s*rel="next"/);
+          url = nextMatch ? nextMatch[1] : null;
+        }
       }
+    } catch (shopifyErr) {
+      console.error('[api/stats shopify]', shopifyErr.message);
     }
 
     console.log('[shopify debug]', { shopifyOrders, shopifyRevenue, token: !!process.env.IKAA_SHOPIFY_TOKEN });
