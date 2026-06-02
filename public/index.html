@@ -156,7 +156,12 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .brand-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem;max-width:1000px;margin:0 auto}
 .brand-card{background:rgba(255,255,255,.7);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(180,155,130,.3);border-radius:14px;padding:1.5rem 1.2rem;display:flex;flex-direction:column;align-items:center;text-align:center;transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease;text-decoration:none;color:inherit}
 .brand-card:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(150,120,80,.16)}
-.brand-card-logo{height:46px;width:auto;max-width:100%;object-fit:contain;margin-bottom:1rem}
+.brand-card-logo{height:56px;width:auto;max-width:100%;object-fit:contain;margin-bottom:1rem}
+.brand-card-dark{background:#080808;border-color:#1C1C1C}
+.brand-card-dark:hover{box-shadow:0 10px 28px rgba(0,0,0,.35);border-color:#2a2a2a}
+.brand-card-dark .brand-card-name{color:#E8E0D5}
+.brand-card-dark .brand-card-desc{color:#888888}
+.brand-card-dark .brand-card-logo{margin-bottom:.8rem;border-radius:6px}
 .brand-card-name{font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;color:var(--ink);margin-bottom:.4rem;letter-spacing:-.01em;line-height:1.2}
 .brand-card-desc{font-size:.74rem;color:var(--muted);line-height:1.5}
 .brand-card-cta{background:var(--warm);border-color:transparent}
@@ -364,8 +369,8 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
   <div class="container">
     <p class="proof-label">Trusted by brands that never stop selling</p>
     <div class="brand-grid">
-      <a href="https://ikaajewellery.com" target="_blank" rel="noopener" class="brand-card">
-        <img class="brand-card-logo" src="https://www.google.com/s2/favicons?domain=ikaajewellery.com&sz=128" alt="Ikaa" loading="lazy">
+      <a href="https://ikaajewellery.com" target="_blank" rel="noopener" class="brand-card brand-card-dark">
+        <img class="brand-card-logo" src="/images/ikaa-logo.png" alt="Ikaa" loading="lazy">
         <div class="brand-card-name">Ikaa</div>
         <div class="brand-card-desc">Jewellery &amp; Nails · Pan-India</div>
       </a>
@@ -375,7 +380,7 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
         <div class="brand-card-desc">Pet fashion · Pune · Pan-India</div>
       </a>
       <a href="https://rajathee.com" target="_blank" rel="noopener" class="brand-card">
-        <img class="brand-card-logo" src="https://rajathee.com/cdn/shop/files/Rajathee_Saree_website_Final_Logo-02.jpg?height=80&v=1769674935" alt="Rajathee Sarees" loading="lazy">
+        <img class="brand-card-logo" src="/images/rajathee-logo.png" alt="Rajathee Sarees" loading="lazy">
         <div class="brand-card-name">Rajathee Sarees</div>
         <div class="brand-card-desc">Sarees · Pune · Pan-India</div>
       </a>
