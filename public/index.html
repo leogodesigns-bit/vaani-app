@@ -151,10 +151,19 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .insta-product-price{font-size:.78rem;color:#fff;font-weight:600;padding:.3rem .2rem 0}
 .insta-product-btn{background:linear-gradient(135deg,#F58529,#DD2A7B);color:#fff;text-align:center;padding:.42rem;border-radius:8px;font-size:.64rem;font-weight:600;margin-top:.45rem;letter-spacing:.06em;text-transform:uppercase}
 
-.proof-section{padding:4rem 0;text-align:center;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
-.proof-label{font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:2rem}
-.proof-logos{display:flex;align-items:center;justify-content:center;gap:3.5rem;flex-wrap:wrap}
-.proof-logo{font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--muted);opacity:.6;font-weight:600}
+.proof-section{padding:4rem 0 5rem;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.proof-label{font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:2.5rem;text-align:center}
+.brand-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem;max-width:1000px;margin:0 auto}
+.brand-card{background:rgba(255,255,255,.7);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(180,155,130,.3);border-radius:14px;padding:1.5rem 1.2rem;display:flex;flex-direction:column;align-items:center;text-align:center;transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease;text-decoration:none;color:inherit}
+.brand-card:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(150,120,80,.16)}
+.brand-card-logo{height:46px;width:auto;max-width:100%;object-fit:contain;margin-bottom:1rem}
+.brand-card-name{font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600;color:var(--ink);margin-bottom:.4rem;letter-spacing:-.01em;line-height:1.2}
+.brand-card-desc{font-size:.74rem;color:var(--muted);line-height:1.5}
+.brand-card-cta{background:var(--warm);border-color:transparent}
+.brand-card-cta:hover{background:var(--warm-dark);box-shadow:0 10px 28px rgba(196,120,58,.25)}
+.brand-card-cta .brand-card-name{color:var(--cream)}
+.brand-card-cta .brand-card-desc{color:var(--cream);opacity:.92;font-weight:500}
+.brand-cta-icon{display:flex;align-items:center;justify-content:center;height:46px;width:46px;border-radius:50%;background:rgba(255,255,255,.18);font-family:'Playfair Display',serif;font-size:1.6rem;color:var(--cream);font-weight:400;margin-bottom:1rem;line-height:1}
 
 .how-section{padding:7rem 0}
 .how-section h2{font-family:'Playfair Display',serif;font-size:clamp(2rem,4vw,3rem);font-weight:400;letter-spacing:-.02em;margin-bottom:1rem;line-height:1.2}
@@ -200,7 +209,7 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .channels-dots .dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.2);transition:background .2s}
 .channels-dots .dot.active{background:var(--warm-light)}
 
-@media(max-width:768px){nav{padding:1.2rem 1.5rem}.nav-links{display:none}.hamburger{display:flex}.hero{padding:4rem 1.5rem 3rem}.steps{grid-template-columns:1fr}.channels-section{margin:2.5rem -3.5rem;padding:1.8rem 1rem;overflow:visible;border-radius:0}.channels-grid{display:flex;grid-template-columns:none;overflow-x:auto;gap:.8rem;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:0 .5rem}.channels-grid::-webkit-scrollbar{display:none}.channel-card{flex:0 0 75vw;scroll-snap-align:start}.channels-dots{display:flex;justify-content:center;gap:6px;margin-top:.9rem}.insta-grid{grid-template-columns:1fr;gap:2.5rem}.insta-text{text-align:center;order:-1}.insta-text p{margin:0 auto}.mockup-grid{grid-template-columns:1fr;gap:2.5rem}.mockup-text{text-align:center;order:-1}.mockup-text p{margin:0 auto}.mockup-bullets{margin-left:auto;margin-right:auto;max-width:max-content;text-align:left}.insta-detail{margin-left:auto;margin-right:auto}.features-strip .inner{grid-template-columns:repeat(2,1fr)}.hero-stats{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:1rem}.hero h1{font-size:2.8rem}.hero h1 em{min-height:3.2em}.hero-stat-sub{font-size:.62rem;line-height:1.35;word-wrap:break-word}.hero-actions{flex-wrap:nowrap;gap:.6rem}.hero-actions .btn-primary,.hero-actions .btn-outline{padding:.7rem 1.1rem;font-size:.68rem;letter-spacing:.06em;white-space:nowrap}footer{flex-direction:column;gap:2rem;text-align:center;padding:2rem 1.5rem}.footer-right{text-align:center}}
+@media(max-width:768px){nav{padding:1.2rem 1.5rem}.nav-links{display:none}.hamburger{display:flex}.hero{padding:4rem 1.5rem 3rem}.steps{grid-template-columns:1fr}.channels-section{margin:2.5rem -3.5rem;padding:1.8rem 1rem;overflow:visible;border-radius:0}.channels-grid{display:flex;grid-template-columns:none;overflow-x:auto;gap:.8rem;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:0 .5rem}.channels-grid::-webkit-scrollbar{display:none}.channel-card{flex:0 0 75vw;scroll-snap-align:start}.channels-dots{display:flex;justify-content:center;gap:6px;margin-top:.9rem}.brand-grid{display:flex;grid-template-columns:none;overflow-x:auto;scroll-snap-type:x mandatory;gap:.8rem;scrollbar-width:none;margin:0 -1.5rem;padding:0 1.5rem}.brand-grid::-webkit-scrollbar{display:none}.brand-card{flex:0 0 70vw;scroll-snap-align:start}.insta-grid{grid-template-columns:1fr;gap:2.5rem}.insta-text{text-align:center;order:-1}.insta-text p{margin:0 auto}.mockup-grid{grid-template-columns:1fr;gap:2.5rem}.mockup-text{text-align:center;order:-1}.mockup-text p{margin:0 auto}.mockup-bullets{margin-left:auto;margin-right:auto;max-width:max-content;text-align:left}.insta-detail{margin-left:auto;margin-right:auto}.features-strip .inner{grid-template-columns:repeat(2,1fr)}.hero-stats{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:1rem}.hero h1{font-size:2.8rem}.hero h1 em{min-height:3.2em}.hero-stat-sub{font-size:.62rem;line-height:1.35;word-wrap:break-word}.hero-actions{flex-wrap:nowrap;gap:.6rem}.hero-actions .btn-primary,.hero-actions .btn-outline{padding:.7rem 1.1rem;font-size:.68rem;letter-spacing:.06em;white-space:nowrap}footer{flex-direction:column;gap:2rem;text-align:center;padding:2rem 1.5rem}.footer-right{text-align:center}}
 </style>
 </head>
 <body>
@@ -354,11 +363,27 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 <section class="proof-section">
   <div class="container">
     <p class="proof-label">Trusted by brands that never stop selling</p>
-    <div class="proof-logos">
-      <span class="proof-logo">Ikaa</span>
-      <span class="proof-logo">The Woof Parade</span>
-      <span class="proof-logo">Rajathee Sarees</span>
-      <span class="proof-logo">Your Brand →</span>
+    <div class="brand-grid">
+      <a href="https://ikaajewellery.com" target="_blank" rel="noopener" class="brand-card">
+        <img class="brand-card-logo" src="https://ikaajewellery.com/cdn/shop/t/17/assets/ikaa-logo.png?v=17346795494336890121780037052" alt="Ikaa" loading="lazy">
+        <div class="brand-card-name">Ikaa</div>
+        <div class="brand-card-desc">Jewellery · Satara</div>
+      </a>
+      <a href="https://www.thewoofparade.com" target="_blank" rel="noopener" class="brand-card">
+        <img class="brand-card-logo" src="https://www.thewoofparade.com/cdn/shop/files/woof_parade_website_logo.png?height=100&v=1772000416" alt="The Woof Parade" loading="lazy">
+        <div class="brand-card-name">The Woof Parade</div>
+        <div class="brand-card-desc">Pet fashion · Pan-India</div>
+      </a>
+      <a href="https://rajathee.com" target="_blank" rel="noopener" class="brand-card">
+        <img class="brand-card-logo" src="https://rajathee.com/cdn/shop/files/Rajathee_Saree_website_Final_Logo-02.jpg?height=80&v=1769674935" alt="Rajathee Sarees" loading="lazy">
+        <div class="brand-card-name">Rajathee Sarees</div>
+        <div class="brand-card-desc">Sarees · Chennai</div>
+      </a>
+      <a href="https://wa.me/919403345612" class="brand-card brand-card-cta">
+        <span class="brand-cta-icon">→</span>
+        <div class="brand-card-name">Your Brand</div>
+        <div class="brand-card-desc">Want to be next? Get started →</div>
+      </a>
     </div>
   </div>
 </section>
