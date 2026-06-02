@@ -644,14 +644,31 @@ app.get('/api/stats', async (req, res) => {
 
     let shopifyOrders = 0;
     let shopifyRevenue = 0;
+    let _dbgTenantFound = false;
+    let _dbgTokenLen = 0;
+    let _dbgFirstStatus = null;
+    let _dbgPages = 0;
+    let _dbgErr = null;
     try {
       const { getTenant } = require('./db');
       const ikaaTenant = await getTenant('ikaajewellery.myshopify.com');
+      _dbgTenantFound = !!ikaaTenant;
       const ikaaToken = ikaaTenant?.shopify_token;
+      _dbgTokenLen = ikaaToken ? ikaaToken.length : 0;
       if (ikaaToken) {
         let url = 'https://ikaajewellery.myshopify.com/admin/api/2024-01/orders.json?status=any&limit=250&fields=total_price';
         while (url) {
-          const resp = await axios.get(url, { headers: { 'X-Shopify-Access-Token': ikaaToken }, timeout: 10000 });
+          const resp = await axios.get(url, {
+            headers: { 'X-Shopify-Access-Token': ikaaToken },
+            timeout: 10000,
+            validateStatus: () => true,
+          });
+          if (_dbgPages === 0) _dbgFirstStatus = resp.status;
+          _dbgPages++;
+          if (resp.status !== 200) {
+            _dbgErr = `status ${resp.status}: ${typeof resp.data === 'object' ? JSON.stringify(resp.data).slice(0, 200) : String(resp.data).slice(0, 200)}`;
+            break;
+          }
           const pageOrders = resp.data.orders || [];
           shopifyOrders += pageOrders.length;
           shopifyRevenue += pageOrders.reduce((sum, o) => sum + Number(o.total_price || 0), 0);
@@ -661,10 +678,19 @@ app.get('/api/stats', async (req, res) => {
         }
       }
     } catch (shopifyErr) {
+      _dbgErr = shopifyErr.message;
       console.error('[api/stats shopify]', shopifyErr.message);
     }
 
-    console.log('[shopify debug]', { shopifyOrders, shopifyRevenue, token: !!process.env.IKAA_SHOPIFY_TOKEN });
+    console.log('[shopify debug]', {
+      tenantFound: _dbgTenantFound,
+      tokenLen: _dbgTokenLen,
+      firstStatus: _dbgFirstStatus,
+      pages: _dbgPages,
+      shopifyOrders,
+      shopifyRevenue,
+      err: _dbgErr,
+    });
 
     res.json({
       orders: dbOrders + shopifyOrders,
