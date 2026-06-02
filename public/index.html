@@ -89,6 +89,20 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .product-name{font-weight:500;color:#111;font-size:.68rem;line-height:1.3}.product-price{color:var(--warm);font-size:.68rem;margin-top:.2rem}
 .quick-replies{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.6rem}
 .qr{background:white;border:1px solid var(--border);border-radius:100px;padding:.3rem .7rem;font-size:.68rem;color:#0066CC;cursor:pointer}
+.chat-thread{height:500px;overflow-y:auto;display:flex;flex-direction:column;gap:.7rem;padding:.2rem 4px 0 0;scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.15) transparent}
+.chat-thread::-webkit-scrollbar{width:4px}
+.chat-thread::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:2px}
+.chat-msg{display:flex;flex-direction:column;gap:2px;opacity:0;transform:translateY(10px);transition:opacity .35s ease,transform .35s ease;max-width:100%}
+.chat-msg.show{opacity:1;transform:translateY(0)}
+.chat-msg.msg-user{align-items:flex-end}
+.chat-msg.msg-bot{align-items:flex-start}
+.chat-options{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.3rem;max-width:92%}
+.chat-option{background:white;border:1px solid var(--warm);color:var(--warm);border-radius:100px;padding:.32rem .72rem;font-size:.7rem;font-weight:500;white-space:nowrap;cursor:pointer}
+.product-card-chat{background:white;border-radius:10px;overflow:hidden;margin-top:.3rem;width:200px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.product-card-chat img{width:100%;height:160px;object-fit:cover;display:block;background:#f5f0e8}
+.product-card-chat-body{padding:.5rem .65rem}
+.product-card-chat-name{font-size:.74rem;font-weight:600;color:#111;line-height:1.3}
+.product-card-chat-meta{font-size:.68rem;color:var(--warm);margin-top:.2rem;font-weight:500}
 
 .insta-section{padding:5rem 0 6rem}
 .insta-grid{display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center}
@@ -289,32 +303,7 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
         <div class="mockup-status">● Online</div>
       </div>
     </div>
-    <div class="chat-bubble">
-      <div class="bubble bubble-user">Hi, I want to explore nail art 💅</div>
-      <div class="bubble-time right">3:12</div>
-    </div>
-    <div class="chat-bubble">
-      <div class="bubble bubble-bot">Welcome to Ikaa ✨ What are you looking for?<br><br>A. Nail Extensions<br>B. Nail Art Designs<br>C. DIY Nail Kits<br>D. Jewellery</div>
-      <div class="bubble-time">3:12</div>
-    </div>
-    <div class="chat-bubble">
-      <div class="bubble bubble-user">C. DIY Nail Kits</div>
-      <div class="bubble-time right">3:13</div>
-    </div>
-    <div class="chat-bubble">
-      <div class="bubble bubble-bot">Here are our top DIY picks 🖤</div>
-      <div class="bubble-time">3:13</div>
-    </div>
-    <div class="product-cards">
-      <div class="product-card-mini"><div class="product-img">🖤</div><div class="product-name">Chrome Noir Kit</div><div class="product-price">₹1,299</div></div>
-      <div class="product-card-mini"><div class="product-img">✨</div><div class="product-name">Silver Foil Set</div><div class="product-price">₹899</div></div>
-      <div class="product-card-mini"><div class="product-img">💎</div><div class="product-name">Gem Builder</div><div class="product-price">₹1,099</div></div>
-    </div>
-    <div class="quick-replies">
-      <span class="qr">❤️ Shortlist Chrome Noir</span>
-      <span class="qr">Show more →</span>
-      <span class="qr">View Cart</span>
-    </div>
+    <div class="chat-thread" id="chat-thread"></div>
   </div>
   </div>
 </section>
@@ -465,6 +454,86 @@ fetch('/api/stats').then(r=>r.json()).then(d=>{
     const idx=Math.min(dots.length-1,Math.max(0,Math.round(grid.scrollLeft/cw)));
     dots.forEach((d,i)=>d.classList.toggle('active',i===idx));
   },{passive:true});
+})();
+(function(){
+  const thread=document.getElementById('chat-thread');
+  if(!thread)return;
+  const PRODUCT_IMG='https://ikaajewellery.com/cdn/shop/files/2_f556d2ef-a9ef-4327-993c-6de88efa8008.jpg?v=1740578465&width=640';
+  const sequence=[
+    {type:'user',text:'I want to discover Ikaa',time:'11:42 PM'},
+    {type:'bot',text:"Hello. I'm Jhilmil — your guide to everything Ikaa. Where shall we begin?",time:'11:42 PM',options:['Explore Jewellery','Press-on Nails','Book a Nail Appointment','Bestsellers']},
+    {type:'user',text:'Explore Jewellery',time:'11:42 PM'},
+    {type:'bot',text:'What kind of piece are you looking for?',time:'11:43 PM',options:['Rings','Earrings','Necklaces','Bracelets']},
+    {type:'user',text:'Rings',time:'11:43 PM'},
+    {type:'bot',text:'Three pieces to start with — reply with a number to explore.',time:'11:43 PM',product:{img:PRODUCT_IMG,name:'Antique Gold Stacking Ring',price:'₹1,299',meta:'In Stock'}},
+    {type:'user',text:'1',time:'11:44 PM'},
+    {type:'bot',text:'Antique Gold Stacking Ring ₹1,299 — 22k gold-plated brass. Designed to layer. Want to add this to your shortlist?',time:'11:44 PM',options:['Add to shortlist','See more like this']},
+    {type:'user',text:'Add to shortlist',time:'11:44 PM'},
+    {type:'bot',text:"Added ✨ Here's your secure checkout link: ikaa.in/checkout — Payment confirms your order instantly.",time:'11:44 PM'}
+  ];
+  function createMsg(msg){
+    const wrap=document.createElement('div');
+    wrap.className='chat-msg msg-'+msg.type;
+    const bubble=document.createElement('div');
+    bubble.className='bubble bubble-'+msg.type;
+    bubble.textContent=msg.text;
+    wrap.appendChild(bubble);
+    if(msg.product){
+      const card=document.createElement('div');
+      card.className='product-card-chat';
+      const img=document.createElement('img');
+      img.src=msg.product.img;
+      img.alt=msg.product.name;
+      img.loading='lazy';
+      card.appendChild(img);
+      const body=document.createElement('div');
+      body.className='product-card-chat-body';
+      const name=document.createElement('div');
+      name.className='product-card-chat-name';
+      name.textContent='1. '+msg.product.name;
+      const meta=document.createElement('div');
+      meta.className='product-card-chat-meta';
+      meta.textContent=msg.product.price+' · '+msg.product.meta;
+      body.appendChild(name);
+      body.appendChild(meta);
+      card.appendChild(body);
+      wrap.appendChild(card);
+    }
+    if(msg.options){
+      const opts=document.createElement('div');
+      opts.className='chat-options';
+      msg.options.forEach(function(o){
+        const b=document.createElement('span');
+        b.className='chat-option';
+        b.textContent=o;
+        opts.appendChild(b);
+      });
+      wrap.appendChild(opts);
+    }
+    const t=document.createElement('div');
+    t.className='bubble-time'+(msg.type==='user'?' right':'');
+    t.textContent=msg.time;
+    wrap.appendChild(t);
+    return wrap;
+  }
+  function play(){
+    thread.innerHTML='';
+    let i=0;
+    function step(){
+      if(i>=sequence.length){setTimeout(play,3000);return;}
+      const node=createMsg(sequence[i++]);
+      thread.appendChild(node);
+      requestAnimationFrame(function(){
+        node.classList.add('show');
+        thread.scrollTop=thread.scrollHeight;
+      });
+      setTimeout(step,1200);
+    }
+    step();
+  }
+  const preload=new Image();
+  preload.src=PRODUCT_IMG;
+  play();
 })();
 </script>
 </body>
