@@ -52,6 +52,11 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .hero p{font-size:1.1rem;color:var(--muted);line-height:1.75;max-width:520px;margin:0 auto 3rem}
 .hero-actions{display:flex;align-items:center;justify-content:center;gap:1rem;flex-wrap:wrap}
 .hero-note{font-size:.72rem;color:var(--muted);margin-top:1.2rem;letter-spacing:.04em}
+.hero-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin:2.5rem 0 0}
+.hero-stat{background:var(--card-bg);border-radius:14px;padding:1.4rem 1.1rem;text-align:left}
+.hero-stat-num{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:700;color:var(--ink);letter-spacing:-.02em;line-height:1;margin-bottom:.4rem}
+.hero-stat-title{font-size:.78rem;font-weight:500;color:var(--ink);margin-bottom:.2rem;letter-spacing:.02em}
+.hero-stat-sub{font-size:.7rem;color:var(--muted);line-height:1.4}
 
 .mockup-section{padding:2rem 0 6rem}
 .mockup-wrapper{max-width:400px;margin:0 auto;background:#E5DDD4;border-radius:24px;padding:1.5rem;box-shadow:0 40px 80px rgba(26,23,20,.12),0 8px 24px rgba(26,23,20,.06)}
@@ -136,8 +141,9 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .channel-badge.soon{background:rgba(255,255,255,.08);color:rgba(255,255,255,.5)}
 .channel-card h3{font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:600;margin-bottom:.5rem;letter-spacing:-.01em;color:var(--cream)}
 .channel-card p{font-size:.82rem;color:rgba(255,255,255,.55);line-height:1.6}
+.channel-stat{margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,.08);font-size:.7rem;color:var(--warm-light);font-weight:500;letter-spacing:.04em;text-transform:uppercase;opacity:.85}
 
-@media(max-width:768px){nav{padding:1.2rem 1.5rem}.nav-links{display:none}.hamburger{display:flex}.hero{padding:4rem 1.5rem 3rem}.steps{grid-template-columns:1fr}.channels-grid{grid-template-columns:1fr}.insta-grid{grid-template-columns:1fr;gap:2.5rem}.insta-text{text-align:center}.insta-text p{margin:0 auto}.features-strip .inner{grid-template-columns:repeat(2,1fr)}footer{flex-direction:column;gap:2rem;text-align:center;padding:2rem 1.5rem}.footer-right{text-align:center}}
+@media(max-width:768px){nav{padding:1.2rem 1.5rem}.nav-links{display:none}.hamburger{display:flex}.hero{padding:4rem 1.5rem 3rem}.steps{grid-template-columns:1fr}.channels-grid{grid-template-columns:1fr}.insta-grid{grid-template-columns:1fr;gap:2.5rem}.insta-text{text-align:center}.insta-text p{margin:0 auto}.features-strip .inner{grid-template-columns:repeat(2,1fr)}.hero-stats{grid-template-columns:repeat(2,1fr)}footer{flex-direction:column;gap:2rem;text-align:center;padding:2rem 1.5rem}.footer-right{text-align:center}}
 </style>
 </head>
 <body>
@@ -174,7 +180,7 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
   <div class="hero">
     <div class="hero-badge fade-up delay-1"><span class="hero-badge-dot"></span>WhatsApp · Instagram · Calls coming soon</div>
     <h1 class="fade-up delay-2">Never miss a sale.<br><em>Vaani is always on.</em></h1>
-    <p class="fade-up delay-3">Vaani handles your sales conversations on WhatsApp and Instagram — so your brand is always available, even when you're not.</p>
+    <p class="fade-up delay-3">Vaani handles your sales on WhatsApp and Instagram, so your brand never misses a customer.</p>
     <div class="channels-section fade-up delay-3">
       <div class="channels-grid">
         <div class="channel-card">
@@ -184,6 +190,7 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
           </div>
           <h3>WhatsApp</h3>
           <p>Product discovery, orders, payments</p>
+          <div class="channel-stat">10+ orders processed</div>
         </div>
         <div class="channel-card">
           <div class="channel-card-top">
@@ -192,6 +199,7 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
           </div>
           <h3>Instagram</h3>
           <p>DM replies, comment triggers, product cards, payments</p>
+          <div class="channel-stat">DM to checkout, live</div>
         </div>
         <div class="channel-card">
           <div class="channel-card-top">
@@ -200,6 +208,7 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
           </div>
           <h3>Voice Calls</h3>
           <p>AI voice sales assistant, inbound + follow-up</p>
+          <div class="channel-stat">Coming soon</div>
         </div>
       </div>
     </div>
@@ -207,7 +216,28 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
       <a href="https://wa.me/919403345612" class="btn-primary">GET STARTED →</a>
       <a href="features.html" class="btn-outline">See How It Works</a>
     </div>
-    <p class="hero-note fade-up delay-5">WhatsApp · Instagram · Shopify-native · Multilingual</p>
+    <div class="hero-stats fade-up delay-5">
+      <div class="hero-stat">
+        <div class="hero-stat-num">3</div>
+        <div class="hero-stat-title">Brands</div>
+        <div class="hero-stat-sub">onboarded since June 2026</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-num" id="stat-orders">10+</div>
+        <div class="hero-stat-title">Orders</div>
+        <div class="hero-stat-sub">processed</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-num" id="stat-revenue">₹7,000+</div>
+        <div class="hero-stat-title">Revenue</div>
+        <div class="hero-stat-sub">generated</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-num" id="stat-conversations">200+</div>
+        <div class="hero-stat-title">Conversations</div>
+        <div class="hero-stat-sub">processed</div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -354,6 +384,11 @@ document.querySelector('.hamburger').addEventListener('click',function(){
   document.querySelector('.mobile-menu').classList.toggle('open');
   this.setAttribute('aria-expanded', this.classList.contains('open'));
 });
+fetch('/api/stats').then(r=>r.json()).then(d=>{
+  if(d.orders>0)document.getElementById('stat-orders').textContent=d.orders.toLocaleString('en-IN');
+  if(d.revenue>0)document.getElementById('stat-revenue').textContent='₹'+d.revenue.toLocaleString('en-IN');
+  if(d.conversations>0)document.getElementById('stat-conversations').textContent=d.conversations.toLocaleString('en-IN');
+}).catch(()=>{});
 </script>
 </body>
 </html>

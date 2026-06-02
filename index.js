@@ -633,6 +633,22 @@ app.use('/admin', require('./routes/admin'));
 app.use('/team-timeline', require('./routes/team-timeline'));
 app.use('/api/demo-leads', require('./routes/demo-leads'));
 
+// ── PUBLIC STATS for landing page hero ──────────────────────
+app.get('/api/stats', async (req, res) => {
+  try {
+    const orders = await pool.query("SELECT COUNT(*)::int AS c, COALESCE(SUM(grand_total),0)::numeric AS s FROM orders WHERE status = 'paid'");
+    const convos = await pool.query("SELECT COUNT(*)::int AS c FROM conversations");
+    res.json({
+      orders: orders.rows[0].c,
+      revenue: Number(orders.rows[0].s),
+      conversations: convos.rows[0].c,
+    });
+  } catch (e) {
+    console.error('[api/stats]', e.message);
+    res.status(500).json({ orders: 0, revenue: 0, conversations: 0 });
+  }
+});
+
 // ── BILLING ROUTES ──────────────────────────────────────────
 app.get('/terms', (req, res) => {
   res.sendFile(__dirname + '/public/terms.html');
