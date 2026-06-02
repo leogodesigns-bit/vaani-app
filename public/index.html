@@ -532,7 +532,7 @@ fetch('/api/stats').then(r=>r.json()).then(d=>{
     thread.innerHTML='';
     let i=0;
     function step(){
-      if(i>=sequence.length){setTimeout(play,3000);return;}
+      if(i>=sequence.length){setTimeout(play,4000);return;}
       const node=createMsg(sequence[i++]);
       thread.appendChild(node);
       requestAnimationFrame(function(){
@@ -613,7 +613,7 @@ fetch('/api/stats').then(r=>r.json()).then(d=>{
     thread.innerHTML='';
     let i=0;
     function step(){
-      if(i>=sequence.length){setTimeout(play,3000);return;}
+      if(i>=sequence.length){setTimeout(play,4000);return;}
       const node=createNode(sequence[i++]);
       thread.appendChild(node);
       requestAnimationFrame(function(){
