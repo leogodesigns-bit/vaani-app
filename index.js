@@ -664,6 +664,8 @@ app.get('/api/stats', async (req, res) => {
       }
     }
 
+    console.log('[shopify debug]', { shopifyOrders, shopifyRevenue, token: !!process.env.IKAA_SHOPIFY_TOKEN });
+
     res.json({
       orders: dbOrders + shopifyOrders,
       revenue: dbRevenue + shopifyRevenue,
