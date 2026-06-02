@@ -138,6 +138,14 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .insta-product-card.show{opacity:1;transform:translateY(0)}
 .insta-product-img{height:160px;background:#1a1a1a;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:2.4rem;margin-bottom:.5rem}
 .insta-product-img img{width:100%;height:100%;object-fit:cover;display:block}
+.insta-products-row{display:flex;gap:.4rem;margin-bottom:.5rem;align-self:flex-start;max-width:100%;opacity:0;transform:translateY(10px);transition:opacity .35s ease,transform .35s ease}
+.insta-products-row.show{opacity:1;transform:translateY(0)}
+.insta-product-mini{background:#1A1A1A;border:1px solid rgba(255,255,255,.06);border-radius:10px;overflow:hidden;flex:1;min-width:0}
+.insta-product-mini-img{height:100px;background:#0f0f0f;overflow:hidden;display:block}
+.insta-product-mini-img img{width:100%;height:100%;object-fit:cover;object-position:center;display:block}
+.insta-product-mini-body{padding:.36rem .44rem .48rem}
+.insta-product-mini-title{font-size:.6rem;color:#fff;font-weight:500;line-height:1.25;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.insta-product-mini-price{font-size:.6rem;color:#fff;font-weight:600;margin-top:.22rem}
 .insta-product-handle{font-size:.58rem;color:rgba(255,255,255,.5);padding:0 .2rem}
 .insta-product-title{font-size:.76rem;color:#fff;font-weight:500;line-height:1.3;padding:.1rem .2rem 0}
 .insta-product-price{font-size:.78rem;color:#fff;font-weight:600;padding:.3rem .2rem 0}
@@ -539,45 +547,51 @@ fetch('/api/stats').then(r=>r.json()).then(d=>{
 (function(){
   const thread=document.getElementById('insta-thread');
   if(!thread)return;
-  const BANDANA_IMG='https://www.thewoofparade.com/cdn/shop/files/Bone_Bandana_final.jpg?v=1779605642&width=640';
+  const WP_PRODUCTS=[
+    {img:'https://www.thewoofparade.com/cdn/shop/files/Tropicana_Paw_2.webp?v=1774604233&width=400',title:'Tropicana Paw Shirt',price:'Rs. 1,199'},
+    {img:'https://www.thewoofparade.com/cdn/shop/files/RedBanarasiFestive.webp?v=1770622525&width=400',title:'Red Banarasi Festive Kurta',price:'Rs. 1,499'},
+    {img:'https://www.thewoofparade.com/cdn/shop/files/pawprinted1_da02824e-373c-4d44-9c0c-22fb6945dcaa.jpg?v=1776187015&width=400',title:'Printed Collar + Leash',price:'Rs. 999'}
+  ];
   const sequence=[
-    {type:'user',text:'Hi! Saw your bandana on Insta — got it in red? 🐼',time:'2:14 PM'},
-    {type:'bot',text:"Hi 🐾 Yes! Here's the Red Plaid Bandana:"},
-    {type:'product',img:BANDANA_IMG,handle:'thewoofparade.com',title:'Red Plaid Bandana',price:'₹699'},
-    {type:'user',text:'Perfect 😍 add to cart please',time:'2:15 PM'},
-    {type:'bot',text:"Added! 🛒 Here's your checkout link: thewoofparade.com/checkout — Pay securely and your order ships in 2-3 days 🐶"},
-    {type:'user',text:"Done! Can't wait 🎉",time:'2:16 PM'},
-    {type:'bot',text:"Order confirmed! 🎊 You'll get a tracking link once shipped. Welcome to the Woof Pack! 🐾"}
+    {type:'user',text:"Hi! Saw your post — what's new at Woof Parade? 🐾",time:'2:14 PM'},
+    {type:'bot',text:'Hey! 🐾 Here are our bestsellers right now:'},
+    {type:'products',items:WP_PRODUCTS},
+    {type:'user',text:'Omg the kurta 😍 size medium for a golden?',time:'2:15 PM'},
+    {type:'bot',text:'Perfect choice! 🎉 Medium fits most goldens. The Red Banarasi Festive Kurta is Rs. 1,499. Ready to order?'},
+    {type:'user',text:'Yes please!',time:'2:16 PM'},
+    {type:'bot',text:"Here's your secure payment link: thewoofparade.com/checkout 🛒 Pay and your order ships in 2-3 days!"},
+    {type:'user',text:'Done! 🎊',time:'2:17 PM'},
+    {type:'bot',text:'Order confirmed! 🎊 Tracking link coming soon. Welcome to the Woof Pack! 🐾'}
   ];
   function createNode(msg){
-    if(msg.type==='product'){
-      const card=document.createElement('div');
-      card.className='insta-product-card';
-      const imgWrap=document.createElement('div');
-      imgWrap.className='insta-product-img';
-      const img=document.createElement('img');
-      img.src=msg.img;
-      img.alt=msg.title;
-      img.loading='lazy';
-      imgWrap.appendChild(img);
-      card.appendChild(imgWrap);
-      const handle=document.createElement('div');
-      handle.className='insta-product-handle';
-      handle.textContent=msg.handle;
-      card.appendChild(handle);
-      const title=document.createElement('div');
-      title.className='insta-product-title';
-      title.textContent=msg.title;
-      card.appendChild(title);
-      const price=document.createElement('div');
-      price.className='insta-product-price';
-      price.textContent=msg.price;
-      card.appendChild(price);
-      const btn=document.createElement('div');
-      btn.className='insta-product-btn';
-      btn.textContent='View Product →';
-      card.appendChild(btn);
-      return card;
+    if(msg.type==='products'){
+      const row=document.createElement('div');
+      row.className='insta-products-row';
+      msg.items.forEach(function(p){
+        const card=document.createElement('div');
+        card.className='insta-product-mini';
+        const imgWrap=document.createElement('div');
+        imgWrap.className='insta-product-mini-img';
+        const img=document.createElement('img');
+        img.src=p.img;
+        img.alt=p.title;
+        img.loading='lazy';
+        imgWrap.appendChild(img);
+        card.appendChild(imgWrap);
+        const body=document.createElement('div');
+        body.className='insta-product-mini-body';
+        const title=document.createElement('div');
+        title.className='insta-product-mini-title';
+        title.textContent=p.title;
+        body.appendChild(title);
+        const price=document.createElement('div');
+        price.className='insta-product-mini-price';
+        price.textContent=p.price;
+        body.appendChild(price);
+        card.appendChild(body);
+        row.appendChild(card);
+      });
+      return row;
     }
     const wrap=document.createElement('div');
     wrap.className='insta-bubble '+msg.type;
@@ -608,7 +622,7 @@ fetch('/api/stats').then(r=>r.json()).then(d=>{
     }
     step();
   }
-  const pre=new Image();pre.src=BANDANA_IMG;
+  WP_PRODUCTS.forEach(function(p){const i=new Image();i.src=p.img;});
   play();
 })();
 </script>
