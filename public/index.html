@@ -153,9 +153,9 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .channel-clients{margin-top:.7rem;font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.5;font-style:italic}
 .channel-cta{display:block;margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,.08);font-size:.78rem;color:var(--warm-light);font-weight:500;letter-spacing:.02em;text-decoration:none;transition:color .2s,opacity .2s;opacity:.9}
 .channel-cta:hover{color:var(--warm);opacity:1}
-.marquee{background:#1a1a1a;color:var(--cream);overflow:hidden;padding:1.1rem 0}
-.marquee-track{display:flex;width:max-content;animation:marqueeScroll 45s linear infinite}
-.marquee-content{flex-shrink:0;font-size:.85rem;letter-spacing:.06em;padding-right:2rem;white-space:nowrap;font-weight:400}
+.marquee{background:#2C1A0E;color:var(--cream);overflow:hidden;padding:1.1rem 0;width:100%}
+.marquee-track{display:flex;width:max-content;animation:marqueeScroll 60s linear infinite;will-change:transform}
+.marquee-content{flex-shrink:0;font-size:.85rem;letter-spacing:.06em;white-space:nowrap;font-weight:400}
 @keyframes marqueeScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 .channels-dots{display:none}
 .channels-dots .dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.2);transition:background .2s}
