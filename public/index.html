@@ -50,6 +50,8 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .hero-badge-dot{width:6px;height:6px;border-radius:50%;background:var(--warm);animation:pulse 2s infinite}
 .hero h1{font-family:'Playfair Display',serif;font-size:clamp(3rem,7vw,5.5rem);font-weight:400;line-height:1.05;letter-spacing:-.03em;margin-bottom:1.8rem}
 .hero h1 em{font-style:italic;color:var(--warm)}
+.cursor{display:inline-block;animation:blink 1s step-end infinite;font-style:normal;font-weight:300;margin-left:1px}
+@keyframes blink{0%,50%{opacity:1}51%,100%{opacity:0}}
 .hero p{font-size:1.1rem;color:var(--muted);line-height:1.75;max-width:780px;margin:0 auto 3rem}
 .hero-actions{display:flex;align-items:center;justify-content:center;gap:1rem;flex-wrap:wrap}
 .hero-note{font-size:.72rem;color:var(--muted);margin-top:1.2rem;letter-spacing:.04em}
@@ -192,7 +194,7 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 
 <section class="container">
   <div class="hero">
-    <h1 class="fade-up delay-2">Never miss a sale.<br><em>Vaani is always on.</em></h1>
+    <h1 class="fade-up delay-2">Never miss a sale.<br><em><span class="typewriter">Vaani is always on.</span><span class="cursor">|</span></em></h1>
     <p class="fade-up delay-3">Vaani handles your sales on WhatsApp and Instagram, so your brand never misses a customer.</p>
     <div class="hero-stats fade-up delay-5">
       <div class="hero-stat">
@@ -418,6 +420,27 @@ fetch('/api/stats').then(r=>r.json()).then(d=>{
   document.getElementById('stat-revenue').textContent='₹'+revenue.toLocaleString('en-IN')+'+';
   document.getElementById('stat-conversations').textContent=conversations.toLocaleString('en-IN')+'+';
 }).catch(()=>{});
+(function(){
+  const el=document.querySelector('.typewriter');
+  if(!el)return;
+  const phrases=['Vaani is always on.','Vaani never misses a customer.','Vaani sells while you sleep.','Vaani handles it all.'];
+  let p=0,c=phrases[0].length,deleting=false;
+  function tick(){
+    const phrase=phrases[p];
+    if(deleting){
+      c--;
+      el.textContent=phrase.substring(0,c);
+      if(c===0){deleting=false;p=(p+1)%phrases.length;setTimeout(tick,400);return;}
+      setTimeout(tick,40);
+    }else{
+      c++;
+      el.textContent=phrase.substring(0,c);
+      if(c===phrase.length){deleting=true;setTimeout(tick,2000);return;}
+      setTimeout(tick,80);
+    }
+  }
+  setTimeout(function(){deleting=true;tick();},2500);
+})();
 (function(){
   const grid=document.querySelector('.channels-grid');
   const dots=document.querySelectorAll('.channels-dots .dot');
