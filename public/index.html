@@ -123,16 +123,21 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .insta-avatar-inner{width:100%;height:100%;border-radius:50%;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;letter-spacing:-.02em}
 .insta-handle{font-size:.85rem;font-weight:600;color:#fff;letter-spacing:.01em}
 .insta-active{font-size:.65rem;color:rgba(255,255,255,.45);margin-top:1px}
-.insta-thread{display:flex;flex-direction:column}
-.insta-bubble{display:flex;flex-direction:column;margin-bottom:.5rem}
+.insta-thread{display:flex;flex-direction:column;max-height:480px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent;padding-right:4px}
+.insta-thread::-webkit-scrollbar{width:4px}
+.insta-thread::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px}
+.insta-bubble{display:flex;flex-direction:column;margin-bottom:.5rem;opacity:0;transform:translateY(10px);transition:opacity .35s ease,transform .35s ease}
+.insta-bubble.show{opacity:1;transform:translateY(0)}
 .insta-bubble.user{align-items:flex-end}
 .insta-bubble.bot{align-items:flex-start}
 .insta-bubble .b{padding:.55rem .9rem;border-radius:20px;font-size:.8rem;line-height:1.45;max-width:80%}
 .insta-bubble.user .b{background:linear-gradient(135deg,#F58529,#DD2A7B 55%,#8134AF);color:#fff;border-bottom-right-radius:6px}
 .insta-bubble.bot .b{background:#262626;color:#fff;border-bottom-left-radius:6px}
 .insta-time{font-size:.58rem;color:rgba(255,255,255,.4);margin-top:3px;padding:0 .5rem}
-.insta-product-card{background:#1A1A1A;border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:.5rem;max-width:68%;margin-bottom:.5rem;align-self:flex-start}
-.insta-product-img{height:120px;background:linear-gradient(135deg,#3D2818,#5C3A20);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:2.4rem;margin-bottom:.5rem}
+.insta-product-card{background:#1A1A1A;border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:.5rem;max-width:68%;margin-bottom:.5rem;align-self:flex-start;opacity:0;transform:translateY(10px);transition:opacity .35s ease,transform .35s ease}
+.insta-product-card.show{opacity:1;transform:translateY(0)}
+.insta-product-img{height:160px;background:#1a1a1a;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:2.4rem;margin-bottom:.5rem}
+.insta-product-img img{width:100%;height:100%;object-fit:cover;display:block}
 .insta-product-handle{font-size:.58rem;color:rgba(255,255,255,.5);padding:0 .2rem}
 .insta-product-title{font-size:.76rem;color:#fff;font-weight:500;line-height:1.3;padding:.1rem .2rem 0}
 .insta-product-price{font-size:.78rem;color:#fff;font-weight:600;padding:.3rem .2rem 0}
@@ -332,26 +337,7 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
             <div class="insta-active">Active now</div>
           </div>
         </div>
-        <div class="insta-thread">
-          <div class="insta-bubble user">
-            <div class="b">Hi! Saw your bandana on Insta — got it in red? 🐶</div>
-            <div class="insta-time">2:14 PM</div>
-          </div>
-          <div class="insta-bubble bot">
-            <div class="b">Hi 🐾 Yes! Here's the Red Plaid Bandana:</div>
-          </div>
-          <div class="insta-product-card">
-            <div class="insta-product-img">🐕</div>
-            <div class="insta-product-handle">thewoofparade.com</div>
-            <div class="insta-product-title">Red Plaid Bandana</div>
-            <div class="insta-product-price">₹699</div>
-            <div class="insta-product-btn">View Product →</div>
-          </div>
-          <div class="insta-bubble user">
-            <div class="b">Perfect 😍 add to cart please</div>
-            <div class="insta-time">2:15 PM</div>
-          </div>
-        </div>
+        <div class="insta-thread" id="insta-thread"></div>
       </div>
     </div>
   </div>
@@ -548,6 +534,81 @@ fetch('/api/stats').then(r=>r.json()).then(d=>{
     step();
   }
   PRODUCTS.forEach(function(p){const i=new Image();i.src=p.img;});
+  play();
+})();
+(function(){
+  const thread=document.getElementById('insta-thread');
+  if(!thread)return;
+  const BANDANA_IMG='https://www.thewoofparade.com/cdn/shop/files/Bone_Bandana_final.jpg?v=1779605642&width=640';
+  const sequence=[
+    {type:'user',text:'Hi! Saw your bandana on Insta — got it in red? 🐼',time:'2:14 PM'},
+    {type:'bot',text:"Hi 🐾 Yes! Here's the Red Plaid Bandana:"},
+    {type:'product',img:BANDANA_IMG,handle:'thewoofparade.com',title:'Red Plaid Bandana',price:'₹699'},
+    {type:'user',text:'Perfect 😍 add to cart please',time:'2:15 PM'},
+    {type:'bot',text:"Added! 🛒 Here's your checkout link: thewoofparade.com/checkout — Pay securely and your order ships in 2-3 days 🐶"},
+    {type:'user',text:"Done! Can't wait 🎉",time:'2:16 PM'},
+    {type:'bot',text:"Order confirmed! 🎊 You'll get a tracking link once shipped. Welcome to the Woof Pack! 🐾"}
+  ];
+  function createNode(msg){
+    if(msg.type==='product'){
+      const card=document.createElement('div');
+      card.className='insta-product-card';
+      const imgWrap=document.createElement('div');
+      imgWrap.className='insta-product-img';
+      const img=document.createElement('img');
+      img.src=msg.img;
+      img.alt=msg.title;
+      img.loading='lazy';
+      imgWrap.appendChild(img);
+      card.appendChild(imgWrap);
+      const handle=document.createElement('div');
+      handle.className='insta-product-handle';
+      handle.textContent=msg.handle;
+      card.appendChild(handle);
+      const title=document.createElement('div');
+      title.className='insta-product-title';
+      title.textContent=msg.title;
+      card.appendChild(title);
+      const price=document.createElement('div');
+      price.className='insta-product-price';
+      price.textContent=msg.price;
+      card.appendChild(price);
+      const btn=document.createElement('div');
+      btn.className='insta-product-btn';
+      btn.textContent='View Product →';
+      card.appendChild(btn);
+      return card;
+    }
+    const wrap=document.createElement('div');
+    wrap.className='insta-bubble '+msg.type;
+    const b=document.createElement('div');
+    b.className='b';
+    b.textContent=msg.text;
+    wrap.appendChild(b);
+    if(msg.time){
+      const t=document.createElement('div');
+      t.className='insta-time';
+      t.textContent=msg.time;
+      wrap.appendChild(t);
+    }
+    return wrap;
+  }
+  function play(){
+    thread.innerHTML='';
+    let i=0;
+    function step(){
+      if(i>=sequence.length){setTimeout(play,3000);return;}
+      const node=createNode(sequence[i++]);
+      thread.appendChild(node);
+      requestAnimationFrame(function(){
+        node.classList.add('show');
+        thread.scrollTop=thread.scrollHeight;
+      });
+      setTimeout(step,1200);
+    }
+    step();
+  }
+  const pre=new Image();pre.src=BANDANA_IMG;
   play();
 })();
 </script>
