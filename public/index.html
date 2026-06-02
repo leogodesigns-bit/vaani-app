@@ -181,12 +181,14 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .step h3{font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:600;margin-bottom:.6rem;letter-spacing:-.01em}
 .step p{font-size:.82rem;color:var(--muted);line-height:1.65}
 
-.features-strip{padding:5rem 0;background:var(--ink)}
-.features-strip .inner{max-width:1100px;margin:0 auto;padding:0 2rem;display:grid;grid-template-columns:repeat(4,1fr);gap:2rem}
-.strip-feature{padding:1.5rem 0;border-top:1px solid rgba(255,255,255,.08)}
-.strip-icon{font-size:1.4rem;margin-bottom:.8rem;display:block}
-.strip-feature h4{font-family:'Playfair Display',serif;font-size:1rem;color:var(--cream);font-weight:600;margin-bottom:.4rem}
-.strip-feature p{font-size:.78rem;color:#7A7068;line-height:1.6}
+.features-strip{padding:5rem 0;background:var(--warm);position:relative;overflow:hidden}
+.features-strip::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 15% 20%,rgba(218,165,32,.35),transparent 55%),radial-gradient(ellipse at 85% 80%,rgba(158,94,40,.4),transparent 55%);pointer-events:none}
+.features-strip .inner{max-width:1100px;margin:0 auto;padding:0 2rem;display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem;position:relative}
+.strip-feature{background:rgba(255,255,255,.12);backdrop-filter:blur(12px) saturate(140%);-webkit-backdrop-filter:blur(12px) saturate(140%);border:1px solid rgba(255,255,255,.2);border-radius:14px;padding:1.6rem 1.3rem;transition:transform .25s ease,background .25s ease,border-color .25s ease}
+.strip-feature:hover{transform:translateY(-3px);background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.32)}
+.strip-icon{font-size:1.6rem;margin-bottom:.85rem;display:block;line-height:1}
+.strip-feature h4{font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--cream);font-weight:600;margin-bottom:.5rem;letter-spacing:-.01em}
+.strip-feature p{font-size:.78rem;color:rgba(250,247,242,.85);line-height:1.65}
 
 .early-access{padding:8rem 0;text-align:center}
 .early-access h2{font-family:'Playfair Display',serif;font-size:clamp(2.2rem,5vw,3.8rem);font-weight:400;letter-spacing:-.02em;margin-bottom:1rem;line-height:1.1}
