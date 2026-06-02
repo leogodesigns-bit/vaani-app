@@ -70,6 +70,9 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .mockup-text h2{font-family:'Playfair Display',serif;font-size:clamp(2rem,4vw,3rem);font-weight:400;letter-spacing:-.02em;margin-bottom:1.2rem;line-height:1.2}
 .mockup-text h2 em{font-style:italic;color:var(--warm)}
 .mockup-text p{font-size:.95rem;color:var(--muted);line-height:1.75;max-width:440px}
+.mockup-bullets{list-style:none;margin-top:1.6rem;display:flex;flex-direction:column;gap:.7rem;padding:0}
+.mockup-bullets li{display:flex;align-items:flex-start;gap:.6rem;font-size:.85rem;color:var(--muted);line-height:1.5;max-width:440px}
+.mockup-bullets li::before{content:'✓';color:var(--warm);font-weight:600;flex-shrink:0;margin-top:1px}
 .insta-detail{font-size:.78rem;color:var(--muted);font-style:italic;margin-top:.6rem;opacity:.85;line-height:1.6;max-width:440px}
 .mockup-wrapper{max-width:400px;margin:0 auto;background:#E5DDD4;border-radius:24px;padding:1.5rem;box-shadow:0 40px 80px rgba(26,23,20,.12),0 8px 24px rgba(26,23,20,.06)}
 .mockup-header{display:flex;align-items:center;gap:.8rem;margin-bottom:1.2rem;padding-bottom:1rem;border-bottom:1px solid rgba(0,0,0,.06)}
@@ -163,7 +166,7 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .channels-dots .dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.2);transition:background .2s}
 .channels-dots .dot.active{background:var(--warm-light)}
 
-@media(max-width:768px){nav{padding:1.2rem 1.5rem}.nav-links{display:none}.hamburger{display:flex}.hero{padding:4rem 1.5rem 3rem}.steps{grid-template-columns:1fr}.channels-section{margin:2.5rem -3.5rem;padding:1.8rem 1rem;overflow:visible;border-radius:0}.channels-grid{display:flex;grid-template-columns:none;overflow-x:auto;gap:.8rem;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:0 .5rem}.channels-grid::-webkit-scrollbar{display:none}.channel-card{flex:0 0 75vw;scroll-snap-align:start}.channels-dots{display:flex;justify-content:center;gap:6px;margin-top:.9rem}.insta-grid{grid-template-columns:1fr;gap:2.5rem}.insta-text{text-align:center}.insta-text p{margin:0 auto}.mockup-grid{grid-template-columns:1fr;gap:2.5rem}.mockup-text{text-align:center}.mockup-text p{margin:0 auto}.insta-detail{margin-left:auto;margin-right:auto}.features-strip .inner{grid-template-columns:repeat(2,1fr)}.hero-stats{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:1rem}.hero h1{font-size:2.8rem}.hero h1 em{min-height:3.2em}.hero-stat-sub{white-space:nowrap;font-size:.65rem}.hero-actions{flex-wrap:nowrap;gap:.6rem}.hero-actions .btn-primary,.hero-actions .btn-outline{padding:.7rem 1.1rem;font-size:.68rem;letter-spacing:.06em;white-space:nowrap}footer{flex-direction:column;gap:2rem;text-align:center;padding:2rem 1.5rem}.footer-right{text-align:center}}
+@media(max-width:768px){nav{padding:1.2rem 1.5rem}.nav-links{display:none}.hamburger{display:flex}.hero{padding:4rem 1.5rem 3rem}.steps{grid-template-columns:1fr}.channels-section{margin:2.5rem -3.5rem;padding:1.8rem 1rem;overflow:visible;border-radius:0}.channels-grid{display:flex;grid-template-columns:none;overflow-x:auto;gap:.8rem;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:0 .5rem}.channels-grid::-webkit-scrollbar{display:none}.channel-card{flex:0 0 75vw;scroll-snap-align:start}.channels-dots{display:flex;justify-content:center;gap:6px;margin-top:.9rem}.insta-grid{grid-template-columns:1fr;gap:2.5rem}.insta-text{text-align:center}.insta-text p{margin:0 auto}.mockup-grid{grid-template-columns:1fr;gap:2.5rem}.mockup-text{text-align:center}.mockup-text p{margin:0 auto}.mockup-bullets{margin-left:auto;margin-right:auto;max-width:max-content;text-align:left}.insta-detail{margin-left:auto;margin-right:auto}.features-strip .inner{grid-template-columns:repeat(2,1fr)}.hero-stats{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:1rem}.hero h1{font-size:2.8rem}.hero h1 em{min-height:3.2em}.hero-stat-sub{white-space:nowrap;font-size:.65rem}.hero-actions{flex-wrap:nowrap;gap:.6rem}.hero-actions .btn-primary,.hero-actions .btn-outline{padding:.7rem 1.1rem;font-size:.68rem;letter-spacing:.06em;white-space:nowrap}footer{flex-direction:column;gap:2rem;text-align:center;padding:2rem 1.5rem}.footer-right{text-align:center}}
 </style>
 </head>
 <body>
@@ -272,6 +275,11 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
       <div class="section-label fade-up">Live Demo · Ikaa</div>
       <h2 class="fade-up delay-1">See Vaani<br><em>in action.</em></h2>
       <p class="fade-up delay-2">A real conversation — from product discovery to payment link, in minutes.</p>
+      <ul class="mockup-bullets fade-up delay-3">
+        <li>Understands natural language</li>
+        <li>Sends product cards + payment links</li>
+        <li>Hands off to your team when needed</li>
+      </ul>
     </div>
     <div class="mockup-wrapper fade-up delay-3">
     <div class="mockup-header">
