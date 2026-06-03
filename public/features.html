@@ -118,16 +118,21 @@ nav{padding:1.8rem 4rem;display:flex;align-items:center;justify-content:space-be
 .ig-typing span:nth-child(2){animation-delay:.18s}
 .ig-typing span:nth-child(3){animation-delay:.36s}
 @keyframes igDot{0%,80%,100%{transform:translateY(0);opacity:.35}40%{transform:translateY(-3px);opacity:1}}
-.menu-badge{position:absolute;top:.95rem;right:.95rem;background:rgba(196,120,58,.15);color:var(--warm-dark);font-size:.55rem;letter-spacing:.16em;text-transform:uppercase;padding:.3rem .65rem;border-radius:100px;font-weight:600;border:1px solid rgba(196,120,58,.3);z-index:3;display:inline-flex;align-items:center;gap:.35rem}
-.menu-badge::before{content:'';width:5px;height:5px;border-radius:50%;background:#2D6A4F;animation:igLivePulse 1.6s infinite}
-.menu-grid{display:flex;flex-direction:column;gap:.5rem;position:relative;z-index:1}
-.menu-item{background:white;border:1px solid var(--border);border-radius:10px;padding:.75rem 1rem;display:flex;align-items:center;gap:.85rem;font-size:.85rem;color:var(--ink);cursor:pointer;transition:border-color .2s ease,background .2s ease,transform .2s ease,box-shadow .2s ease;text-align:left;font-family:inherit;position:relative;overflow:hidden;width:100%}
-.menu-item:hover,.menu-item.active{border-color:var(--warm);background:#FFFBF4}
-.menu-item.active{box-shadow:0 0 0 1px rgba(196,120,58,.45);transform:translateX(2px)}
-.menu-key{font-family:'Playfair Display',serif;font-size:1rem;color:var(--warm);font-weight:700;width:14px;flex-shrink:0}
-.menu-progress{position:absolute;left:0;bottom:0;height:2px;width:0;background:var(--warm);pointer-events:none;border-bottom-left-radius:10px;border-bottom-right-radius:10px}
-.menu-item.active .menu-progress{animation:langProgress 4s linear forwards}
-.menu-reply{margin-top:1rem;padding:.7rem 1rem;background:#F4EFE8;border:1px solid var(--border);border-radius:14px;border-bottom-left-radius:4px;font-size:.82rem;color:var(--ink);line-height:1.5;align-self:flex-start;max-width:90%;position:relative;z-index:1}
+.feature-visual.wa-card{background:#2c1810;border-radius:20px;padding:1.4rem 1.2rem;border:1px solid rgba(255,255,255,.06);box-shadow:0 30px 60px rgba(26,23,20,.18);min-height:0;backdrop-filter:none;-webkit-backdrop-filter:none;overflow:hidden;justify-content:flex-start}
+.feature-visual.wa-card::before{display:none}
+.wa-header{display:flex;align-items:center;gap:.7rem;padding-bottom:.85rem;margin-bottom:.9rem;border-bottom:1px solid rgba(255,255,255,.08);position:relative;z-index:1}
+.wa-avatar{width:36px;height:36px;border-radius:50%;background:var(--warm);display:flex;align-items:center;justify-content:center;font-size:.7rem;color:#f5f0e8;font-weight:700;letter-spacing:-.02em;flex-shrink:0}
+.wa-name{font-size:.85rem;font-weight:500;color:#f5f0e8}
+.wa-status{font-size:.65rem;color:#7FCBA0}
+.wa-thread{display:flex;flex-direction:column;gap:.5rem;position:relative;z-index:1}
+.wa-thread .bubble{padding:.55rem .85rem;border-radius:12px;font-size:.82rem;line-height:1.45;max-width:82%}
+.wa-thread .bubble-user{background:#DCF8C6;color:#111;border-bottom-right-radius:3px;align-self:flex-end}
+.wa-thread .bubble-bot{background:#3d2218;color:#f5f0e8;border-bottom-left-radius:3px;align-self:flex-start}
+.chip-grid{display:flex;flex-wrap:wrap;gap:.4rem;margin:.3rem 0 .15rem;align-self:flex-start;max-width:100%}
+.chip{background:transparent;border:1px solid rgba(255,255,255,.18);color:var(--warm-light);border-radius:100px;padding:.4rem .85rem;font-size:.72rem;font-weight:500;cursor:pointer;transition:border-color .25s ease,background .25s ease,color .25s ease;font-family:inherit;position:relative;overflow:hidden;white-space:nowrap}
+.chip:hover,.chip.active{border-color:var(--warm);background:rgba(196,120,58,.18);color:#fff}
+.chip-progress{position:absolute;left:0;bottom:0;height:2px;width:0;background:var(--warm);pointer-events:none}
+.chip.active .chip-progress{animation:langProgress 4s linear forwards}
 .ig-mockup-header{display:flex;align-items:center;gap:.7rem;padding-bottom:.9rem;margin-bottom:.9rem;border-bottom:1px solid rgba(255,255,255,.08)}
 .ig-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(45deg,#FED373,#F15245,#D92E7F,#9028CD,#2E72FF);padding:2px;flex-shrink:0}
 .ig-avatar-inner{width:100%;height:100%;border-radius:50%;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.64rem;font-weight:700}
@@ -320,17 +325,25 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem 1.5rem;margin-top:3r
       <p>Every brand gets a flow designed entirely around how they sell — categories, products, tone, and handoff logic. Not a template. Yours.</p>
       <p class="feature-note">Every flow is built with you — not handed to you as a template.</p>
     </div>
-    <div class="feature-visual">
-      <span class="menu-badge">Live preview</span>
-      <div class="visual-title">Jhilmil · Ikaa flow</div>
-      <div class="visual-stat-label">Tap a category — Vaani replies</div>
-      <div class="menu-grid" id="menu-grid">
-        <button class="menu-item" data-reply="Vaani: Here are our top nail extension styles 💅 — Classic, Gel, or Acrylic?"><span class="menu-key">A</span>Nail Extensions<span class="menu-progress"></span></button>
-        <button class="menu-item" data-reply="Vaani: French, ombre, or bold patterns? Show me a vibe ✨"><span class="menu-key">B</span>Nail Art Designs<span class="menu-progress"></span></button>
-        <button class="menu-item" data-reply="Vaani: Three picks under ₹1,500. Want quick, fancy, or full set?"><span class="menu-key">C</span>DIY Nail Kits<span class="menu-progress"></span></button>
-        <button class="menu-item" data-reply="Vaani: Rings, earrings, or necklaces? I'll show you our best pieces ✨"><span class="menu-key">D</span>Jewellery<span class="menu-progress"></span></button>
+    <div class="feature-visual wa-card">
+      <span class="ig-live-badge"><span class="ig-live-dot"></span>Live preview</span>
+      <div class="wa-header">
+        <div class="wa-avatar">इका</div>
+        <div>
+          <div class="wa-name">Jhilmil · Ikaa</div>
+          <div class="wa-status">● Online</div>
+        </div>
       </div>
-      <div class="menu-reply" id="menu-reply"></div>
+      <div class="wa-thread">
+        <div class="bubble bubble-user">What kind of nail service?</div>
+        <div class="chip-grid" id="menu-grid">
+          <button class="chip" data-reply="Here are our top nail extension styles 💅 — Classic, Gel, or Acrylic?">Nail Extensions<span class="chip-progress"></span></button>
+          <button class="chip" data-reply="French, ombre, or bold patterns? Show me a vibe ✨">Nail Art<span class="chip-progress"></span></button>
+          <button class="chip" data-reply="Three picks under ₹1,500. Want quick, fancy, or full set?">DIY Kits<span class="chip-progress"></span></button>
+          <button class="chip" data-reply="Rings, earrings, or necklaces? I'll show you our best pieces ✨">Jewellery<span class="chip-progress"></span></button>
+        </div>
+        <div class="bubble bubble-bot" id="menu-reply"></div>
+      </div>
     </div>
   </div>
 </section>
@@ -540,7 +553,7 @@ document.querySelector('.hamburger').addEventListener('click',function(){
   const grid=document.getElementById('menu-grid');
   const reply=document.getElementById('menu-reply');
   if(!grid||!reply)return;
-  const items=Array.from(grid.querySelectorAll('.menu-item'));
+  const items=Array.from(grid.querySelectorAll('.chip'));
   let timer;
   function startTimer(){
     clearTimeout(timer);
@@ -552,7 +565,7 @@ document.querySelector('.hamburger').addEventListener('click',function(){
   function setActive(item){
     items.forEach(i=>{
       i.classList.remove('active');
-      const p=i.querySelector('.menu-progress');
+      const p=i.querySelector('.chip-progress');
       if(p){p.style.animation='none';void p.offsetWidth;p.style.animation='';}
     });
     item.classList.add('active');
