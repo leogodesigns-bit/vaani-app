@@ -64,6 +64,23 @@ nav{padding:1.8rem 4rem;display:flex;align-items:center;justify-content:space-be
 .milestone-brand{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;color:var(--cream);letter-spacing:-.01em;margin:0;line-height:1.1}
 .milestone-pill{font-size:.7rem;color:var(--warm-light);background:rgba(196,120,58,.15);border:1px solid rgba(196,120,58,.25);border-radius:100px;padding:.32rem .8rem;letter-spacing:.04em;white-space:nowrap;font-weight:500}
 
+.live-since{display:flex;flex-direction:column;gap:.3rem;margin-top:-.2rem}
+.live-since-label{font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.4);font-weight:500}
+.live-since-counter{font-family:'SF Mono','Menlo','Monaco','Consolas',monospace;font-size:.92rem;color:var(--warm-light);font-variant-numeric:tabular-nums;letter-spacing:.04em}
+
+.milestones-grid{margin-top:1rem;padding-top:1.3rem;border-top:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;gap:.8rem}
+.milestones-grid-label{font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.42);font-weight:500;display:flex;justify-content:space-between;align-items:center}
+.milestones-grid-label .view-toggle{color:var(--warm-light);cursor:pointer;text-transform:none;letter-spacing:.04em;font-size:.7rem;text-decoration:none;font-weight:400}
+.milestones-grid-label .view-toggle:hover{color:var(--warm)}
+.milestones-items{display:grid;grid-template-columns:1fr 1fr;gap:.45rem .6rem}
+.milestone-badge{display:flex;align-items:flex-start;gap:.5rem;font-size:.74rem;line-height:1.35;padding:.45rem .65rem;border-radius:8px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.03);color:rgba(255,255,255,.45)}
+.milestone-badge.unlocked{background:rgba(196,120,58,.12);border-color:rgba(196,120,58,.3);color:var(--warm-light)}
+.milestone-badge-icon{flex-shrink:0;width:14px;height:14px;display:flex;align-items:center;justify-content:center;font-size:.78rem;color:rgba(255,255,255,.32)}
+.milestone-badge.unlocked .milestone-badge-icon{color:var(--warm)}
+.milestone-badge-text{flex:1;min-width:0}
+.milestone-badge-date{display:block;font-size:.6rem;color:rgba(255,255,255,.42);margin-top:1px;font-family:'SF Mono','Menlo',monospace;letter-spacing:.02em}
+.milestone-badge.unlocked .milestone-badge-date{color:rgba(240,224,204,.5)}
+
 .milestone-headline{font-family:'Playfair Display',serif;font-size:1.65rem;font-style:italic;color:var(--warm-light);font-weight:400;letter-spacing:-.01em;line-height:1.25;margin:.2rem 0 .1rem}
 
 .milestone-body{font-size:.92rem;color:rgba(255,255,255,.72);line-height:1.7;margin:0}
@@ -156,37 +173,61 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem 1.5rem;margin-top:3r
 
 <section class="milestones-section">
   <div class="milestones">
-    <article class="milestone-card">
+    <article class="milestone-card" data-brand="rajathee" data-live-since="2026-06-01T00:00:00">
       <span class="milestone-tag">Milestone · Day 1</span>
       <div class="milestone-head">
         <h3 class="milestone-brand">Rajathee Sarees</h3>
         <span class="milestone-pill">Tara · WhatsApp</span>
       </div>
+      <div class="live-since">
+        <span class="live-since-label">Live since</span>
+        <span class="live-since-counter" data-counter>—</span>
+      </div>
       <h4 class="milestone-headline">First order on launch day.</h4>
       <p class="milestone-body">Rajathee Sarees went live with Tara on WhatsApp. A customer browsed the saree catalogue, asked questions, and placed an order — all within 24 hours of going live. No human needed.</p>
       <div class="milestone-stat">Day 1 → First order</div>
+      <div class="milestones-grid" data-milestones-container hidden>
+        <div class="milestones-grid-label"><span>Milestones</span><a class="view-toggle" data-toggle href="#">View all →</a></div>
+        <div class="milestones-items" data-items></div>
+      </div>
     </article>
 
-    <article class="milestone-card">
+    <article class="milestone-card" data-brand="ikaa" data-live-since="2026-05-30T00:00:00">
       <span class="milestone-tag ongoing">Ongoing</span>
       <div class="milestone-head">
         <h3 class="milestone-brand">Ikaa</h3>
         <span class="milestone-pill">Jhilmil · WhatsApp</span>
       </div>
+      <div class="live-since">
+        <span class="live-since-label">Live since</span>
+        <span class="live-since-counter" data-counter>—</span>
+      </div>
       <h4 class="milestone-headline">Customers who never used to ask, now ask everything.</h4>
       <p class="milestone-body">With Jhilmil always on, Ikaa's customers browse at night, revisit conversations, and ask the same question three different ways — without anyone feeling bothered. That's what 24/7 really means.</p>
       <div class="milestone-stat">24/7 · Zero guilt</div>
+      <div class="milestones-grid" data-milestones-container hidden>
+        <div class="milestones-grid-label"><span>Milestones</span><a class="view-toggle" data-toggle href="#">View all →</a></div>
+        <div class="milestones-items" data-items></div>
+      </div>
     </article>
 
-    <article class="milestone-card">
+    <article class="milestone-card" data-brand="woof" data-live-since="2026-06-02T00:00:00">
       <span class="milestone-tag ongoing">Ongoing</span>
       <div class="milestone-head">
         <h3 class="milestone-brand">The Woof Parade</h3>
         <span class="milestone-pill">Rio · WhatsApp</span>
       </div>
+      <div class="live-since">
+        <span class="live-since-label">Live since</span>
+        <span class="live-since-counter" data-counter>—</span>
+      </div>
       <h4 class="milestone-headline">A bot that knows every product, every time.</h4>
       <p class="milestone-body">Rio handles product questions, order follow-ups, and late-night curiosity from dog parents. Kashmira's team focuses on what needs a human. Rio handles the rest.</p>
       <div class="milestone-stat">Always on · Never tired</div>
+      <div class="milestones-grid" data-milestones-container hidden>
+        <div class="milestones-grid-label"><span>Milestones</span><a class="view-toggle" data-toggle href="#">View all →</a></div>
+        <div class="milestones-items" data-items></div>
+      </div>
     </article>
   </div>
   <p class="milestones-note">More milestones coming as our brands grow. We update this page when something real happens — not before.</p>
@@ -257,6 +298,24 @@ document.querySelector('.hamburger').addEventListener('click',function(){
     });
   },{threshold:.2});
   cards.forEach(card=>ob.observe(card));
+})();
+(function(){
+  const counters=document.querySelectorAll('[data-counter]');
+  if(!counters.length)return;
+  function pad(n){return n.toString().padStart(2,'0');}
+  function tick(){
+    counters.forEach(el=>{
+      const card=el.closest('[data-live-since]');
+      if(!card)return;
+      const start=new Date(card.dataset.liveSince).getTime();
+      let diff=Math.max(0,Math.floor((Date.now()-start)/1000));
+      const d=Math.floor(diff/86400);diff-=d*86400;
+      const h=Math.floor(diff/3600);diff-=h*3600;
+      const m=Math.floor(diff/60);diff-=m*60;
+      el.textContent=`${d}d ${pad(h)}h ${pad(m)}m ${pad(diff)}s`;
+    });
+  }
+  tick();setInterval(tick,1000);
 })();
 </script>
 </body>
