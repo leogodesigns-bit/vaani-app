@@ -56,7 +56,7 @@ nav{padding:1.8rem 4rem;display:flex;align-items:center;justify-content:space-be
 .feature-text>p{font-size:1rem;color:var(--muted);line-height:1.75;margin-bottom:1.6rem;max-width:480px}
 .feature-list{list-style:none;display:flex;flex-direction:column;gap:.7rem;margin:0;padding:0}
 .feature-list li{display:flex;align-items:flex-start;gap:.65rem;font-size:.9rem;color:var(--ink);line-height:1.55}
-.feature-list li::before{content:'✓';color:var(--warm);font-weight:600;flex-shrink:0;margin-top:1px}
+.feature-list li::before{content:'→';color:var(--warm);font-weight:600;flex-shrink:0;margin-top:1px}
 
 .feature-visual{background:rgba(255,255,255,.7);backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);border:1px solid rgba(180,155,130,.3);border-radius:20px;padding:2.5rem;min-height:340px;box-shadow:0 2px 16px rgba(150,120,80,.1);position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center}
 .feature-visual::before{content:'';position:absolute;top:-60px;right:-60px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(196,120,58,.18) 0%,transparent 70%);pointer-events:none}
@@ -75,6 +75,8 @@ nav{padding:1.8rem 4rem;display:flex;align-items:center;justify-content:space-be
 .visual-flow{display:flex;flex-direction:column;gap:.55rem;position:relative;z-index:1}
 .flow-item{background:white;border-radius:10px;padding:.7rem .95rem;display:flex;align-items:center;gap:.8rem;font-size:.82rem;color:var(--ink);border:1px solid var(--border)}
 .flow-dot{width:8px;height:8px;border-radius:50%;background:var(--warm);flex-shrink:0}
+.flow-arrow{font-size:1rem;color:rgba(255,255,255,.4);padding-left:.7rem;line-height:1;margin:-.15rem 0;font-weight:300}
+.feature-visual:not(.dark) .flow-arrow{color:var(--warm);opacity:.55}
 .flow-dot.green{background:#25D366}.flow-dot.blue{background:#4A90D9}.flow-dot.gold{background:#C29838}
 
 .lang-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;position:relative;z-index:1}
@@ -191,7 +193,7 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem 1.5rem;margin-top:3r
     <div class="feature-text">
       <span class="section-label">Shopify Integration · Optional</span>
       <h2>Your live catalog,<br><em>always in sync.</em></h2>
-      <p>If you're on Shopify, Vaani connects directly — products, prices, inventory, all pulled in real time. Not on Shopify yet? Vaani still works. We'll figure out the catalog together.</p>
+      <p>On Shopify? Vaani connects directly — products, prices, inventory, all live. Not on Shopify? No problem. We set up your catalog manually and you're good to go.</p>
       <ul class="feature-list">
         <li>Your full catalog, always up to date</li>
         <li>Product images and prices pulled live</li>
@@ -201,12 +203,15 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem 1.5rem;margin-top:3r
       </ul>
     </div>
     <div class="feature-visual dark">
-      <div class="visual-stat">100%</div>
-      <div class="visual-stat-label">Shopify Native</div>
+      <div class="visual-stat">Live</div>
+      <div class="visual-stat-label">Catalog always live</div>
       <div class="visual-flow">
         <div class="flow-item"><span class="flow-dot green"></span>Customer browses on WhatsApp</div>
+        <div class="flow-arrow">↓</div>
         <div class="flow-item"><span class="flow-dot"></span>Draft order created in Shopify</div>
+        <div class="flow-arrow">↓</div>
         <div class="flow-item"><span class="flow-dot blue"></span>Payment link sent instantly</div>
+        <div class="flow-arrow">↓</div>
         <div class="flow-item"><span class="flow-dot green"></span>Order confirmed &amp; synced</div>
       </div>
     </div>
