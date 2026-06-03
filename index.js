@@ -709,7 +709,6 @@ function buildMilestonesFor(botName){
   let low = 2000, high = 5000;
   if (botName === 'Rio') { low = 1000; high = 3000; }
   const base = [
-    { key: 'first_conversation', label: `First conversation with ${bot}`, check: m => m.conversations >= 1, dateOf: m => m.nthConversationDate(1) },
     { key: 'first_order', label: 'First order placed', check: m => m.orders >= 1, dateOf: m => m.nthOrderDate(1) },
     { key: 'first_order_midnight', label: 'First order after midnight', check: m => !!m.firstAfterMidnight, dateOf: m => m.firstAfterMidnight },
     { key: 'first_repeat', label: 'First repeat customer', check: m => !!m.firstRepeat, dateOf: m => m.firstRepeat },

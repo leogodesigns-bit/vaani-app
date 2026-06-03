@@ -85,6 +85,9 @@ async function initDB() {
     ALTER TABLE conversations ADD COLUMN IF NOT EXISTS monthly_messages INTEGER DEFAULT 0;
     ALTER TABLE conversations ADD COLUMN IF NOT EXISTS message_month VARCHAR(7);
 
+    -- Retired milestone: removed from the case-studies grid (2026-06-04).
+    DELETE FROM milestones WHERE milestone_key = 'first_conversation';
+
     CREATE TABLE IF NOT EXISTS product_scores (
       tenant_id INTEGER,
       product_id TEXT,
