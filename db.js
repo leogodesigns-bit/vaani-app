@@ -59,6 +59,26 @@ async function initDB() {
     ALTER TABLE tenants ADD COLUMN IF NOT EXISTS billing_plan VARCHAR(20) DEFAULT 'free';
     ALTER TABLE tenants ADD COLUMN IF NOT EXISTS store_name VARCHAR(100);
     ALTER TABLE tenants ADD COLUMN IF NOT EXISTS flow_template VARCHAR(20) DEFAULT 'jhilmil';
+    ALTER TABLE tenants ADD COLUMN IF NOT EXISTS bot_name TEXT;
+    ALTER TABLE tenants ADD COLUMN IF NOT EXISTS channel TEXT;
+    ALTER TABLE tenants ADD COLUMN IF NOT EXISTS live_since TIMESTAMP;
+    ALTER TABLE tenants ADD COLUMN IF NOT EXISTS onboarded_at TIMESTAMP DEFAULT NOW();
+    ALTER TABLE tenants ADD COLUMN IF NOT EXISTS show_in_case_studies BOOLEAN DEFAULT FALSE;
+
+    CREATE TABLE IF NOT EXISTS milestones (
+      id SERIAL PRIMARY KEY,
+      tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE,
+      milestone_key TEXT NOT NULL,
+      achieved_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      UNIQUE(tenant_id, milestone_key)
+    );
+
+    UPDATE tenants SET bot_name='Tara', channel='WhatsApp', live_since='2026-06-01 00:00:00', show_in_case_studies=TRUE
+      WHERE shop_domain ILIKE '%rajathee%' AND (bot_name IS NULL OR bot_name='');
+    UPDATE tenants SET bot_name='Rio', channel='WhatsApp', live_since='2026-06-02 00:00:00', show_in_case_studies=TRUE
+      WHERE (shop_domain ILIKE '%woofparade%' OR shop_domain ILIKE '%vs6xap-uz%') AND (bot_name IS NULL OR bot_name='');
+    UPDATE tenants SET bot_name='Jhilmil', channel='WhatsApp', live_since='2026-05-30 00:00:00', show_in_case_studies=TRUE
+      WHERE shop_domain ILIKE '%ikaa%' AND (bot_name IS NULL OR bot_name='');
 
     ALTER TABLE conversations ADD COLUMN IF NOT EXISTS monthly_messages INTEGER DEFAULT 0;
     ALTER TABLE conversations ADD COLUMN IF NOT EXISTS message_month VARCHAR(7);

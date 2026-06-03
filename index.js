@@ -703,6 +703,167 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
+// ── CASE STUDIES MILESTONES ─────────────────────────────────
+function buildMilestonesFor(botName){
+  const bot = botName || 'the bot';
+  let low = 2000, high = 5000;
+  if (botName === 'Rio') { low = 1000; high = 3000; }
+  const base = [
+    { key: 'first_conversation', label: `First conversation with ${bot}`, check: m => m.conversations >= 1 },
+    { key: 'first_order', label: 'First order placed', check: m => m.orders >= 1 },
+    { key: 'first_order_midnight', label: 'First order after midnight', check: m => m.hasOrderAfterMidnight },
+    { key: 'first_repeat', label: 'First repeat customer', check: m => m.hasRepeatCustomer },
+    { key: `order_above_low`, label: `First order above ₹${low.toLocaleString('en-IN')}`, check: m => m.hasOrderAbove(low) },
+    { key: `order_above_high`, label: `First order above ₹${high.toLocaleString('en-IN')}`, check: m => m.hasOrderAbove(high) },
+    { key: 'orders_10', label: '10 orders', check: m => m.orders >= 10 },
+    { key: 'orders_25', label: '25 orders', check: m => m.orders >= 25 },
+    { key: 'orders_50', label: '50 orders', check: m => m.orders >= 50 },
+    { key: 'orders_100', label: '100 orders', check: m => m.orders >= 100 },
+    { key: 'convo_100', label: '100 conversations', check: m => m.conversations >= 100 },
+    { key: 'convo_250', label: '250 conversations', check: m => m.conversations >= 250 },
+    { key: 'convo_500', label: '500 conversations', check: m => m.conversations >= 500 },
+    { key: 'convo_1000', label: '1,000 conversations', check: m => m.conversations >= 1000 },
+    { key: 'customers_10', label: '10 unique customers', check: m => m.uniqueCustomers >= 10 },
+    { key: 'customers_25', label: '25 unique customers', check: m => m.uniqueCustomers >= 25 },
+    { key: 'customers_50', label: '50 unique customers', check: m => m.uniqueCustomers >= 50 },
+    { key: 'revenue_10k', label: '₹10,000 total revenue', check: m => m.revenue >= 10000 },
+    { key: 'revenue_25k', label: '₹25,000 total revenue', check: m => m.revenue >= 25000 },
+    { key: 'revenue_50k', label: '₹50,000 total revenue', check: m => m.revenue >= 50000 },
+    { key: 'revenue_100k', label: '₹1,00,000 total revenue', check: m => m.revenue >= 100000 },
+    { key: 'sunday_order', label: 'First Sunday order', check: m => m.hasSundayOrder },
+    { key: 'five_orders_day', label: '5 orders in a single day', check: m => m.maxOrdersInDay >= 5 },
+    { key: 'days_30', label: '30 days live', check: m => m.daysLive >= 30 },
+  ];
+  if (botName === 'Tara') base.push({ key: 'first_paid', label: 'First order completed', check: m => m.paidOrders >= 1 });
+  else if (botName === 'Rio') base.push({ key: 'late_night_order', label: 'First late-night order (after 10pm)', check: m => m.hasOrderLate });
+  else if (botName === 'Jhilmil') base.push({ key: 'late_convo', label: 'First late-night conversation (after 11pm)', check: m => m.hasLateConversation });
+  else base.push({ key: 'first_paid', label: 'First order completed', check: m => m.paidOrders >= 1 });
+  return base;
+}
+
+async function computeBrandMetrics(tenantId, liveSince) {
+  const sums = await pool.query(
+    `SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status='paid')::int AS paid,
+            COALESCE(SUM(grand_total) FILTER (WHERE status='paid'),0)::numeric AS revenue
+     FROM orders WHERE tenant_id = $1`, [tenantId]);
+  const orderRows = await pool.query(
+    `SELECT COALESCE(confirmed_at, created_at) AS ts, grand_total, customer_phone
+     FROM orders WHERE tenant_id = $1`, [tenantId]);
+  const conv = await pool.query(
+    `SELECT COUNT(*)::int AS total, COUNT(DISTINCT customer_phone)::int AS unique_customers
+     FROM conversations WHERE tenant_id = $1`, [tenantId]);
+  const convRows = await pool.query(
+    `SELECT last_active FROM conversations WHERE tenant_id = $1`, [tenantId]);
+
+  const ordersByDay = {}, convByDay = {}, custCounts = {};
+  let hasOrderAfterMidnight = false, hasOrderLate = false, hasSundayOrder = false, hasLateConversation = false;
+  const amounts = [];
+  for (const r of orderRows.rows) {
+    if (r.customer_phone) custCounts[r.customer_phone] = (custCounts[r.customer_phone]||0)+1;
+    amounts.push(Number(r.grand_total||0));
+    if (r.ts) {
+      const d = new Date(r.ts);
+      const day = d.toISOString().slice(0,10);
+      ordersByDay[day] = (ordersByDay[day]||0)+1;
+      const h = d.getUTCHours();
+      if (h < 6) hasOrderAfterMidnight = true;
+      if (h >= 22) hasOrderLate = true;
+      if (d.getUTCDay() === 0) hasSundayOrder = true;
+    }
+  }
+  for (const r of convRows.rows) {
+    if (r.last_active) {
+      const d = new Date(r.last_active);
+      const day = d.toISOString().slice(0,10);
+      convByDay[day] = (convByDay[day]||0)+1;
+      const h = d.getUTCHours();
+      if (h >= 23 || h < 1) hasLateConversation = true;
+    }
+  }
+  const maxOrdersInDay = Math.max(0, ...Object.values(ordersByDay));
+  const maxConversationsInDay = Math.max(0, ...Object.values(convByDay));
+  const hasRepeatCustomer = Object.values(custCounts).some(c => c >= 2);
+  const start = liveSince ? new Date(liveSince).getTime() : Date.now();
+  const daysLive = Math.max(0, Math.floor((Date.now() - start) / 86400000));
+
+  return {
+    orders: sums.rows[0].total,
+    paidOrders: sums.rows[0].paid,
+    revenue: Number(sums.rows[0].revenue),
+    conversations: conv.rows[0].total,
+    uniqueCustomers: conv.rows[0].unique_customers,
+    hasOrderAfterMidnight, hasOrderLate, hasSundayOrder, hasRepeatCustomer, hasLateConversation,
+    maxOrdersInDay, maxConversationsInDay, daysLive,
+    hasOrderAbove: (t) => amounts.some(a => a >= t),
+  };
+}
+
+let _milestonesCache = null;
+let _milestonesCacheAt = 0;
+app.get('/api/milestones', async (req, res) => {
+  try {
+    if (_milestonesCache && Date.now() - _milestonesCacheAt < 60000) {
+      return res.json(_milestonesCache);
+    }
+    const tenants = await pool.query(
+      `SELECT id, shop_domain, store_name, bot_name, channel, live_since, onboarded_at
+       FROM tenants WHERE show_in_case_studies = TRUE ORDER BY live_since ASC NULLS LAST`
+    );
+    const brands = [];
+    for (const t of tenants.rows) {
+      const metrics = await computeBrandMetrics(t.id, t.live_since);
+      const defs = buildMilestonesFor(t.bot_name);
+      const existing = await pool.query(
+        'SELECT milestone_key, achieved_at FROM milestones WHERE tenant_id = $1', [t.id]
+      );
+      const achievedMap = {};
+      existing.rows.forEach(r => { achievedMap[r.milestone_key] = r.achieved_at; });
+      const milestones = [];
+      for (const m of defs) {
+        let achievedAt = achievedMap[m.key] || null;
+        if (!achievedAt) {
+          try {
+            if (m.check(metrics)) {
+              await pool.query(
+                `INSERT INTO milestones (tenant_id, milestone_key) VALUES ($1, $2)
+                 ON CONFLICT (tenant_id, milestone_key) DO NOTHING
+                 RETURNING achieved_at`, [t.id, m.key]
+              );
+              achievedAt = new Date().toISOString();
+            }
+          } catch (innerE) { /* skip */ }
+        }
+        milestones.push({ key: m.key, label: m.label, achievedAt });
+      }
+      brands.push({
+        tenantId: t.id,
+        shopDomain: t.shop_domain,
+        storeName: t.store_name,
+        botName: t.bot_name,
+        channel: t.channel,
+        liveSince: t.live_since,
+        onboardedAt: t.onboarded_at,
+        stats: {
+          orders: metrics.orders,
+          paidOrders: metrics.paidOrders,
+          revenue: metrics.revenue,
+          conversations: metrics.conversations,
+          uniqueCustomers: metrics.uniqueCustomers,
+          daysLive: metrics.daysLive,
+        },
+        milestones,
+      });
+    }
+    const payload = { brands };
+    _milestonesCache = payload;
+    _milestonesCacheAt = Date.now();
+    res.json(payload);
+  } catch (e) {
+    console.error('[api/milestones]', e.message);
+    res.status(500).json({ brands: [], error: e.message });
+  }
+});
+
 // ── BILLING ROUTES ──────────────────────────────────────────
 app.get('/terms', (req, res) => {
   res.sendFile(__dirname + '/public/terms.html');

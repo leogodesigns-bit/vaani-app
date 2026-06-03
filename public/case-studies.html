@@ -172,64 +172,7 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem 1.5rem;margin-top:3r
 </section>
 
 <section class="milestones-section">
-  <div class="milestones">
-    <article class="milestone-card" data-brand="rajathee" data-live-since="2026-06-01T00:00:00">
-      <span class="milestone-tag">Milestone · Day 1</span>
-      <div class="milestone-head">
-        <h3 class="milestone-brand">Rajathee Sarees</h3>
-        <span class="milestone-pill">Tara · WhatsApp</span>
-      </div>
-      <div class="live-since">
-        <span class="live-since-label">Live since</span>
-        <span class="live-since-counter" data-counter>—</span>
-      </div>
-      <h4 class="milestone-headline">First order on launch day.</h4>
-      <p class="milestone-body">Rajathee Sarees went live with Tara on WhatsApp. A customer browsed the saree catalogue, asked questions, and placed an order — all within 24 hours of going live. No human needed.</p>
-      <div class="milestone-stat">Day 1 → First order</div>
-      <div class="milestones-grid" data-milestones-container hidden>
-        <div class="milestones-grid-label"><span>Milestones</span><a class="view-toggle" data-toggle href="#">View all →</a></div>
-        <div class="milestones-items" data-items></div>
-      </div>
-    </article>
-
-    <article class="milestone-card" data-brand="ikaa" data-live-since="2026-05-30T00:00:00">
-      <span class="milestone-tag ongoing">Ongoing</span>
-      <div class="milestone-head">
-        <h3 class="milestone-brand">Ikaa</h3>
-        <span class="milestone-pill">Jhilmil · WhatsApp</span>
-      </div>
-      <div class="live-since">
-        <span class="live-since-label">Live since</span>
-        <span class="live-since-counter" data-counter>—</span>
-      </div>
-      <h4 class="milestone-headline">Customers who never used to ask, now ask everything.</h4>
-      <p class="milestone-body">With Jhilmil always on, Ikaa's customers browse at night, revisit conversations, and ask the same question three different ways — without anyone feeling bothered. That's what 24/7 really means.</p>
-      <div class="milestone-stat">24/7 · Zero guilt</div>
-      <div class="milestones-grid" data-milestones-container hidden>
-        <div class="milestones-grid-label"><span>Milestones</span><a class="view-toggle" data-toggle href="#">View all →</a></div>
-        <div class="milestones-items" data-items></div>
-      </div>
-    </article>
-
-    <article class="milestone-card" data-brand="woof" data-live-since="2026-06-02T00:00:00">
-      <span class="milestone-tag ongoing">Ongoing</span>
-      <div class="milestone-head">
-        <h3 class="milestone-brand">The Woof Parade</h3>
-        <span class="milestone-pill">Rio · WhatsApp</span>
-      </div>
-      <div class="live-since">
-        <span class="live-since-label">Live since</span>
-        <span class="live-since-counter" data-counter>—</span>
-      </div>
-      <h4 class="milestone-headline">A bot that knows every product, every time.</h4>
-      <p class="milestone-body">Rio handles product questions, order follow-ups, and late-night curiosity from dog parents. Kashmira's team focuses on what needs a human. Rio handles the rest.</p>
-      <div class="milestone-stat">Always on · Never tired</div>
-      <div class="milestones-grid" data-milestones-container hidden>
-        <div class="milestones-grid-label"><span>Milestones</span><a class="view-toggle" data-toggle href="#">View all →</a></div>
-        <div class="milestones-items" data-items></div>
-      </div>
-    </article>
-  </div>
+  <div class="milestones" id="brands"></div>
   <p class="milestones-note">More milestones coming as our brands grow. We update this page when something real happens — not before.</p>
 </section>
 
@@ -286,36 +229,114 @@ document.querySelector('.hamburger').addEventListener('click',function(){
   this.setAttribute('aria-expanded', this.classList.contains('open'));
 });
 (function(){
-  const cards=document.querySelectorAll('.milestone-card');
-  if(!cards.length)return;
-  const ob=new IntersectionObserver(entries=>{
-    entries.forEach(entry=>{
-      if(entry.isIntersecting){
-        const idx=Array.from(cards).indexOf(entry.target);
-        setTimeout(()=>entry.target.classList.add('in-view'),idx*150);
-        ob.unobserve(entry.target);
-      }
-    });
-  },{threshold:.2});
-  cards.forEach(card=>ob.observe(card));
-})();
-(function(){
-  const counters=document.querySelectorAll('[data-counter]');
-  if(!counters.length)return;
   function pad(n){return n.toString().padStart(2,'0');}
-  function tick(){
-    counters.forEach(el=>{
-      const card=el.closest('[data-live-since]');
-      if(!card)return;
-      const start=new Date(card.dataset.liveSince).getTime();
-      let diff=Math.max(0,Math.floor((Date.now()-start)/1000));
-      const d=Math.floor(diff/86400);diff-=d*86400;
-      const h=Math.floor(diff/3600);diff-=h*3600;
-      const m=Math.floor(diff/60);diff-=m*60;
-      el.textContent=`${d}d ${pad(h)}h ${pad(m)}m ${pad(diff)}s`;
-    });
+  function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  function formatDate(iso){
+    if(!iso)return '';
+    const d=new Date(iso);
+    if(isNaN(d))return '';
+    return d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
   }
-  tick();setInterval(tick,1000);
+  const COPY={
+    Tara:{tag:'Milestone · Day 1',tagClass:'',headline:'First order on launch day.',body:'Rajathee Sarees went live with Tara on WhatsApp. A customer browsed the saree catalogue, asked questions, and placed an order — all within 24 hours of going live. No human needed.',stat:'Day 1 → First order'},
+    Jhilmil:{tag:'Ongoing',tagClass:'ongoing',headline:'Customers who never used to ask, now ask everything.',body:"With Jhilmil always on, Ikaa's customers browse at night, revisit conversations, and ask the same question three different ways — without anyone feeling bothered. That's what 24/7 really means.",stat:'24/7 · Zero guilt'},
+    Rio:{tag:'Ongoing',tagClass:'ongoing',headline:'A bot that knows every product, every time.',body:"Rio handles product questions, order follow-ups, and late-night curiosity from dog parents. Kashmira's team focuses on what needs a human. Rio handles the rest.",stat:'Always on · Never tired'},
+  };
+  function cardHtml(brand){
+    const c=COPY[brand.botName]||{tag:'Ongoing',tagClass:'ongoing',headline:`${brand.storeName||'New brand'} is live.`,body:`${brand.botName||'The bot'} is handling conversations on ${brand.channel||'WhatsApp'} — milestones unlock as customers come in.`,stat:'Just getting started'};
+    return `
+      <article class="milestone-card" data-live-since="${escapeHtml(brand.liveSince||'')}">
+        <span class="milestone-tag ${c.tagClass}">${escapeHtml(c.tag)}</span>
+        <div class="milestone-head">
+          <h3 class="milestone-brand">${escapeHtml(brand.storeName||brand.shopDomain||'Brand')}</h3>
+          <span class="milestone-pill">${escapeHtml(brand.botName||'Bot')} · ${escapeHtml(brand.channel||'WhatsApp')}</span>
+        </div>
+        <div class="live-since">
+          <span class="live-since-label">Live since</span>
+          <span class="live-since-counter" data-counter>—</span>
+        </div>
+        <h4 class="milestone-headline">${escapeHtml(c.headline)}</h4>
+        <p class="milestone-body">${escapeHtml(c.body)}</p>
+        <div class="milestone-stat">${escapeHtml(c.stat)}</div>
+        <div class="milestones-grid" data-milestones-container>
+          <div class="milestones-grid-label"><span>Milestones</span><a class="view-toggle" data-toggle href="#">View all →</a></div>
+          <div class="milestones-items" data-items></div>
+        </div>
+      </article>`;
+  }
+  function renderMilestones(card,milestones){
+    const items=card.querySelector('[data-items]');
+    const toggle=card.querySelector('[data-toggle]');
+    if(!items)return;
+    const unlocked=milestones.filter(m=>m.achievedAt).sort((a,b)=>new Date(b.achievedAt)-new Date(a.achievedAt));
+    const locked=milestones.filter(m=>!m.achievedAt);
+    let expanded=false;
+    function paint(){
+      const visible=expanded?[...unlocked,...locked]:[...unlocked.slice(0,10),...locked.slice(0,3)];
+      items.innerHTML=visible.map(m=>{
+        const date=m.achievedAt?formatDate(m.achievedAt):'';
+        const icon=m.achievedAt?'✓':'🔒';
+        const dateHtml=m.achievedAt?`<span class="milestone-badge-date">${escapeHtml(date)}</span>`:'';
+        return `<div class="milestone-badge ${m.achievedAt?'unlocked':''}"><span class="milestone-badge-icon">${icon}</span><span class="milestone-badge-text">${escapeHtml(m.label)}${dateHtml}</span></div>`;
+      }).join('');
+      if(toggle)toggle.textContent=expanded?'Show less ←':'View all →';
+    }
+    paint();
+    if(toggle){
+      toggle.addEventListener('click',e=>{e.preventDefault();expanded=!expanded;paint();});
+      if(unlocked.length+locked.length<=13)toggle.style.display='none';
+    }
+  }
+  let tickerInterval=null;
+  function startTickers(){
+    if(tickerInterval)clearInterval(tickerInterval);
+    const counters=document.querySelectorAll('[data-counter]');
+    function tick(){
+      counters.forEach(el=>{
+        const card=el.closest('[data-live-since]');
+        if(!card||!card.dataset.liveSince)return;
+        const start=new Date(card.dataset.liveSince).getTime();
+        if(isNaN(start))return;
+        let diff=Math.max(0,Math.floor((Date.now()-start)/1000));
+        const d=Math.floor(diff/86400);diff-=d*86400;
+        const h=Math.floor(diff/3600);diff-=h*3600;
+        const m=Math.floor(diff/60);diff-=m*60;
+        el.textContent=`${d}d ${pad(h)}h ${pad(m)}m ${pad(diff)}s`;
+      });
+    }
+    tick();tickerInterval=setInterval(tick,1000);
+  }
+  function startScrollAnim(){
+    const cards=document.querySelectorAll('.milestone-card');
+    const ob=new IntersectionObserver(entries=>{
+      entries.forEach(entry=>{
+        if(entry.isIntersecting){
+          const idx=Array.from(cards).indexOf(entry.target);
+          setTimeout(()=>entry.target.classList.add('in-view'),Math.min(idx,3)*150);
+          ob.unobserve(entry.target);
+        }
+      });
+    },{threshold:.2});
+    cards.forEach(c=>ob.observe(c));
+  }
+  fetch('/api/milestones').then(r=>r.json()).then(data=>{
+    const container=document.getElementById('brands');
+    if(!container||!data||!Array.isArray(data.brands))return;
+    if(!data.brands.length){
+      container.innerHTML='<p style="text-align:center;color:var(--muted);padding:2rem">No live brands yet — check back soon.</p>';
+      return;
+    }
+    container.innerHTML=data.brands.map(cardHtml).join('');
+    const cards=container.querySelectorAll('.milestone-card');
+    data.brands.forEach((b,i)=>{
+      const card=cards[i];
+      if(card&&b.milestones)renderMilestones(card,b.milestones);
+    });
+    startTickers();
+    startScrollAnim();
+  }).catch(err=>{
+    console.error('milestones fetch',err);
+  });
 })();
 </script>
 </body>
