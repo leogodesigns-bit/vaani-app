@@ -93,8 +93,14 @@ nav{padding:1.8rem 4rem;display:flex;align-items:center;justify-content:space-be
 .flow-dot.green{background:#25D366}.flow-dot.blue{background:#4A90D9}.flow-dot.gold{background:#C29838}
 
 .lang-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;position:relative;z-index:1}
-.lang-item{background:white;border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;font-size:.82rem;font-weight:500;color:var(--ink)}
+.lang-item{background:white;border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;font-size:.82rem;font-weight:500;color:var(--ink);cursor:pointer;transition:border-color .2s ease,background .2s ease,transform .2s ease;text-align:left}
+.lang-item:hover,.lang-item.active{border-color:var(--warm);background:#FFFBF4;transform:translateY(-1px)}
+.lang-item.active{box-shadow:0 0 0 1px rgba(196,120,58,.45)}
 .lang-script{display:block;font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--warm);margin-bottom:.25rem;font-weight:600}
+.lang-chat{margin-top:1rem;display:flex;flex-direction:column;gap:.4rem;position:relative;z-index:1}
+.lang-msg{padding:.6rem .9rem;border-radius:14px;font-size:.82rem;line-height:1.45;max-width:88%;transition:opacity .2s ease,transform .2s ease}
+.lang-msg-user{background:#DCF8C6;color:#111;align-self:flex-end;border-bottom-right-radius:4px}
+.lang-msg-bot{background:white;color:#111;align-self:flex-start;border-bottom-left-radius:4px;border:1px solid var(--border)}
 
 .visual-tags{display:flex;flex-wrap:wrap;gap:.5rem;position:relative;z-index:1}
 .visual-tag{background:white;border:1px solid var(--border);border-radius:100px;padding:.35rem .9rem;font-size:.72rem;color:var(--ink)}
@@ -241,21 +247,20 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem 1.5rem;margin-top:3r
       <span class="section-label">Multilingual</span>
       <h2>Sell in the language<br><em>they think in.</em></h2>
       <p>Vaani detects how your customer writes and replies in their language — Hindi, English, Marathi, or Hinglish. No setup needed.</p>
-      <ul class="feature-list">
-        <li>Automatic language detection</li>
-        <li>Hindi, Marathi, English, Hinglish</li>
-        <li>Same brand voice across all languages</li>
-        <li>Reaches customers in smaller cities naturally</li>
-      </ul>
+      <p class="feature-note">Detection is automatic — no settings to configure.</p>
     </div>
     <div class="feature-visual">
       <div class="visual-title">Four languages, one Vaani.</div>
-      <div class="visual-stat-label">Detects &amp; replies automatically</div>
-      <div class="lang-grid">
-        <div class="lang-item"><span class="lang-script">नमस्ते</span>Hindi</div>
-        <div class="lang-item"><span class="lang-script">नमस्कार</span>Marathi</div>
-        <div class="lang-item"><span class="lang-script">Hello</span>English</div>
-        <div class="lang-item"><span class="lang-script">Kya scene</span>Hinglish</div>
+      <div class="visual-stat-label">Tap a language — Vaani replies in it</div>
+      <div class="lang-grid" id="lang-grid">
+        <div class="lang-item" data-customer="नमस्ते! मुझे एक नेकलेस चाहिए" data-reply="बिल्कुल! आपका बजट क्या है?"><span class="lang-script">नमस्ते</span>Hindi</div>
+        <div class="lang-item" data-customer="नमस्कार! मला साडी बघायची आहे" data-reply="नक्कीच! कोणती साडी आवडेल?"><span class="lang-script">नमस्कार</span>Marathi</div>
+        <div class="lang-item" data-customer="Hi! Looking for a ring" data-reply="Sure! What's your budget?"><span class="lang-script">Hello</span>English</div>
+        <div class="lang-item" data-customer="Kya scene hai, kuch dikhao" data-reply="Bilkul! Kya dhundh rahe ho?"><span class="lang-script">Kya scene</span>Hinglish</div>
+      </div>
+      <div class="lang-chat" id="lang-chat">
+        <div class="lang-msg lang-msg-user"></div>
+        <div class="lang-msg lang-msg-bot"></div>
       </div>
     </div>
   </div>
@@ -440,6 +445,25 @@ document.querySelector('.hamburger').addEventListener('click',function(){
       if(!wasActive)step.classList.add('active');
     });
   });
+})();
+(function(){
+  const grid=document.getElementById('lang-grid');
+  const chat=document.getElementById('lang-chat');
+  if(!grid||!chat)return;
+  const items=grid.querySelectorAll('.lang-item');
+  const userBubble=chat.querySelector('.lang-msg-user');
+  const botBubble=chat.querySelector('.lang-msg-bot');
+  function setLang(item){
+    items.forEach(i=>i.classList.remove('active'));
+    item.classList.add('active');
+    userBubble.textContent=item.dataset.customer;
+    botBubble.textContent=item.dataset.reply;
+  }
+  items.forEach(item=>{
+    item.addEventListener('click',()=>setLang(item));
+    item.addEventListener('mouseenter',()=>setLang(item));
+  });
+  if(items[0])setLang(items[0]);
 })();
 </script>
 </body>
