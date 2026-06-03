@@ -326,6 +326,14 @@ document.querySelector('.hamburger').addEventListener('click',function(){
       container.innerHTML='<p style="text-align:center;color:var(--muted);padding:2rem">No live brands yet — check back soon.</p>';
       return;
     }
+    data.brands.sort((a,b)=>{
+      const aCount=(a.milestones||[]).filter(m=>m.achievedAt).length;
+      const bCount=(b.milestones||[]).filter(m=>m.achievedAt).length;
+      if(bCount!==aCount)return bCount-aCount;
+      const aDate=a.liveSince?new Date(a.liveSince).getTime():Infinity;
+      const bDate=b.liveSince?new Date(b.liveSince).getTime():Infinity;
+      return aDate-bDate;
+    });
     container.innerHTML=data.brands.map(cardHtml).join('');
     const cards=container.querySelectorAll('.milestone-card');
     data.brands.forEach((b,i)=>{
