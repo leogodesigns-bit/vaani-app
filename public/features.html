@@ -77,6 +77,18 @@ nav{padding:1.8rem 4rem;display:flex;align-items:center;justify-content:space-be
 .flow-dot{width:8px;height:8px;border-radius:50%;background:var(--warm);flex-shrink:0}
 .flow-arrow{font-size:1rem;color:rgba(255,255,255,.4);padding-left:.7rem;line-height:1;margin:-.15rem 0;font-weight:300}
 .feature-visual:not(.dark) .flow-arrow{color:var(--warm);opacity:.55}
+.flow-interactive{display:flex;flex-direction:column;gap:0;position:relative;z-index:1}
+.flow-step{background:#3D2818;border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:.7rem .95rem;cursor:pointer;transition:background .3s ease,border-color .3s ease,box-shadow .3s ease;opacity:.45}
+.flow-step .flow-row{display:flex;align-items:center;gap:.8rem;font-size:.82rem;color:rgba(255,255,255,.65)}
+.flow-step.lit{opacity:1;background:#46301F;border-color:rgba(196,120,58,.25)}
+.flow-step.lit .flow-row{color:var(--cream)}
+.flow-step.active{background:#5A3D26;border-color:var(--warm);box-shadow:0 0 0 1px rgba(196,120,58,.4),0 4px 16px rgba(0,0,0,.25)}
+.flow-step.active .flow-row{color:var(--cream)}
+.flow-step-desc{max-height:0;overflow:hidden;font-size:.74rem;color:rgba(255,255,255,.62);line-height:1.55;padding-left:1.65rem;padding-top:0;opacity:0;transition:max-height .35s ease,padding-top .35s ease,opacity .25s ease}
+.flow-step.active .flow-step-desc{max-height:140px;padding-top:.55rem;opacity:1}
+.flow-line{width:2px;height:18px;background:rgba(255,255,255,.06);margin:.4rem 0 .4rem 1.55rem;position:relative;overflow:hidden}
+.flow-line::before{content:'';position:absolute;inset:0;background:var(--warm);transform:scaleY(0);transform-origin:top;transition:transform .45s ease}
+.flow-line.drawn::before{transform:scaleY(1)}
 .flow-dot.green{background:#25D366}.flow-dot.blue{background:#4A90D9}.flow-dot.gold{background:#C29838}
 
 .lang-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;position:relative;z-index:1}
@@ -205,14 +217,26 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem 1.5rem;margin-top:3r
     <div class="feature-visual dark">
       <div class="visual-stat">Live</div>
       <div class="visual-stat-label">Catalog always live</div>
-      <div class="visual-flow">
-        <div class="flow-item"><span class="flow-dot green"></span>Customer browses on WhatsApp</div>
-        <div class="flow-arrow">↓</div>
-        <div class="flow-item"><span class="flow-dot"></span>Draft order created in Shopify</div>
-        <div class="flow-arrow">↓</div>
-        <div class="flow-item"><span class="flow-dot blue"></span>Payment link sent instantly</div>
-        <div class="flow-arrow">↓</div>
-        <div class="flow-item"><span class="flow-dot green"></span>Order confirmed &amp; synced</div>
+      <div class="flow-interactive" id="shopify-flow">
+        <div class="flow-step">
+          <div class="flow-row"><span class="flow-dot green"></span>Customer browses on WhatsApp</div>
+          <div class="flow-step-desc">Customer opens chat, asks about products, gets your categories and personalised picks — all inside WhatsApp.</div>
+        </div>
+        <div class="flow-line"></div>
+        <div class="flow-step">
+          <div class="flow-row"><span class="flow-dot"></span>Draft order created in Shopify</div>
+          <div class="flow-step-desc">Vaani builds a draft order in your Shopify admin with the right products, quantities, and prices — no manual entry.</div>
+        </div>
+        <div class="flow-line"></div>
+        <div class="flow-step">
+          <div class="flow-row"><span class="flow-dot blue"></span>Payment link sent instantly</div>
+          <div class="flow-step-desc">A secure Shopify checkout link drops into the chat. Customer taps, pays, and never leaves WhatsApp.</div>
+        </div>
+        <div class="flow-line"></div>
+        <div class="flow-step">
+          <div class="flow-row"><span class="flow-dot green"></span>Order confirmed &amp; synced</div>
+          <div class="flow-step-desc">Payment confirmation pings your team, inventory drops in Shopify, Vaani thanks the customer — order is yours.</div>
+        </div>
       </div>
     </div>
   </div>
@@ -397,6 +421,33 @@ document.querySelector('.hamburger').addEventListener('click',function(){
   document.querySelector('.mobile-menu').classList.toggle('open');
   this.setAttribute('aria-expanded', this.classList.contains('open'));
 });
+(function(){
+  const flow=document.getElementById('shopify-flow');
+  if(!flow)return;
+  const steps=Array.from(flow.querySelectorAll('.flow-step'));
+  const lines=Array.from(flow.querySelectorAll('.flow-line'));
+  function runSequence(){
+    setTimeout(()=>steps[0].classList.add('lit'),300);
+    for(let i=1;i<steps.length;i++){
+      setTimeout(()=>lines[i-1].classList.add('drawn'),300+i*600-300);
+      setTimeout(()=>steps[i].classList.add('lit'),300+i*600);
+    }
+  }
+  let triggered=false;
+  const observer=new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting && !triggered){triggered=true;runSequence();}
+    });
+  },{threshold:.3});
+  observer.observe(flow);
+  steps.forEach(step=>{
+    step.addEventListener('click',()=>{
+      const wasActive=step.classList.contains('active');
+      steps.forEach(s=>s.classList.remove('active'));
+      if(!wasActive)step.classList.add('active');
+    });
+  });
+})();
 </script>
 </body>
 </html>
