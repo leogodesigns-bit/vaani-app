@@ -181,14 +181,14 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 .step h3{font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:600;margin-bottom:.6rem;letter-spacing:-.01em}
 .step p{font-size:.82rem;color:var(--muted);line-height:1.65}
 
-.features-strip{padding:5rem 0;background:var(--warm);position:relative;overflow:hidden}
-.features-strip::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 15% 20%,rgba(218,165,32,.35),transparent 55%),radial-gradient(ellipse at 85% 80%,rgba(158,94,40,.4),transparent 55%);pointer-events:none}
-.features-strip .inner{max-width:1100px;margin:0 auto;padding:0 2rem;display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem;position:relative}
-.strip-feature{background:rgba(255,255,255,.12);backdrop-filter:blur(12px) saturate(140%);-webkit-backdrop-filter:blur(12px) saturate(140%);border:1px solid rgba(255,255,255,.2);border-radius:14px;padding:1.6rem 1.3rem;transition:transform .25s ease,background .25s ease,border-color .25s ease}
-.strip-feature:hover{transform:translateY(-3px);background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.32)}
-.strip-icon{font-size:1.6rem;margin-bottom:.85rem;display:block;line-height:1}
-.strip-feature h4{font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--cream);font-weight:600;margin-bottom:.5rem;letter-spacing:-.01em}
-.strip-feature p{font-size:.78rem;color:rgba(250,247,242,.85);line-height:1.65}
+.features-strip{padding:5rem 2rem}
+.features-strip .inner{max-width:1100px;margin:0 auto;background:#2C1A0E;border-radius:20px;padding:2rem;display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+.strip-feature{background:#3D2818;border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:1.5rem;text-align:left;transition:transform .2s,border-color .2s,background .2s}
+.strip-feature:hover{transform:translateY(-2px);border-color:rgba(200,131,42,.4);background:#46301F}
+.strip-icon{display:inline-flex;align-items:center;height:1.6rem;color:var(--warm-light);margin-bottom:1rem}
+.strip-icon svg{width:1.55rem;height:1.55rem;display:block}
+.strip-feature h4{font-family:'Playfair Display',serif;font-size:1.15rem;color:var(--cream);font-weight:600;margin-bottom:.5rem;letter-spacing:-.01em}
+.strip-feature p{font-size:.82rem;color:rgba(255,255,255,.55);line-height:1.6}
 
 .early-access{padding:8rem 0;text-align:center}
 .early-access h2{font-family:'Playfair Display',serif;font-size:clamp(2.2rem,5vw,3.8rem);font-weight:400;letter-spacing:-.02em;margin-bottom:1rem;line-height:1.1}
@@ -411,10 +411,26 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-i
 
 <section class="features-strip">
   <div class="inner">
-    <div class="strip-feature"><span class="strip-icon">🛍️</span><h4>Shopify Native</h4><p>Pulls your live catalog, creates draft orders, and syncs inventory — automatically.</p></div>
-    <div class="strip-feature"><span class="strip-icon">🗣️</span><h4>Multilingual</h4><p>Speaks your customer's language — English, Hindi, Marathi, and more.</p></div>
-    <div class="strip-feature"><span class="strip-icon">⚡</span><h4>No Code Setup</h4><p>We configure everything. You just share a WhatsApp link and start selling.</p></div>
-    <div class="strip-feature"><span class="strip-icon">🎯</span><h4>Custom Flow</h4><p>Built around your catalog, your categories, your customer journey — not a template.</p></div>
+    <div class="strip-feature">
+      <span class="strip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></span>
+      <h4>Shopify Native</h4>
+      <p>Pulls your live catalog, creates draft orders, and syncs inventory — automatically.</p>
+    </div>
+    <div class="strip-feature">
+      <span class="strip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+      <h4>Multilingual</h4>
+      <p>Speaks your customer's language — English, Hindi, Marathi, and more.</p>
+    </div>
+    <div class="strip-feature">
+      <span class="strip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+      <h4>No Code Setup</h4>
+      <p>We configure everything. You just share a WhatsApp link and start selling.</p>
+    </div>
+    <div class="strip-feature">
+      <span class="strip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
+      <h4>Custom Flow</h4>
+      <p>Built around your catalog, your categories, your customer journey — not a template.</p>
+    </div>
   </div>
 </section>
 
