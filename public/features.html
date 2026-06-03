@@ -177,7 +177,7 @@ nav{padding:1.8rem 4rem;display:flex;align-items:center;justify-content:space-be
 .voice-waveform span:nth-child(9){height:60%;animation-delay:.05s}
 .voice-waveform span:nth-child(10){height:35%;animation-delay:.5s}
 @keyframes voiceWave{0%,100%{transform:scaleY(.35)}50%{transform:scaleY(1)}}
-.voice-transcript{margin-top:1.3rem;width:100%;max-width:340px;height:auto;min-height:0;font-family:'SF Mono','Menlo','Monaco','Consolas',monospace;font-size:.7rem;line-height:1.7;text-align:left;color:rgba(245,240,232,.7);position:relative;z-index:1}
+.voice-transcript{margin-top:1.3rem;width:100%;max-width:340px;height:140px;font-family:'SF Mono','Menlo','Monaco','Consolas',monospace;font-size:.7rem;line-height:1.7;text-align:left;color:rgba(245,240,232,.7);position:relative;z-index:1;overflow:hidden}
 .voice-line{margin-bottom:.25rem;opacity:0;animation:voiceLineFade .3s ease forwards;letter-spacing:.01em;border:none;text-decoration:none;background:transparent;box-shadow:none}
 .voice-line *{border:none;text-decoration:none}
 .voice-line+.voice-line{border-top:none}
@@ -648,57 +648,63 @@ document.querySelector('.hamburger').addEventListener('click',function(){
 (function(){
   const container=document.getElementById('voice-transcript');
   const audio=document.getElementById('voice-audio');
-  if(!container)return;
+  const card=document.querySelector('.voice-call-card');
+  if(!container||!card)return;
   const lines=[
-    {type:'customer',label:'Customer',text:"Hi, I'd like to book a haircut for Saturday afternoon",startMs:500,wordSpacingMs:250},
-    {type:'vaani',label:'Vaani',text:"Sure! We have slots at 2pm and 4pm on Saturday. Which works for you?",startMs:4000,wordSpacingMs:200}
+    {type:'customer',label:'Customer',text:"Hi, I'd like to book a haircut for Saturday afternoon",labelAt:800,wordsAt:1000,wordGap:300},
+    {type:'vaani',label:'Vaani',text:"Sure! We have slots at 2pm and 4pm on Saturday. Which works for you?",labelAt:4500,wordsAt:4700,wordGap:280}
   ];
   const timeouts=[];
   function clearTimeouts(){timeouts.forEach(clearTimeout);timeouts.length=0;}
   function schedule(fn,ms){timeouts.push(setTimeout(fn,ms));}
-  function startTranscript(){
+  function buildLine(line){
+    const div=document.createElement('div');
+    div.className='voice-line voice-'+line.type;
+    const speaker=document.createElement('span');
+    speaker.className='voice-speaker';
+    speaker.textContent=line.label+': ';
+    div.appendChild(speaker);
+    const text=document.createElement('span');
+    text.className='voice-text';
+    div.appendChild(text);
+    const cursor=document.createElement('span');
+    cursor.className='voice-cursor';
+    cursor.textContent='|';
+    div.appendChild(cursor);
+    container.appendChild(div);
+    return {text,cursor};
+  }
+  function start(){
     clearTimeouts();
     container.innerHTML='';
     lines.forEach(line=>{
-      schedule(()=>{
-        const div=document.createElement('div');
-        div.className='voice-line voice-'+line.type;
-        const speaker=document.createElement('span');
-        speaker.className='voice-speaker';
-        speaker.textContent=line.label+': ';
-        div.appendChild(speaker);
-        const text=document.createElement('span');
-        text.className='voice-text';
-        div.appendChild(text);
-        const cursor=document.createElement('span');
-        cursor.className='voice-cursor';
-        cursor.textContent='|';
-        div.appendChild(cursor);
-        container.appendChild(div);
-        const words=line.text.split(' ');
-        words.forEach((w,i)=>{
-          schedule(()=>{
-            text.textContent+=(text.textContent?' ':'')+w;
-            if(i===words.length-1)cursor.remove();
-          },(i+1)*line.wordSpacingMs);
-        });
-      },line.startMs);
+      let parts;
+      schedule(()=>{parts=buildLine(line);},line.labelAt);
+      const words=line.text.split(' ');
+      words.forEach((w,i)=>{
+        schedule(()=>{
+          if(!parts)return;
+          parts.text.textContent+=(parts.text.textContent?' ':'')+w;
+          if(i===words.length-1&&parts.cursor)parts.cursor.remove();
+        },line.wordsAt+i*line.wordGap);
+      });
     });
   }
-  let triggered=false;
-  function trigger(){
-    if(triggered)return;
-    triggered=true;
-    startTranscript();
+  function stop(){
+    clearTimeouts();
   }
-  if(audio){
-    audio.addEventListener('play',trigger);
-  }else{
-    const ob=new IntersectionObserver(es=>{
-      es.forEach(e=>{if(e.isIntersecting)trigger();});
-    },{threshold:.4});
-    ob.observe(container);
-  }
+  const ob=new IntersectionObserver(es=>{
+    es.forEach(e=>{
+      if(e.isIntersecting){
+        start();
+        if(audio){try{audio.currentTime=0;audio.play().catch(()=>{});}catch(_){}}
+      }else{
+        stop();
+        if(audio){try{audio.pause();audio.currentTime=0;}catch(_){}}
+      }
+    });
+  },{threshold:.4});
+  ob.observe(card);
 })();
 (function(){
   const audio=document.getElementById('voice-audio');
