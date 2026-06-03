@@ -93,7 +93,10 @@ nav{padding:1.8rem 4rem;display:flex;align-items:center;justify-content:space-be
 .flow-dot.green{background:#25D366}.flow-dot.blue{background:#4A90D9}.flow-dot.gold{background:#C29838}
 
 .lang-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;position:relative;z-index:1}
-.lang-item{background:white;border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;font-size:.82rem;font-weight:500;color:var(--ink);cursor:pointer;transition:border-color .2s ease,background .2s ease,transform .2s ease;text-align:left}
+.lang-item{background:white;border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;font-size:.82rem;font-weight:500;color:var(--ink);cursor:pointer;transition:border-color .2s ease,background .2s ease,transform .2s ease;text-align:left;position:relative;overflow:hidden}
+.lang-progress{position:absolute;left:0;bottom:0;height:2px;width:0;background:var(--warm);pointer-events:none;border-bottom-left-radius:10px;border-bottom-right-radius:10px}
+.lang-item.active .lang-progress{animation:langProgress 5s linear forwards}
+@keyframes langProgress{from{width:0}to{width:100%}}
 .lang-item:hover,.lang-item.active{border-color:var(--warm);background:#FFFBF4;transform:translateY(-1px)}
 .lang-item.active{box-shadow:0 0 0 1px rgba(196,120,58,.45)}
 .lang-script{display:block;font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--warm);margin-bottom:.25rem;font-weight:600}
@@ -253,10 +256,10 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem 1.5rem;margin-top:3r
       <div class="visual-title">Four languages, one Vaani.</div>
       <div class="visual-stat-label">Tap a language — Vaani replies in it</div>
       <div class="lang-grid" id="lang-grid">
-        <div class="lang-item" data-customer="नमस्ते! मुझे एक नेकलेस चाहिए" data-reply="बिल्कुल! आपका बजट क्या है?"><span class="lang-script">नमस्ते</span>Hindi</div>
-        <div class="lang-item" data-customer="नमस्कार! मला साडी बघायची आहे" data-reply="नक्कीच! कोणती साडी आवडेल?"><span class="lang-script">नमस्कार</span>Marathi</div>
-        <div class="lang-item" data-customer="Hi! Looking for a ring" data-reply="Sure! What's your budget?"><span class="lang-script">Hello</span>English</div>
-        <div class="lang-item" data-customer="Kya scene hai, kuch dikhao" data-reply="Bilkul! Kya dhundh rahe ho?"><span class="lang-script">Kya scene</span>Hinglish</div>
+        <div class="lang-item" data-customer="नमस्ते! मुझे एक नेकलेस चाहिए" data-reply="बिल्कुल! आपका बजट क्या है?"><span class="lang-script">नमस्ते</span>Hindi<span class="lang-progress"></span></div>
+        <div class="lang-item" data-customer="नमस्कार! मला साडी बघायची आहे" data-reply="नक्कीच! कोणती साडी आवडेल?"><span class="lang-script">नमस्कार</span>Marathi<span class="lang-progress"></span></div>
+        <div class="lang-item" data-customer="Hi! Looking for a ring" data-reply="Sure! What's your budget?"><span class="lang-script">Hello</span>English<span class="lang-progress"></span></div>
+        <div class="lang-item" data-customer="Kya scene hai, kuch dikhao" data-reply="Bilkul! Kya dhundh rahe ho?"><span class="lang-script">Kya scene</span>Hinglish<span class="lang-progress"></span></div>
       </div>
       <div class="lang-chat" id="lang-chat">
         <div class="lang-msg lang-msg-user"></div>
@@ -450,20 +453,33 @@ document.querySelector('.hamburger').addEventListener('click',function(){
   const grid=document.getElementById('lang-grid');
   const chat=document.getElementById('lang-chat');
   if(!grid||!chat)return;
-  const items=grid.querySelectorAll('.lang-item');
+  const items=Array.from(grid.querySelectorAll('.lang-item'));
   const userBubble=chat.querySelector('.lang-msg-user');
   const botBubble=chat.querySelector('.lang-msg-bot');
-  function setLang(item){
-    items.forEach(i=>i.classList.remove('active'));
+  let autoTimer;
+  function startTimer(){
+    clearTimeout(autoTimer);
+    autoTimer=setTimeout(()=>{
+      const idx=items.findIndex(i=>i.classList.contains('active'));
+      setActive(items[(idx+1)%items.length]);
+    },5000);
+  }
+  function setActive(item){
+    items.forEach(i=>{
+      i.classList.remove('active');
+      const p=i.querySelector('.lang-progress');
+      if(p){p.style.animation='none';void p.offsetWidth;p.style.animation='';}
+    });
     item.classList.add('active');
     userBubble.textContent=item.dataset.customer;
     botBubble.textContent=item.dataset.reply;
+    startTimer();
   }
   items.forEach(item=>{
-    item.addEventListener('click',()=>setLang(item));
-    item.addEventListener('mouseenter',()=>setLang(item));
+    item.addEventListener('click',()=>setActive(item));
+    item.addEventListener('mouseenter',()=>setActive(item));
   });
-  if(items[0])setLang(items[0]);
+  if(items[0])setActive(items[0]);
 })();
 </script>
 </body>
