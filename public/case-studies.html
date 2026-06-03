@@ -238,17 +238,26 @@ document.querySelector('.hamburger').addEventListener('click',function(){
     return d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
   }
   const COPY={
-    Tara:{tag:'Milestone · Day 1',tagClass:'',headline:'First order on launch day.',body:'Rajathee Sarees went live with Tara on WhatsApp. A customer browsed the saree catalogue, asked questions, and placed an order — all within 24 hours of going live. No human needed.',stat:'Day 1 → First order'},
-    Jhilmil:{tag:'Ongoing',tagClass:'ongoing',headline:'Customers who never used to ask, now ask everything.',body:"With Jhilmil always on, Ikaa's customers browse at night, revisit conversations, and ask the same question three different ways — without anyone feeling bothered. That's what 24/7 really means.",stat:'24/7 · Zero guilt'},
-    Rio:{tag:'Ongoing',tagClass:'ongoing',headline:'A bot that knows every product, every time.',body:"Rio handles product questions, order follow-ups, and late-night curiosity from dog parents. Kashmira's team focuses on what needs a human. Rio handles the rest.",stat:'Always on · Never tired'},
+    Tara:{brandName:'Rajathee Sarees',headline:'First order on launch day.',body:'Rajathee Sarees went live with Tara on WhatsApp. A customer browsed the saree catalogue, asked questions, and placed an order — all within 24 hours of going live. No human needed.',stat:'Day 1 → First order'},
+    Jhilmil:{brandName:'Ikaa',headline:'Customers who never used to ask, now ask everything.',body:"With Jhilmil always on, Ikaa's customers browse at night, revisit conversations, and ask the same question three different ways — without anyone feeling bothered. That's what 24/7 really means.",stat:'24/7 · Zero guilt'},
+    Rio:{brandName:'The Woof Parade',headline:'A bot that knows every product, every time.',body:"Rio handles product questions, order follow-ups, and late-night curiosity from dog parents. Kashmira's team focuses on what needs a human. Rio handles the rest.",stat:'Always on · Never tired'},
   };
+  function deriveTag(brand){
+    const unlocked=(brand.milestones||[]).filter(m=>m.achievedAt);
+    if(!unlocked.length)return{text:'Just launched',cls:''};
+    const latest=unlocked.slice().sort((a,b)=>new Date(b.achievedAt)-new Date(a.achievedAt))[0];
+    return{text:`Latest · ${latest.label}`,cls:'ongoing'};
+  }
   function cardHtml(brand){
-    const c=COPY[brand.botName]||{tag:'Ongoing',tagClass:'ongoing',headline:`${brand.storeName||'New brand'} is live.`,body:`${brand.botName||'The bot'} is handling conversations on ${brand.channel||'WhatsApp'} — milestones unlock as customers come in.`,stat:'Just getting started'};
+    const fallback={headline:`${brand.storeName||'New brand'} is live.`,body:`${brand.botName||'The bot'} is handling conversations on ${brand.channel||'WhatsApp'} — milestones unlock as customers come in.`,stat:'Just getting started'};
+    const c=COPY[brand.botName]||fallback;
+    const displayName=c.brandName||brand.storeName||brand.shopDomain||'Brand';
+    const tag=deriveTag(brand);
     return `
       <article class="milestone-card" data-live-since="${escapeHtml(brand.liveSince||'')}">
-        <span class="milestone-tag ${c.tagClass}">${escapeHtml(c.tag)}</span>
+        <span class="milestone-tag ${tag.cls}">${escapeHtml(tag.text)}</span>
         <div class="milestone-head">
-          <h3 class="milestone-brand">${escapeHtml(brand.storeName||brand.shopDomain||'Brand')}</h3>
+          <h3 class="milestone-brand">${escapeHtml(displayName)}</h3>
           <span class="milestone-pill">${escapeHtml(brand.botName||'Bot')} · ${escapeHtml(brand.channel||'WhatsApp')}</span>
         </div>
         <div class="live-since">
@@ -264,15 +273,45 @@ document.querySelector('.hamburger').addEventListener('click',function(){
         </div>
       </article>`;
   }
+  const TIERS={
+    orders:['orders_10','orders_25','orders_50','orders_100'],
+    conversations:['convo_100','convo_250','convo_500','convo_1000'],
+    customers:['customers_10','customers_25','customers_50'],
+    revenue:['revenue_10k','revenue_25k','revenue_50k','revenue_100k'],
+  };
+  const TIERED_KEYS=new Set();
+  Object.values(TIERS).forEach(a=>a.forEach(k=>TIERED_KEYS.add(k)));
+  function sortVisible(arr){
+    return arr.slice().sort((a,b)=>{
+      if(!!a.achievedAt!==!!b.achievedAt)return a.achievedAt?-1:1;
+      if(a.achievedAt)return new Date(b.achievedAt)-new Date(a.achievedAt);
+      return 0;
+    });
+  }
+  function getVisible(milestones,expanded){
+    if(expanded)return sortVisible(milestones);
+    const byKey={};milestones.forEach(m=>{byKey[m.key]=m;});
+    const tieredVisible=[];
+    Object.values(TIERS).forEach(tiers=>{
+      let high=null,next=null;
+      for(const k of tiers){
+        const m=byKey[k];if(!m)continue;
+        if(m.achievedAt)high=m;else if(!next)next=m;
+      }
+      if(high)tieredVisible.push(high);
+      if(next)tieredVisible.push(next);
+    });
+    const nonTUnlocked=milestones.filter(m=>!TIERED_KEYS.has(m.key)&&m.achievedAt);
+    const nonTLocked=milestones.filter(m=>!TIERED_KEYS.has(m.key)&&!m.achievedAt);
+    return sortVisible([...nonTUnlocked,...tieredVisible,...nonTLocked.slice(0,2)]);
+  }
   function renderMilestones(card,milestones){
     const items=card.querySelector('[data-items]');
     const toggle=card.querySelector('[data-toggle]');
     if(!items)return;
-    const unlocked=milestones.filter(m=>m.achievedAt).sort((a,b)=>new Date(b.achievedAt)-new Date(a.achievedAt));
-    const locked=milestones.filter(m=>!m.achievedAt);
     let expanded=false;
     function paint(){
-      const visible=expanded?[...unlocked,...locked]:[...unlocked.slice(0,10),...locked.slice(0,3)];
+      const visible=getVisible(milestones,expanded);
       items.innerHTML=visible.map(m=>{
         const date=m.achievedAt?formatDate(m.achievedAt):'';
         const icon=m.achievedAt?'✓':'🔒';
@@ -284,7 +323,7 @@ document.querySelector('.hamburger').addEventListener('click',function(){
     paint();
     if(toggle){
       toggle.addEventListener('click',e=>{e.preventDefault();expanded=!expanded;paint();});
-      if(unlocked.length+locked.length<=13)toggle.style.display='none';
+      if(getVisible(milestones,false).length>=milestones.length)toggle.style.display='none';
     }
   }
   let tickerInterval=null;

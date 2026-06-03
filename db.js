@@ -73,12 +73,13 @@ async function initDB() {
       UNIQUE(tenant_id, milestone_key)
     );
 
-    UPDATE tenants SET bot_name='Tara', channel='WhatsApp', live_since='2026-06-01 00:00:00', show_in_case_studies=TRUE
+    UPDATE tenants SET bot_name='Tara', channel='WhatsApp', live_since='2026-06-01 00:00:00', show_in_case_studies=TRUE, store_name='Rajathee Sarees'
       WHERE shop_domain ILIKE '%rajathee%' AND (bot_name IS NULL OR bot_name='');
-    UPDATE tenants SET bot_name='Rio', channel='WhatsApp', live_since='2026-06-02 00:00:00', show_in_case_studies=TRUE
+    UPDATE tenants SET bot_name='Rio', channel='WhatsApp', live_since='2026-06-02 00:00:00', show_in_case_studies=TRUE, store_name='The Woof Parade'
       WHERE (shop_domain ILIKE '%woofparade%' OR shop_domain ILIKE '%vs6xap-uz%') AND (bot_name IS NULL OR bot_name='');
-    UPDATE tenants SET bot_name='Jhilmil', channel='WhatsApp', live_since='2026-05-30 00:00:00', show_in_case_studies=TRUE
+    UPDATE tenants SET bot_name='Jhilmil', channel='WhatsApp', live_since='2026-05-30 00:00:00', show_in_case_studies=TRUE, store_name='Ikaa'
       WHERE shop_domain ILIKE '%ikaa%' AND (bot_name IS NULL OR bot_name='');
+    UPDATE tenants SET store_name='Rajathee Sarees' WHERE bot_name='Tara' AND (store_name IS NULL OR store_name='Rajathee');
 
     ALTER TABLE conversations ADD COLUMN IF NOT EXISTS monthly_messages INTEGER DEFAULT 0;
     ALTER TABLE conversations ADD COLUMN IF NOT EXISTS message_month VARCHAR(7);
