@@ -133,6 +133,13 @@ nav{padding:1.8rem 4rem;display:flex;align-items:center;justify-content:space-be
 .chip:hover,.chip.active{border-color:var(--warm);background:rgba(196,120,58,.18);color:#fff}
 .chip-progress{position:absolute;left:0;bottom:0;height:2px;width:0;background:var(--warm);pointer-events:none}
 .chip.active .chip-progress{animation:langProgress 4s linear forwards}
+.setup-timeline{display:flex;flex-direction:column;gap:.5rem;margin-top:1.6rem;position:relative;z-index:1}
+.setup-step{display:flex;align-items:center;gap:.85rem;padding:.45rem 0;font-size:.86rem;color:rgba(255,255,255,.4);transition:color .4s ease}
+.setup-marker{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:.92rem;color:rgba(255,255,255,.45);flex-shrink:0;transition:background .4s ease,color .4s ease,transform .4s ease;font-weight:600;line-height:1}
+.setup-marker::before{content:attr(data-num)}
+.setup-step.done{color:var(--warm-light)}
+.setup-step.done .setup-marker{background:#2D6A4F;color:#fff;font-size:.78rem;transform:scale(1.05)}
+.setup-step.done .setup-marker::before{content:'✓'}
 .ig-mockup-header{display:flex;align-items:center;gap:.7rem;padding-bottom:.9rem;margin-bottom:.9rem;border-bottom:1px solid rgba(255,255,255,.08)}
 .ig-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(45deg,#FED373,#F15245,#D92E7F,#9028CD,#2E72FF);padding:2px;flex-shrink:0}
 .ig-avatar-inner{width:100%;height:100%;border-radius:50%;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.64rem;font-weight:700}
@@ -354,17 +361,18 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem 1.5rem;margin-top:3r
       <span class="section-label">Zero-effort Setup</span>
       <h2>We build it.<br><em>You just sell.</em></h2>
       <p>No coding. No WhatsApp API headaches. We handle everything — Meta Business verification, Shopify connection, and your custom flow. You're live in under a week.</p>
-      <ul class="feature-list">
-        <li>Full onboarding handled by our team</li>
-        <li>Meta Business API setup included</li>
-        <li>Shopify connection guided end to end</li>
-        <li>Custom flow designed with you</li>
-        <li>Live in 7 days or less</li>
-      </ul>
+      <p class="feature-note">From WhatsApp API setup to your first sale — we handle it all.</p>
     </div>
     <div class="feature-visual dark">
       <div class="visual-stat">7</div>
       <div class="visual-stat-label">Days to go live</div>
+      <div class="setup-timeline" id="setup-timeline">
+        <div class="setup-step"><span class="setup-marker" data-num="①"></span><span class="setup-label">Meta Business verified</span></div>
+        <div class="setup-step"><span class="setup-marker" data-num="②"></span><span class="setup-label">WhatsApp number connected</span></div>
+        <div class="setup-step"><span class="setup-marker" data-num="③"></span><span class="setup-label">Catalog linked</span></div>
+        <div class="setup-step"><span class="setup-marker" data-num="④"></span><span class="setup-label">Custom flow built</span></div>
+        <div class="setup-step"><span class="setup-marker" data-num="⑤"></span><span class="setup-label">You're live 🎉</span></div>
+      </div>
     </div>
   </div>
 </section>
@@ -577,6 +585,21 @@ document.querySelector('.hamburger').addEventListener('click',function(){
     item.addEventListener('mouseenter',()=>setActive(item));
   });
   if(items[0])setActive(items[0]);
+})();
+(function(){
+  const timeline=document.getElementById('setup-timeline');
+  if(!timeline)return;
+  const steps=Array.from(timeline.querySelectorAll('.setup-step'));
+  let played=false;
+  function play(){
+    steps.forEach((step,i)=>{
+      setTimeout(()=>step.classList.add('done'),i*600+300);
+    });
+  }
+  const ob=new IntersectionObserver(es=>{
+    es.forEach(e=>{if(e.isIntersecting&&!played){played=true;play();}});
+  },{threshold:.3});
+  ob.observe(timeline);
 })();
 </script>
 </body>
