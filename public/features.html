@@ -109,6 +109,15 @@ nav{padding:1.8rem 4rem;display:flex;align-items:center;justify-content:space-be
 .visual-tag{background:white;border:1px solid var(--border);border-radius:100px;padding:.35rem .9rem;font-size:.72rem;color:var(--ink)}
 
 .ig-mockup{background:#000;border-radius:18px;padding:1.2rem;position:relative;z-index:1}
+.ig-live-badge{position:absolute;top:.85rem;right:.85rem;background:rgba(196,120,58,.2);color:var(--warm-light);font-size:.55rem;letter-spacing:.16em;text-transform:uppercase;padding:.3rem .65rem;border-radius:100px;font-weight:600;border:1px solid rgba(196,120,58,.35);z-index:3;display:inline-flex;align-items:center;gap:.35rem}
+.ig-live-dot{width:5px;height:5px;border-radius:50%;background:#25D366;box-shadow:0 0 0 0 rgba(37,211,102,.6);animation:igLivePulse 1.6s infinite}
+@keyframes igLivePulse{0%{box-shadow:0 0 0 0 rgba(37,211,102,.7)}70%{box-shadow:0 0 0 5px rgba(37,211,102,0)}100%{box-shadow:0 0 0 0 rgba(37,211,102,0)}}
+.ig-thread{min-height:170px}
+.ig-typing{background:#262626;border-radius:18px;padding:.55rem .8rem;display:inline-flex;gap:.22rem;align-self:flex-start;border-bottom-left-radius:5px;width:fit-content}
+.ig-typing span{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.55);animation:igDot 1.2s infinite}
+.ig-typing span:nth-child(2){animation-delay:.18s}
+.ig-typing span:nth-child(3){animation-delay:.36s}
+@keyframes igDot{0%,80%,100%{transform:translateY(0);opacity:.35}40%{transform:translateY(-3px);opacity:1}}
 .ig-mockup-header{display:flex;align-items:center;gap:.7rem;padding-bottom:.9rem;margin-bottom:.9rem;border-bottom:1px solid rgba(255,255,255,.08)}
 .ig-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(45deg,#FED373,#F15245,#D92E7F,#9028CD,#2E72FF);padding:2px;flex-shrink:0}
 .ig-avatar-inner{width:100%;height:100%;border-radius:50%;background:#000;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.64rem;font-weight:700}
@@ -275,16 +284,11 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem 1.5rem;margin-top:3r
       <span class="section-label">Instagram</span>
       <h2>Now selling on Instagram.<br><em>Same Vaani, new channel.</em></h2>
       <p>Your customers find you on Instagram — now Vaani meets them there too. Comment triggers, DM replies, product cards, and Shopify orders, all inside Instagram.</p>
-      <ul class="feature-list">
-        <li>Replies to DMs automatically</li>
-        <li>Triggered by post comments</li>
-        <li>Sends product cards inside DMs</li>
-        <li>Creates Shopify draft orders from Instagram</li>
-        <li>Same brand voice as your WhatsApp bot</li>
-      </ul>
+      <p class="feature-note">DM to checkout — no app, no redirect, no friction.</p>
     </div>
     <div class="feature-visual dark">
       <div class="ig-mockup">
+        <span class="ig-live-badge"><span class="ig-live-dot"></span>Live demo</span>
         <div class="ig-mockup-header">
           <div class="ig-avatar"><div class="ig-avatar-inner">WP</div></div>
           <div>
@@ -292,12 +296,7 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem 1.5rem;margin-top:3r
             <div class="ig-active">Active now</div>
           </div>
         </div>
-        <div class="ig-thread">
-          <div class="ig-bubble user">Hi! Saw your post — what's new at Woof Parade? 🐾</div>
-          <div class="ig-bubble bot">Hey! 🐾 Here are our bestsellers right now…</div>
-          <div class="ig-bubble user">Omg the kurta 😍 size medium?</div>
-          <div class="ig-bubble bot">Perfect choice 🎉 here's your checkout link 🛒</div>
-        </div>
+        <div class="ig-thread" id="ig-thread"></div>
       </div>
     </div>
   </div>
@@ -480,6 +479,57 @@ document.querySelector('.hamburger').addEventListener('click',function(){
     item.addEventListener('mouseenter',()=>setActive(item));
   });
   if(items[0])setActive(items[0]);
+})();
+(function(){
+  const thread=document.getElementById('ig-thread');
+  if(!thread)return;
+  const sequence=[
+    {type:'user',text:"Hi! Saw your post — what's new at Woof Parade? 🐾"},
+    {type:'bot',text:"Hey! 🐾 Here are our bestsellers right now…"},
+    {type:'user',text:"Omg the kurta 😍 size medium?"},
+    {type:'bot',text:"Perfect choice 🎉 here's your checkout link 🛒"}
+  ];
+  let timeouts=[];
+  function clearAll(){timeouts.forEach(clearTimeout);timeouts=[];}
+  function appendBubble(msg){
+    const b=document.createElement('div');
+    b.className='ig-bubble '+msg.type;
+    b.textContent=msg.text;
+    b.style.opacity='0';
+    b.style.transform='translateY(8px)';
+    b.style.transition='opacity .3s ease,transform .3s ease';
+    thread.appendChild(b);
+    requestAnimationFrame(()=>{b.style.opacity='1';b.style.transform='translateY(0)';});
+  }
+  function appendTyping(){
+    const t=document.createElement('div');
+    t.className='ig-typing';
+    t.id='ig-typing-now';
+    t.innerHTML='<span></span><span></span><span></span>';
+    thread.appendChild(t);
+  }
+  function removeTyping(){const t=document.getElementById('ig-typing-now');if(t)t.remove();}
+  function play(){
+    clearAll();
+    thread.innerHTML='';
+    let d=500;
+    sequence.forEach(msg=>{
+      if(msg.type==='bot'){
+        timeouts.push(setTimeout(appendTyping,d));
+        d+=1100;
+        timeouts.push(setTimeout(()=>{removeTyping();appendBubble(msg);},d));
+      }else{
+        timeouts.push(setTimeout(()=>appendBubble(msg),d));
+      }
+      d+=1000;
+    });
+    timeouts.push(setTimeout(play,d+2500));
+  }
+  let started=false;
+  const ob=new IntersectionObserver(es=>{
+    es.forEach(e=>{if(e.isIntersecting&&!started){started=true;play();}});
+  },{threshold:.3});
+  ob.observe(thread);
 })();
 </script>
 </body>
