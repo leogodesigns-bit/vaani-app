@@ -87,7 +87,7 @@ nav{padding:1.8rem 4rem;display:flex;align-items:center;justify-content:space-be
 .section-heading h2{font-family:'Playfair Display',serif;font-size:clamp(2rem,4vw,3rem);font-weight:400;color:var(--ink);letter-spacing:-.02em;line-height:1.15}
 .section-heading h2 em{font-style:italic;color:var(--warm)}
 
-.addons-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;max-width:920px;margin:0 auto}
+.addons-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;max-width:1100px;margin:0 auto}
 .addon-card{background:rgba(255,255,255,.7);backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);border:1px solid rgba(180,155,130,.3);border-radius:18px;padding:2rem 1.8rem;box-shadow:0 2px 16px rgba(150,120,80,.1);display:flex;flex-direction:column;gap:.9rem}
 .addon-card h3{font-family:'Playfair Display',serif;font-size:1.25rem;color:var(--ink);font-weight:600;margin:0;letter-spacing:-.01em}
 .addon-price{font-family:'Playfair Display',serif;font-size:1.7rem;color:var(--warm);font-weight:700;letter-spacing:-.02em;line-height:1}
@@ -308,6 +308,15 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem 1.5rem;margin-top:3r
         <li>For brands already doing serious volume</li>
       </ul>
     </div>
+    <div class="addon-card">
+      <h3>Top-up</h3>
+      <div class="addon-price">₹500 <small>per 250 chats</small></div>
+      <ul>
+        <li>Quick boost when you hit your monthly cap</li>
+        <li>Add anytime, no plan change needed</li>
+        <li>Use it the same month or roll into the next</li>
+      </ul>
+    </div>
   </div>
 </section>
 
@@ -334,19 +343,19 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem 1.5rem;margin-top:3r
     <h2>Because you're already<br><em>family.</em></h2>
     <p class="leogo-sub">A standing rate for brands on an active Leogo retainer — same Vaani, lower entry, perks built in.</p>
     <div class="leogo-plans">
-      <div class="leogo-plan">
+      <div class="leogo-plan" data-monthly-price="1,500" data-annual-price="16,500">
         <h4>WhatsApp</h4>
         <div class="leogo-price"><span class="leogo-amount">₹1,500</span><span class="leogo-period">/mo</span></div>
         <p class="leogo-setup">Setup ₹4,000 one-time</p>
         <p class="leogo-annual">or ₹16,500/year</p>
       </div>
-      <div class="leogo-plan">
+      <div class="leogo-plan" data-monthly-price="1,500" data-annual-price="16,500">
         <h4>Instagram</h4>
         <div class="leogo-price"><span class="leogo-amount">₹1,500</span><span class="leogo-period">/mo</span></div>
         <p class="leogo-setup">Setup ₹4,000 one-time</p>
         <p class="leogo-annual">or ₹16,500/year</p>
       </div>
-      <div class="leogo-plan">
+      <div class="leogo-plan" data-monthly-price="2,500" data-annual-price="27,500">
         <h4>Both channels</h4>
         <div class="leogo-price"><span class="leogo-amount">₹2,500</span><span class="leogo-period">/mo</span></div>
         <p class="leogo-setup">Setup ₹6,000 one-time</p>
@@ -437,6 +446,7 @@ document.querySelector('.hamburger').addEventListener('click',function(){
 (function(){
   const buttons=document.querySelectorAll('.toggle-option');
   const cards=document.querySelectorAll('.plan-card[data-monthly-price]');
+  const leogoPlans=document.querySelectorAll('.leogo-plan[data-monthly-price]');
   function apply(mode){
     buttons.forEach(b=>b.classList.toggle('active',b.dataset.billing===mode));
     cards.forEach(card=>{
@@ -451,6 +461,20 @@ document.querySelector('.hamburger').addEventListener('click',function(){
         amount.textContent='₹'+card.dataset.annualPrice;
         period.textContent='/yr';
         future.textContent='→ '+card.dataset.annualFuture;
+      }
+    });
+    leogoPlans.forEach(plan=>{
+      const amount=plan.querySelector('.leogo-amount');
+      const period=plan.querySelector('.leogo-period');
+      const alt=plan.querySelector('.leogo-annual');
+      if(mode==='monthly'){
+        amount.textContent='₹'+plan.dataset.monthlyPrice;
+        period.textContent='/mo';
+        alt.textContent='or ₹'+plan.dataset.annualPrice+'/year';
+      }else{
+        amount.textContent='₹'+plan.dataset.annualPrice;
+        period.textContent='/yr';
+        alt.textContent='or ₹'+plan.dataset.monthlyPrice+'/mo';
       }
     });
   }
