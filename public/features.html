@@ -648,10 +648,8 @@ document.querySelector('.hamburger').addEventListener('click',function(){
   const timer=document.getElementById('voice-timer');
   if(!container||!timer)return;
   const script=[
-    {speaker:'Customer',text:"Hi, I'm looking for a silver ring under 2000"},
-    {speaker:'Vaani',text:"Sure! We have 3 options — classic band, twisted, or floral. Which style?"},
-    {speaker:'Customer',text:"Floral sounds nice"},
-    {speaker:'Vaani',text:"Perfect! Sending you the payment link now."}
+    {speaker:'Customer',text:"Hi, I'd like to book a haircut for Saturday afternoon"},
+    {speaker:'Vaani',text:"Sure! We have slots at 2pm and 4pm on Saturday. Which works for you?"}
   ];
   let seconds=0;
   let timerInterval;
