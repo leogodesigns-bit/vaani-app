@@ -176,6 +176,16 @@ nav{padding:1.8rem 4rem;display:flex;align-items:center;justify-content:space-be
 .voice-waveform span:nth-child(9){height:60%;animation-delay:.05s}
 .voice-waveform span:nth-child(10){height:35%;animation-delay:.5s}
 @keyframes voiceWave{0%,100%{transform:scaleY(.35)}50%{transform:scaleY(1)}}
+.voice-transcript{margin-top:1.3rem;width:100%;max-width:340px;min-height:96px;font-family:'SF Mono','Menlo','Monaco','Consolas',monospace;font-size:.7rem;line-height:1.7;text-align:left;color:rgba(245,240,232,.7);position:relative;z-index:1}
+.voice-line{margin-bottom:.25rem;opacity:0;animation:voiceLineFade .3s ease forwards;letter-spacing:.01em}
+@keyframes voiceLineFade{to{opacity:1}}
+.voice-speaker{font-weight:600;letter-spacing:.04em}
+.voice-customer .voice-speaker{color:rgba(245,240,232,.55)}
+.voice-vaani .voice-speaker{color:var(--warm)}
+.voice-customer .voice-text{color:rgba(245,240,232,.82)}
+.voice-vaani .voice-text{color:var(--warm-light)}
+.voice-cursor{display:inline-block;margin-left:2px;font-weight:400;animation:voiceCursorBlink 1s step-end infinite}
+@keyframes voiceCursorBlink{50%{opacity:0}}
 
 .features-cta{padding:1rem 2rem 4rem}
 .features-cta .inner{max-width:1100px;margin:0 auto;background:#2C1A0E;border-radius:20px;padding:4rem 2rem;text-align:center}
@@ -417,6 +427,7 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem 1.5rem;margin-top:3r
         <div class="voice-waveform">
           <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
         </div>
+        <div class="voice-transcript" id="voice-transcript"></div>
       </div>
     </div>
   </div>
@@ -629,15 +640,62 @@ document.querySelector('.hamburger').addEventListener('click',function(){
   ob.observe(timeline);
 })();
 (function(){
+  const container=document.getElementById('voice-transcript');
   const timer=document.getElementById('voice-timer');
-  if(!timer)return;
-  let seconds=23;
-  setInterval(()=>{
-    seconds++;
-    const m=Math.floor(seconds/60);
-    const s=(seconds%60).toString().padStart(2,'0');
-    timer.textContent=m+':'+s;
-  },1000);
+  if(!container||!timer)return;
+  const script=[
+    {speaker:'Customer',text:"Hi, I'm looking for a silver ring under 2000"},
+    {speaker:'Vaani',text:"Sure! We have 3 options — classic band, twisted, or floral. Which style?"},
+    {speaker:'Customer',text:"Floral sounds nice"},
+    {speaker:'Vaani',text:"Perfect! Sending you the payment link now."}
+  ];
+  let seconds=0;
+  let timerInterval;
+  function fmt(s){const m=Math.floor(s/60);return m+':'+(s%60).toString().padStart(2,'0');}
+  function startTimer(){
+    seconds=0;timer.textContent=fmt(seconds);
+    clearInterval(timerInterval);
+    timerInterval=setInterval(()=>{seconds++;timer.textContent=fmt(seconds);},1000);
+  }
+  function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+  async function playLine(line){
+    const div=document.createElement('div');
+    div.className='voice-line voice-'+line.speaker.toLowerCase();
+    const speaker=document.createElement('span');
+    speaker.className='voice-speaker';
+    speaker.textContent=line.speaker+': ';
+    div.appendChild(speaker);
+    const text=document.createElement('span');
+    text.className='voice-text';
+    div.appendChild(text);
+    const cursor=document.createElement('span');
+    cursor.className='voice-cursor';
+    cursor.textContent='|';
+    div.appendChild(cursor);
+    container.appendChild(div);
+    const words=line.text.split(' ');
+    for(let i=0;i<words.length;i++){
+      text.textContent+=(i===0?'':' ')+words[i];
+      await sleep(120);
+    }
+    cursor.remove();
+  }
+  async function play(){
+    while(true){
+      container.innerHTML='';
+      startTimer();
+      for(let i=0;i<script.length;i++){
+        await playLine(script[i]);
+        if(i<script.length-1)await sleep(1500);
+      }
+      await sleep(3000);
+    }
+  }
+  let started=false;
+  const ob=new IntersectionObserver(es=>{
+    es.forEach(e=>{if(e.isIntersecting&&!started){started=true;play();}});
+  },{threshold:.25});
+  ob.observe(container);
 })();
 </script>
 </body>
