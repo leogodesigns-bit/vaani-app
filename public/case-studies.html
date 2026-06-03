@@ -235,7 +235,7 @@ document.querySelector('.hamburger').addEventListener('click',function(){
     if(!iso)return '';
     const d=new Date(iso);
     if(isNaN(d))return '';
-    return d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+    return d.toLocaleDateString('en-IN',{timeZone:'Asia/Kolkata',day:'numeric',month:'short',year:'numeric'});
   }
   const COPY={
     Tara:{brandName:'Rajathee Sarees',headline:'First order on launch day.',body:'Rajathee Sarees went live with Tara on WhatsApp. A customer browsed the saree catalogue, asked questions, and placed an order — all within 24 hours of going live. No human needed.',stat:'Day 1 → First order'},

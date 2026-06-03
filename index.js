@@ -863,6 +863,47 @@ app.get('/api/milestones', async (req, res) => {
     if (_milestonesCache && Date.now() - _milestonesCacheAt < 60000) {
       return res.json(_milestonesCache);
     }
+    // ── DEBUG: log raw first-conversation / first-order timestamps for Rajathee
+    // so we can verify what the DB actually has vs what /api/milestones returns.
+    try {
+      const rajTenant = await pool.query(
+        "SELECT id, shop_domain, store_name FROM tenants WHERE shop_domain ILIKE '%rajathee%' LIMIT 1"
+      );
+      if (rajTenant.rows[0]) {
+        const tid = rajTenant.rows[0].id;
+        const cf = await pool.query(
+          `SELECT MIN(created_at) AS conv_created_min,
+                  MIN(last_active) AS conv_last_active_min,
+                  COUNT(*)::int AS conv_count
+             FROM conversations WHERE tenant_id = $1`,
+          [tid]
+        );
+        const of = await pool.query(
+          `SELECT MIN(created_at) AS order_created_min,
+                  MIN(confirmed_at) AS order_paid_min,
+                  COUNT(*)::int AS order_count
+             FROM orders WHERE tenant_id = $1`,
+          [tid]
+        );
+        const serverNow = new Date();
+        console.log('[milestones debug] Rajathee raw timestamps', {
+          tenant_id: tid,
+          shop_domain: rajTenant.rows[0].shop_domain,
+          server_now_utc: serverNow.toISOString(),
+          server_now_ist: serverNow.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+          conv_created_min: cf.rows[0].conv_created_min,
+          conv_last_active_min: cf.rows[0].conv_last_active_min,
+          conv_count: cf.rows[0].conv_count,
+          order_created_min: of.rows[0].order_created_min,
+          order_paid_min: of.rows[0].order_paid_min,
+          order_count: of.rows[0].order_count,
+        });
+      } else {
+        console.log('[milestones debug] Rajathee tenant not found by shop_domain ILIKE %rajathee%');
+      }
+    } catch (dbgE) {
+      console.error('[milestones debug] Rajathee query failed:', dbgE.message);
+    }
     const tenants = await pool.query(
       `SELECT id, shop_domain, store_name, bot_name, channel, live_since, onboarded_at
        FROM tenants WHERE show_in_case_studies = TRUE ORDER BY live_since ASC NULLS LAST`
