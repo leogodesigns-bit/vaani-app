@@ -81,6 +81,7 @@ async function initDB() {
       WHERE shop_domain ILIKE '%ikaa%' AND (bot_name IS NULL OR bot_name='');
     UPDATE tenants SET store_name='Rajathee Sarees' WHERE bot_name='Tara' AND (store_name IS NULL OR store_name='Rajathee');
 
+    ALTER TABLE conversations ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();
     ALTER TABLE conversations ADD COLUMN IF NOT EXISTS monthly_messages INTEGER DEFAULT 0;
     ALTER TABLE conversations ADD COLUMN IF NOT EXISTS message_month VARCHAR(7);
 

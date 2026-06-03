@@ -709,92 +709,150 @@ function buildMilestonesFor(botName){
   let low = 2000, high = 5000;
   if (botName === 'Rio') { low = 1000; high = 3000; }
   const base = [
-    { key: 'first_conversation', label: `First conversation with ${bot}`, check: m => m.conversations >= 1 },
-    { key: 'first_order', label: 'First order placed', check: m => m.orders >= 1 },
-    { key: 'first_order_midnight', label: 'First order after midnight', check: m => m.hasOrderAfterMidnight },
-    { key: 'first_repeat', label: 'First repeat customer', check: m => m.hasRepeatCustomer },
-    { key: `order_above_low`, label: `First order above ₹${low.toLocaleString('en-IN')}`, check: m => m.hasOrderAbove(low) },
-    { key: `order_above_high`, label: `First order above ₹${high.toLocaleString('en-IN')}`, check: m => m.hasOrderAbove(high) },
-    { key: 'orders_10', label: '10 orders', check: m => m.orders >= 10 },
-    { key: 'orders_25', label: '25 orders', check: m => m.orders >= 25 },
-    { key: 'orders_50', label: '50 orders', check: m => m.orders >= 50 },
-    { key: 'orders_100', label: '100 orders', check: m => m.orders >= 100 },
-    { key: 'convo_100', label: '100 conversations', check: m => m.conversations >= 100 },
-    { key: 'convo_250', label: '250 conversations', check: m => m.conversations >= 250 },
-    { key: 'convo_500', label: '500 conversations', check: m => m.conversations >= 500 },
-    { key: 'convo_1000', label: '1,000 conversations', check: m => m.conversations >= 1000 },
-    { key: 'customers_10', label: '10 unique customers', check: m => m.uniqueCustomers >= 10 },
-    { key: 'customers_25', label: '25 unique customers', check: m => m.uniqueCustomers >= 25 },
-    { key: 'customers_50', label: '50 unique customers', check: m => m.uniqueCustomers >= 50 },
-    { key: 'revenue_10k', label: '₹10,000 total revenue', check: m => m.revenue >= 10000 },
-    { key: 'revenue_25k', label: '₹25,000 total revenue', check: m => m.revenue >= 25000 },
-    { key: 'revenue_50k', label: '₹50,000 total revenue', check: m => m.revenue >= 50000 },
-    { key: 'revenue_100k', label: '₹1,00,000 total revenue', check: m => m.revenue >= 100000 },
-    { key: 'sunday_order', label: 'First Sunday order', check: m => m.hasSundayOrder },
-    { key: 'five_orders_day', label: '5 orders in a single day', check: m => m.maxOrdersInDay >= 5 },
-    { key: 'days_30', label: '30 days live', check: m => m.daysLive >= 30 },
+    { key: 'first_conversation', label: `First conversation with ${bot}`, check: m => m.conversations >= 1, dateOf: m => m.nthConversationDate(1) },
+    { key: 'first_order', label: 'First order placed', check: m => m.orders >= 1, dateOf: m => m.nthOrderDate(1) },
+    { key: 'first_order_midnight', label: 'First order after midnight', check: m => !!m.firstAfterMidnight, dateOf: m => m.firstAfterMidnight },
+    { key: 'first_repeat', label: 'First repeat customer', check: m => !!m.firstRepeat, dateOf: m => m.firstRepeat },
+    { key: 'order_above_low', label: `First order above ₹${low.toLocaleString('en-IN')}`, check: m => m.hasOrderAbove(low), dateOf: m => m.firstOrderAbove(low) },
+    { key: 'order_above_high', label: `First order above ₹${high.toLocaleString('en-IN')}`, check: m => m.hasOrderAbove(high), dateOf: m => m.firstOrderAbove(high) },
+    { key: 'orders_10', label: '10 orders', check: m => m.orders >= 10, dateOf: m => m.nthOrderDate(10) },
+    { key: 'orders_25', label: '25 orders', check: m => m.orders >= 25, dateOf: m => m.nthOrderDate(25) },
+    { key: 'orders_50', label: '50 orders', check: m => m.orders >= 50, dateOf: m => m.nthOrderDate(50) },
+    { key: 'orders_100', label: '100 orders', check: m => m.orders >= 100, dateOf: m => m.nthOrderDate(100) },
+    { key: 'convo_100', label: '100 conversations', check: m => m.conversations >= 100, dateOf: m => m.nthConversationDate(100) },
+    { key: 'convo_250', label: '250 conversations', check: m => m.conversations >= 250, dateOf: m => m.nthConversationDate(250) },
+    { key: 'convo_500', label: '500 conversations', check: m => m.conversations >= 500, dateOf: m => m.nthConversationDate(500) },
+    { key: 'convo_1000', label: '1,000 conversations', check: m => m.conversations >= 1000, dateOf: m => m.nthConversationDate(1000) },
+    { key: 'customers_10', label: '10 unique customers', check: m => m.uniqueCustomers >= 10, dateOf: m => m.nthUniqueCustomerDate(10) },
+    { key: 'customers_25', label: '25 unique customers', check: m => m.uniqueCustomers >= 25, dateOf: m => m.nthUniqueCustomerDate(25) },
+    { key: 'customers_50', label: '50 unique customers', check: m => m.uniqueCustomers >= 50, dateOf: m => m.nthUniqueCustomerDate(50) },
+    { key: 'revenue_10k', label: '₹10,000 total revenue', check: m => m.revenue >= 10000, dateOf: m => m.revenueCrossDate(10000) },
+    { key: 'revenue_25k', label: '₹25,000 total revenue', check: m => m.revenue >= 25000, dateOf: m => m.revenueCrossDate(25000) },
+    { key: 'revenue_50k', label: '₹50,000 total revenue', check: m => m.revenue >= 50000, dateOf: m => m.revenueCrossDate(50000) },
+    { key: 'revenue_100k', label: '₹1,00,000 total revenue', check: m => m.revenue >= 100000, dateOf: m => m.revenueCrossDate(100000) },
+    { key: 'sunday_order', label: 'First Sunday order', check: m => !!m.firstSundayOrder, dateOf: m => m.firstSundayOrder },
+    { key: 'five_orders_day', label: '5 orders in a single day', check: m => m.maxOrdersInDay >= 5, dateOf: m => m.fiveOrdersDayDate },
+    { key: 'days_30', label: '30 days live', check: m => m.daysLive >= 30, dateOf: m => m.liveSince ? new Date(new Date(m.liveSince).getTime() + 30*86400000).toISOString() : null },
   ];
-  if (botName === 'Tara') base.push({ key: 'first_paid', label: 'First order completed', check: m => m.paidOrders >= 1 });
-  else if (botName === 'Rio') base.push({ key: 'late_night_order', label: 'First late-night order (after 10pm)', check: m => m.hasOrderLate });
-  else if (botName === 'Jhilmil') base.push({ key: 'late_convo', label: 'First late-night conversation (after 11pm)', check: m => m.hasLateConversation });
-  else base.push({ key: 'first_paid', label: 'First order completed', check: m => m.paidOrders >= 1 });
+  if (botName === 'Tara') base.push({ key: 'first_paid', label: 'First order completed', check: m => m.paidOrders >= 1, dateOf: m => m.firstPaidOrder });
+  else if (botName === 'Rio') base.push({ key: 'late_night_order', label: 'First late-night order (after 10pm)', check: m => !!m.firstLate, dateOf: m => m.firstLate });
+  else if (botName === 'Jhilmil') base.push({ key: 'late_convo', label: 'First late-night conversation (after 11pm)', check: m => !!m.firstLateConvo, dateOf: m => m.firstLateConvo });
+  else base.push({ key: 'first_paid', label: 'First order completed', check: m => m.paidOrders >= 1, dateOf: m => m.firstPaidOrder });
   return base;
 }
 
 async function computeBrandMetrics(tenantId, liveSince) {
-  const sums = await pool.query(
-    `SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status='paid')::int AS paid,
-            COALESCE(SUM(grand_total) FILTER (WHERE status='paid'),0)::numeric AS revenue
-     FROM orders WHERE tenant_id = $1`, [tenantId]);
-  const orderRows = await pool.query(
-    `SELECT COALESCE(confirmed_at, created_at) AS ts, grand_total, customer_phone
-     FROM orders WHERE tenant_id = $1`, [tenantId]);
-  const conv = await pool.query(
-    `SELECT COUNT(*)::int AS total, COUNT(DISTINCT customer_phone)::int AS unique_customers
-     FROM conversations WHERE tenant_id = $1`, [tenantId]);
-  const convRows = await pool.query(
-    `SELECT last_active FROM conversations WHERE tenant_id = $1`, [tenantId]);
+  const orderRowsRes = await pool.query(
+    `SELECT COALESCE(created_at, confirmed_at) AS ts, confirmed_at, grand_total, customer_phone, status
+     FROM orders WHERE tenant_id = $1
+     ORDER BY COALESCE(created_at, confirmed_at) ASC NULLS LAST`, [tenantId]);
+  const convRowsRes = await pool.query(
+    `SELECT COALESCE(created_at, last_active) AS ts, customer_phone, last_active
+     FROM conversations WHERE tenant_id = $1
+     ORDER BY COALESCE(created_at, last_active) ASC NULLS LAST`, [tenantId]);
+
+  const orderRows = orderRowsRes.rows;
+  const convRows = convRowsRes.rows;
 
   const ordersByDay = {}, convByDay = {}, custCounts = {};
-  let hasOrderAfterMidnight = false, hasOrderLate = false, hasSundayOrder = false, hasLateConversation = false;
-  const amounts = [];
-  for (const r of orderRows.rows) {
-    if (r.customer_phone) custCounts[r.customer_phone] = (custCounts[r.customer_phone]||0)+1;
-    amounts.push(Number(r.grand_total||0));
+  let firstAfterMidnight = null, firstLate = null, firstSundayOrder = null, firstLateConvo = null;
+  let firstPaidOrder = null, firstRepeat = null;
+  let revenue = 0, paidOrders = 0;
+  let cumulativeRevenue = 0;
+  const revenueAt = []; // ascending by paid order timestamp
+  const seenPhones = new Set();
+  const firstAppearance = []; // [{ts, phone}] in order of first sighting
+  const orderTimestamps = []; // ts of every order in chronological order
+  const convoTimestamps = []; // ts of every conversation in chronological order
+
+  for (const r of orderRows) {
+    if (r.ts) orderTimestamps.push(r.ts);
+    const amt = Number(r.grand_total || 0);
+    if (r.status === 'paid') {
+      paidOrders++;
+      revenue += amt;
+      cumulativeRevenue += amt;
+      const paidTs = r.confirmed_at || r.ts;
+      if (!firstPaidOrder && paidTs) firstPaidOrder = paidTs;
+      if (paidTs) revenueAt.push({ ts: paidTs, total: cumulativeRevenue });
+    }
     if (r.ts) {
       const d = new Date(r.ts);
-      const day = d.toISOString().slice(0,10);
-      ordersByDay[day] = (ordersByDay[day]||0)+1;
+      const day = d.toISOString().slice(0, 10);
+      ordersByDay[day] = (ordersByDay[day] || 0) + 1;
       const h = d.getUTCHours();
-      if (h < 6) hasOrderAfterMidnight = true;
-      if (h >= 22) hasOrderLate = true;
-      if (d.getUTCDay() === 0) hasSundayOrder = true;
+      if (h < 6 && !firstAfterMidnight) firstAfterMidnight = r.ts;
+      if (h >= 22 && !firstLate) firstLate = r.ts;
+      if (d.getUTCDay() === 0 && !firstSundayOrder) firstSundayOrder = r.ts;
+    }
+    if (r.customer_phone) {
+      if (!seenPhones.has(r.customer_phone)) {
+        seenPhones.add(r.customer_phone);
+        firstAppearance.push({ ts: r.ts, phone: r.customer_phone });
+      }
+      custCounts[r.customer_phone] = (custCounts[r.customer_phone] || 0) + 1;
+      if (custCounts[r.customer_phone] === 2 && !firstRepeat) firstRepeat = r.ts;
     }
   }
-  for (const r of convRows.rows) {
-    if (r.last_active) {
-      const d = new Date(r.last_active);
-      const day = d.toISOString().slice(0,10);
-      convByDay[day] = (convByDay[day]||0)+1;
+  for (const r of convRows) {
+    if (r.ts) {
+      convoTimestamps.push(r.ts);
+      const d = new Date(r.ts);
+      const day = d.toISOString().slice(0, 10);
+      convByDay[day] = (convByDay[day] || 0) + 1;
       const h = d.getUTCHours();
-      if (h >= 23 || h < 1) hasLateConversation = true;
+      if ((h >= 23 || h < 1) && !firstLateConvo) firstLateConvo = r.ts;
     }
   }
+  // First time any day hits 5+ orders
+  let fiveOrdersDayDate = null;
+  const dayCounts = {};
+  for (const r of orderRows) {
+    if (!r.ts) continue;
+    const day = new Date(r.ts).toISOString().slice(0, 10);
+    dayCounts[day] = (dayCounts[day] || 0) + 1;
+    if (dayCounts[day] === 5) { fiveOrdersDayDate = r.ts; break; }
+  }
+
   const maxOrdersInDay = Math.max(0, ...Object.values(ordersByDay));
   const maxConversationsInDay = Math.max(0, ...Object.values(convByDay));
-  const hasRepeatCustomer = Object.values(custCounts).some(c => c >= 2);
   const start = liveSince ? new Date(liveSince).getTime() : Date.now();
   const daysLive = Math.max(0, Math.floor((Date.now() - start) / 86400000));
 
   return {
-    orders: sums.rows[0].total,
-    paidOrders: sums.rows[0].paid,
-    revenue: Number(sums.rows[0].revenue),
-    conversations: conv.rows[0].total,
-    uniqueCustomers: conv.rows[0].unique_customers,
-    hasOrderAfterMidnight, hasOrderLate, hasSundayOrder, hasRepeatCustomer, hasLateConversation,
-    maxOrdersInDay, maxConversationsInDay, daysLive,
-    hasOrderAbove: (t) => amounts.some(a => a >= t),
+    orders: orderRows.length,
+    paidOrders,
+    revenue,
+    conversations: convRows.length,
+    uniqueCustomers: seenPhones.size,
+    daysLive,
+    liveSince,
+    firstAfterMidnight,
+    firstLate,
+    firstSundayOrder,
+    firstLateConvo,
+    firstPaidOrder,
+    firstRepeat,
+    maxOrdersInDay,
+    maxConversationsInDay,
+    fiveOrdersDayDate,
+    hasOrderAfterMidnight: !!firstAfterMidnight,
+    hasOrderLate: !!firstLate,
+    hasSundayOrder: !!firstSundayOrder,
+    hasRepeatCustomer: !!firstRepeat,
+    hasLateConversation: !!firstLateConvo,
+    hasOrderAbove: (t) => orderRows.some(r => Number(r.grand_total || 0) >= t),
+    firstOrderAbove: (t) => {
+      const row = orderRows.find(r => Number(r.grand_total || 0) >= t);
+      return row ? row.ts : null;
+    },
+    nthOrderDate: (n) => orderTimestamps[n - 1] || null,
+    nthConversationDate: (n) => convoTimestamps[n - 1] || null,
+    nthUniqueCustomerDate: (n) => firstAppearance[n - 1] ? firstAppearance[n - 1].ts : null,
+    revenueCrossDate: (threshold) => {
+      const entry = revenueAt.find(e => e.total >= threshold);
+      return entry ? entry.ts : null;
+    },
   };
 }
 
@@ -821,18 +879,27 @@ app.get('/api/milestones', async (req, res) => {
       const milestones = [];
       for (const m of defs) {
         let achievedAt = achievedMap[m.key] || null;
-        if (!achievedAt) {
-          try {
-            if (m.check(metrics)) {
-              await pool.query(
-                `INSERT INTO milestones (tenant_id, milestone_key) VALUES ($1, $2)
-                 ON CONFLICT (tenant_id, milestone_key) DO NOTHING
-                 RETURNING achieved_at`, [t.id, m.key]
-              );
-              achievedAt = new Date().toISOString();
+        try {
+          if (m.check(metrics)) {
+            let computed = null;
+            if (m.dateOf) {
+              try { computed = m.dateOf(metrics); } catch (_) { computed = null; }
             }
-          } catch (innerE) { /* skip */ }
-        }
+            if (!computed) computed = new Date().toISOString();
+            const computedIso = (computed instanceof Date) ? computed.toISOString() : new Date(computed).toISOString();
+            // Upsert with the real achievement date; corrects rows previously
+            // inserted with NOW() when the actual achievement happened earlier.
+            await pool.query(
+              `INSERT INTO milestones (tenant_id, milestone_key, achieved_at)
+               VALUES ($1, $2, $3::timestamp)
+               ON CONFLICT (tenant_id, milestone_key)
+               DO UPDATE SET achieved_at = EXCLUDED.achieved_at
+               WHERE milestones.achieved_at IS DISTINCT FROM EXCLUDED.achieved_at`,
+              [t.id, m.key, computedIso]
+            );
+            achievedAt = computedIso;
+          }
+        } catch (innerE) { /* skip */ }
         milestones.push({ key: m.key, label: m.label, achievedAt });
       }
       brands.push({
