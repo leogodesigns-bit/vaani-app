@@ -858,6 +858,28 @@ async function computeBrandMetrics(tenantId, liveSince) {
 
 let _milestonesCache = null;
 let _milestonesCacheAt = 0;
+
+// Per-tenant display floor for milestone achieved_at. Stored DB values are
+// left untouched; only the API response is clamped so a brand's badges
+// never appear earlier than their public "launch" date.
+function getTenantFloorIso(shopDomain) {
+  if (!shopDomain) return null;
+  const d = shopDomain.toLowerCase();
+  if (d.includes('rajathee')) return '2026-06-01T00:00:00.000Z';
+  if (d.includes('woofparade') || d.includes('woof-parade') || d.includes('woof_parade')) return '2026-06-02T00:00:00.000Z';
+  if (d.includes('ikaa')) return '2026-05-30T00:00:00.000Z';
+  return null;
+}
+function applyTenantFloor(shopDomain, achievedAt) {
+  if (!achievedAt) return achievedAt;
+  const floorIso = getTenantFloorIso(shopDomain);
+  if (!floorIso) return achievedAt;
+  const aTs = new Date(achievedAt).getTime();
+  const fTs = new Date(floorIso).getTime();
+  if (isNaN(aTs)) return achievedAt;
+  return aTs < fTs ? floorIso : achievedAt;
+}
+
 app.get('/api/milestones', async (req, res) => {
   try {
     if (_milestonesCache && Date.now() - _milestonesCacheAt < 60000) {
@@ -941,7 +963,8 @@ app.get('/api/milestones', async (req, res) => {
             achievedAt = computedIso;
           }
         } catch (innerE) { /* skip */ }
-        milestones.push({ key: m.key, label: m.label, achievedAt });
+        const displayedAchievedAt = applyTenantFloor(t.shop_domain, achievedAt);
+        milestones.push({ key: m.key, label: m.label, achievedAt: displayedAchievedAt });
       }
       brands.push({
         tenantId: t.id,
