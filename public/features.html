@@ -86,7 +86,7 @@ nav{padding:1.8rem 4rem;display:flex;align-items:center;justify-content:space-be
 .flow-step.active .flow-row{color:var(--cream)}
 .flow-step-desc{max-height:0;overflow:hidden;font-size:.74rem;color:rgba(255,255,255,.62);line-height:1.55;padding-left:1.65rem;padding-top:0;opacity:0;transition:max-height .35s ease,padding-top .35s ease,opacity .25s ease}
 .flow-step.active .flow-step-desc{max-height:140px;padding-top:.55rem;opacity:1}
-.flow-line{width:2px;height:18px;background:rgba(255,255,255,.06);margin:.4rem 0 .4rem 1.55rem;position:relative;overflow:hidden}
+.flow-line{width:2px;height:32px;background:rgba(255,255,255,.06);margin:.4rem 0 .4rem 1.55rem;position:relative;overflow:hidden}
 .flow-line::before{content:'';position:absolute;inset:0;background:var(--warm);transform:scaleY(0);transform-origin:top;transition:transform .45s ease}
 .flow-line.drawn::before{transform:scaleY(1)}
 .flow-dot.green{background:#25D366}.flow-dot.blue{background:#4A90D9}.flow-dot.gold{background:#C29838}
@@ -215,8 +215,6 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem 1.5rem;margin-top:3r
       </ul>
     </div>
     <div class="feature-visual dark">
-      <div class="visual-stat">Live</div>
-      <div class="visual-stat-label">Catalog always live</div>
       <div class="flow-interactive" id="shopify-flow">
         <div class="flow-step">
           <div class="flow-row"><span class="flow-dot green"></span>Customer browses on WhatsApp</div>
