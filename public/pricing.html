@@ -3,545 +3,186 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Vaani — Pricing</title>
-<link rel="stylesheet" href="shared.css">
+<title>Pricing — Vaani</title>
+<link rel="preload" as="image" href="/images/paper-texture.jpg">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --cream: #FAF7F2;
-    --ink: #1A1714;
-    --warm: #C4783A;
-    --warm-light: #F0E0CC;
-    --muted: #8A7E74;
-    --border: #E5DDD4;
-    --green: #2D6A4F;
-    --green-light: #D8EDE4;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    background: var(--cream);
-    color: var(--ink);
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 300;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  /* NAV */
-  nav{padding:1.8rem 4rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(250,247,242,.92);backdrop-filter:blur(12px);z-index:100}
-  .logo{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;letter-spacing:-.01em;color:var(--ink);text-decoration:none}
-  .logo span{color:var(--warm)}
-  .nav-links{display:flex;align-items:center;gap:2.5rem;list-style:none}
-  .nav-links a{font-size:.82rem;letter-spacing:.04em;color:var(--muted);text-decoration:none;transition:color .2s;font-weight:400}
-  .nav-links a:hover,.nav-links a.active{color:var(--ink)}
-  .nav-cta{background:var(--ink)!important;color:var(--cream)!important;padding:.55rem 1.3rem!important;border-radius:100px!important;font-size:.78rem!important;text-transform:uppercase;font-weight:500!important}
-  .nav-cta:hover{background:var(--warm)!important}
-  .nav-center{position:absolute;left:50%;transform:translateX(-50%)}
-  .nav-right{gap:1.5rem}
-  .hamburger{display:none;background:none;border:none;cursor:pointer;padding:0;width:28px;height:28px;flex-direction:column;justify-content:center;gap:5px}
-  .hamburger span{display:block;width:22px;height:1.5px;background:var(--ink);transition:transform .25s,opacity .25s}
-  .hamburger.open span:nth-child(1){transform:translateY(6.5px) rotate(45deg)}
-  .hamburger.open span:nth-child(2){opacity:0}
-  .hamburger.open span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
-  .mobile-menu{display:none;position:absolute;top:100%;left:0;right:0;background:rgba(250,247,242,.98);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:1.5rem 2rem;flex-direction:column;gap:1.2rem}
-  .mobile-menu.open{display:flex}
-  .mobile-menu a{font-size:.85rem;letter-spacing:.04em;color:var(--muted);text-decoration:none;font-weight:400;padding:.4rem 0}
-  .mobile-menu a:hover{color:var(--ink)}
-  .mobile-menu a.nav-cta{align-self:flex-start;margin-top:.5rem}
-
-  /* FOOTER */
-  footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-items:center;justify-content:space-between;margin-top:2rem}
-  .footer-left .logo{font-size:1.2rem}.footer-tagline{font-size:.75rem;color:var(--muted);margin-top:.3rem}
-  .footer-links-f{display:flex;gap:2rem;list-style:none}.footer-links-f a{font-size:.78rem;color:var(--muted);text-decoration:none;transition:color .2s}.footer-links-f a:hover{color:var(--ink)}
-  .footer-right{font-size:.72rem;color:var(--muted);text-align:right}
-
-  @media(max-width:768px){nav{padding:1.2rem 1.5rem}.nav-links{display:none}.hamburger{display:flex}footer{flex-direction:column;gap:2rem;text-align:center;padding:2rem 1.5rem}.footer-right{text-align:center}}
-
-  /* Grain overlay */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 100;
-    opacity: 0.4;
-  }
-
-  header {
-    padding: 2.5rem 4rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .logo {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.6rem;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    color: var(--ink);
-  }
-
-  .logo span {
-    color: var(--warm);
-  }
-
-  .tagline-header {
-    font-size: 0.75rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-
-  .hero {
-    padding: 6rem 4rem 4rem;
-    max-width: 900px;
-    margin: 0 auto;
-    text-align: center;
-  }
-
-  .hero-label {
-    display: inline-block;
-    font-size: 0.7rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--warm);
-    border: 1px solid var(--warm);
-    padding: 0.35rem 1rem;
-    border-radius: 100px;
-    margin-bottom: 2rem;
-    opacity: 0;
-    animation: fadeUp 0.6s ease forwards 0.1s;
-  }
-
-  .hero h1 {
-    font-family: 'Playfair Display', serif;
-    font-size: clamp(2.8rem, 6vw, 4.5rem);
-    font-weight: 400;
-    line-height: 1.1;
-    letter-spacing: -0.02em;
-    margin-bottom: 1.5rem;
-    opacity: 0;
-    animation: fadeUp 0.6s ease forwards 0.2s;
-  }
-
-  .hero h1 em {
-    font-style: italic;
-    color: var(--warm);
-  }
-
-  .hero p {
-    font-size: 1.05rem;
-    color: var(--muted);
-    line-height: 1.7;
-    max-width: 520px;
-    margin: 0 auto 1rem;
-    opacity: 0;
-    animation: fadeUp 0.6s ease forwards 0.3s;
-  }
-
-  .pricing-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 1.5px;
-    max-width: 1300px;
-    margin: 4rem auto;
-    padding: 0 1.5rem;
-    background: var(--border);
-    border: 1.5px solid var(--border);
-    border-radius: 16px;
-    overflow: hidden;
-    opacity: 0;
-    animation: fadeUp 0.7s ease forwards 0.4s;
-  }
-
-  .plan {
-    background: var(--cream);
-    padding: 2.2rem 1.4rem;
-    position: relative;
-    transition: background 0.2s ease;
-  }
-
-  .plan:hover {
-    background: #FDF9F4;
-  }
-
-  .plan.featured {
-    background: var(--ink);
-    color: var(--cream);
-  }
-
-  .plan.featured:hover {
-    background: #251F1A;
-  }
-
-  .plan-badge {
-    display: inline-block;
-    font-size: 0.6rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    padding: 0.22rem 0.65rem;
-    border-radius: 100px;
-    margin-bottom: 1.3rem;
-    font-weight: 500;
-  }
-
-  .plan:not(.featured) .plan-badge {
-    background: var(--warm-light);
-    color: var(--warm);
-  }
-
-  .plan.featured .plan-badge {
-    background: var(--warm);
-    color: white;
-  }
-
-  .plan-name {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.35rem;
-    font-weight: 700;
-    margin-bottom: 0.3rem;
-    letter-spacing: -0.01em;
-  }
-
-  .plan-sub {
-    font-size: 0.72rem;
-    color: var(--muted);
-    margin-bottom: 1.6rem;
-    line-height: 1.5;
-    min-height: 2.6rem;
-  }
-
-  .plan.featured .plan-sub {
-    color: #A89E94;
-  }
-
-  .plan-price {
-    margin-bottom: 1.6rem;
-  }
-
-  .price-amount {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.95rem;
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    line-height: 1;
-  }
-
-  .price-period {
-    font-size: 0.72rem;
-    color: var(--muted);
-    margin-top: 0.3rem;
-  }
-
-  .plan.featured .price-period {
-    color: #A89E94;
-  }
-
-  .price-setup {
-    display: inline-block;
-    font-size: 0.68rem;
-    margin-top: 0.4rem;
-    padding: 0.2rem 0.55rem;
-    border-radius: 4px;
-    font-weight: 500;
-  }
-
-  .plan:not(.featured) .price-setup {
-    background: var(--green-light);
-    color: var(--green);
-  }
-
-  .plan.featured .price-setup {
-    background: rgba(255,255,255,0.1);
-    color: #C8E6D9;
-  }
-
-  .divider {
-    height: 1px;
-    background: var(--border);
-    margin-bottom: 1.3rem;
-  }
-
-  .plan.featured .divider {
-    background: rgba(255,255,255,0.1);
-  }
-
-  .features {
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 0.65rem;
-  }
-
-  .features li {
-    font-size: 0.76rem;
-    display: flex;
-    align-items: flex-start;
-    gap: 0.5rem;
-    line-height: 1.4;
-    color: var(--ink);
-  }
-
-  .plan.featured .features li {
-    color: #D4CBC2;
-  }
-
-  .features li .check {
-    width: 13px;
-    height: 13px;
-    border-radius: 50%;
-    background: var(--green-light);
-    color: var(--green);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.5rem;
-    flex-shrink: 0;
-    margin-top: 1px;
-    font-weight: 700;
-  }
-
-  .plan.featured .features li .check {
-    background: rgba(255,255,255,0.15);
-    color: #C8E6D9;
-  }
-
-  .features li .dim {
-    color: var(--muted);
-  }
-
-  .plan.featured .features li .dim {
-    color: #7A7068;
-  }
-
-  /* Add-on strip: how chats are counted + top-ups + setup + social proof */
-  .addon-strip {
-    max-width: 1300px;
-    margin: 0 auto 4rem;
-    padding: 0 1.5rem;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
-    opacity: 0;
-    animation: fadeUp 0.7s ease forwards 0.5s;
-  }
-
-  .addon-card {
-    background: var(--cream);
-    border: 1.5px solid var(--border);
-    border-radius: 14px;
-    padding: 1.8rem 2rem;
-    transition: border-color 0.2s ease;
-  }
-
-  .addon-card:hover {
-    border-color: var(--warm);
-  }
-
-  .addon-label {
-    font-size: 0.65rem;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--warm);
-    margin-bottom: 0.6rem;
-    font-weight: 500;
-  }
-
-  .addon-card h3 {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.25rem;
-    font-weight: 700;
-    margin-bottom: 0.8rem;
-    letter-spacing: -0.01em;
-  }
-
-  .addon-card p {
-    font-size: 0.82rem;
-    color: var(--muted);
-    line-height: 1.6;
-  }
-
-  .addon-card p strong {
-    color: var(--ink);
-    font-weight: 500;
-  }
-
-  /* Exclusive section */
-  .exclusive-section {
-    max-width: 1300px;
-    margin: 0 auto 5rem;
-    padding: 0 1.5rem;
-    opacity: 0;
-    animation: fadeUp 0.7s ease forwards 0.6s;
-  }
-
-  .exclusive-card {
-    background: var(--ink);
-    border-radius: 16px;
-    padding: 3rem 3.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 2rem;
-    position: relative;
-    overflow: visible;
-  }
-
-  .exclusive-card::before {
-    content: '';
-    position: absolute;
-    top: -60px;
-    right: -60px;
-    width: 220px;
-    height: 220px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(196,120,58,0.2) 0%, transparent 70%);
-  }
-
-  .exclusive-left .ex-label {
-    font-size: 0.65rem;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--warm);
-    margin-bottom: 0.8rem;
-    font-weight: 500;
-  }
-
-  .exclusive-left h2 {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.8rem;
-    color: var(--cream);
-    font-weight: 400;
-    line-height: 1.2;
-    margin-bottom: 0.8rem;
-  }
-
-  .exclusive-left h2 em {
-    font-style: italic;
-    color: var(--warm);
-  }
-
-  .exclusive-left p {
-    font-size: 0.85rem;
-    color: #8A7E74;
-    line-height: 1.6;
-    max-width: 420px;
-  }
-
-  .exclusive-right {
-    flex-shrink: 0;
-    text-align: right;
-  }
-
-  .exclusive-price {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.5rem;
-  }
-
-  .ex-price-row {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-  }
-
-  .ex-price-label {
-    font-size: 0.7rem;
-    color: #8A7E74;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .ex-price-amount {
-    font-family: 'Playfair Display', serif;
-    font-size: 2rem;
-    color: var(--cream);
-    font-weight: 700;
-    letter-spacing: -0.02em;
-  }
-
-  .ex-price-note {
-    font-size: 0.7rem;
-    color: #5A5048;
-    margin-top: 0.3rem;
-  }
-
-  .ex-tag {
-    display: inline-block;
-    background: var(--warm);
-    color: white;
-    font-size: 0.65rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 0.3rem 0.8rem;
-    border-radius: 100px;
-    font-weight: 500;
-    margin-top: 0.5rem;
-  }
-
-  /* Footer note */
-  .footnote {
-    text-align: center;
-    padding: 2rem 2rem 4rem;
-    font-size: 0.78rem;
-    color: var(--muted);
-    line-height: 1.7;
-    opacity: 0;
-    animation: fadeUp 0.7s ease forwards 0.8s;
-  }
-
-  .footnote a {
-    color: var(--warm);
-    text-decoration: none;
-  }
-
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  @media (max-width: 1200px) {
-    .pricing-grid { grid-template-columns: repeat(3, 1fr); }
-  }
-
-  @media (max-width: 900px) {
-    header { padding: 1.5rem 2rem; }
-    .hero { padding: 4rem 2rem 2rem; }
-    .pricing-grid { grid-template-columns: repeat(2, 1fr); padding: 0 1rem; }
-    .addon-strip { grid-template-columns: 1fr; padding: 0 1rem; }
-    .exclusive-card { flex-direction: column; padding: 2rem; }
-    .exclusive-right { text-align: left; width: 100%; }
-    .exclusive-price { align-items: flex-start; }
-  }
-
-  @media (max-width: 580px) {
-    .pricing-grid { grid-template-columns: 1fr; }
-  }
-
-  .plan-cta {
-    display: inline-block;
-    background: var(--warm);
-    color: white;
-    padding: 0.75rem 1.4rem;
-    border-radius: 100px;
-    font-size: 0.78rem;
-    letter-spacing: 0.04em;
-    font-weight: 500;
-    text-decoration: none;
-    margin-top: 1.2rem;
-    transition: background 0.2s;
-    text-align: center;
-  }
-  .plan-cta:hover { background: #9E5E28; }
+:root{--cream:#FAF7F2;--ink:#1A1714;--warm:#C4783A;--warm-light:#F0E0CC;--warm-dark:#9E5E28;--muted:#8A7E74;--border:#E5DDD4;--green:#2D6A4F;--green-light:#D8EDE4;--card-bg:#F4EFE8}
+*{margin:0;padding:0;box-sizing:border-box}html{scroll-behavior:smooth;overflow-x:hidden}
+body{background:#faf6f1;color:var(--ink);font-family:'DM Sans',sans-serif;font-weight:300;min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased;position:relative}
+body::before{content:'';position:fixed;inset:0;background:url('/images/paper-texture.jpg') center/cover;opacity:.2;z-index:-1;pointer-events:none}
+nav{padding:1.8rem 4rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(250,247,242,.92);backdrop-filter:blur(12px);z-index:100}
+.logo{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;letter-spacing:-.01em;color:var(--ink);text-decoration:none}.logo span{color:var(--warm)}
+.nav-links{display:flex;align-items:center;gap:2.5rem;list-style:none}
+.nav-links a{font-size:.82rem;letter-spacing:.04em;color:var(--muted);text-decoration:none;transition:color .2s;font-weight:400}
+.nav-links a:hover,.nav-links a.active{color:var(--ink)}
+.nav-cta{background:var(--ink)!important;color:var(--cream)!important;padding:.55rem 1.3rem!important;border-radius:100px!important;font-size:.78rem!important;text-transform:uppercase;font-weight:500!important}
+.nav-cta:hover{background:var(--warm)!important}
+.nav-center{position:absolute;left:50%;transform:translateX(-50%)}
+.nav-right{gap:1.5rem}
+.hamburger{display:none;background:none;border:none;cursor:pointer;padding:0;width:28px;height:28px;flex-direction:column;justify-content:center;gap:5px}
+.hamburger span{display:block;width:22px;height:1.5px;background:var(--ink);transition:transform .25s,opacity .25s}
+.hamburger.open span:nth-child(1){transform:translateY(6.5px) rotate(45deg)}
+.hamburger.open span:nth-child(2){opacity:0}
+.hamburger.open span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
+.mobile-menu{display:none;position:absolute;top:100%;left:0;right:0;background:rgba(250,247,242,.98);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:1.5rem 2rem;flex-direction:column;gap:1.2rem}
+.mobile-menu.open{display:flex}
+.mobile-menu a{font-size:.85rem;letter-spacing:.04em;color:var(--muted);text-decoration:none;font-weight:400;padding:.4rem 0}
+.mobile-menu a:hover{color:var(--ink)}
+.mobile-menu a.nav-cta{align-self:flex-start;margin-top:.5rem}
+.btn-primary{display:inline-flex;align-items:center;gap:.55rem;background:var(--warm);color:white;padding:.85rem 2rem;border-radius:100px;font-size:.82rem;letter-spacing:.08em;text-transform:uppercase;font-weight:500;text-decoration:none;transition:background .2s,transform .2s;border:none;cursor:pointer;font-family:'DM Sans',sans-serif}
+.btn-primary:hover{background:var(--warm-dark);transform:translateY(-1px)}
+.btn-primary svg{flex-shrink:0}
+.btn-outline{display:inline-block;background:transparent;color:var(--ink);padding:.85rem 2rem;border-radius:100px;font-size:.82rem;letter-spacing:.08em;text-transform:uppercase;font-weight:500;text-decoration:none;border:1.5px solid #999;transition:border-color .2s,transform .2s;cursor:pointer}
+.btn-outline:hover{border-color:var(--ink);transform:translateY(-1px)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{opacity:0;animation:fadeUp .7s ease forwards}
+.delay-1{animation-delay:.1s}.delay-2{animation-delay:.2s}.delay-3{animation-delay:.3s}
+.section-label{display:inline-block;font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;color:var(--warm);margin-bottom:1.2rem;font-weight:500}
+.container{max-width:1100px;margin:0 auto;padding:0 2rem}
+
+.page-hero{padding:6rem 0 3.5rem;text-align:center}
+.page-hero .section-label{display:block;margin-bottom:1.4rem}
+.page-hero h1{font-family:'Playfair Display',serif;font-size:clamp(2.8rem,6vw,4.6rem);font-weight:400;letter-spacing:-.02em;line-height:1.1;margin-bottom:1.4rem}
+.page-hero h1 em{font-style:italic;color:var(--warm)}
+.page-hero .lede{font-size:1.05rem;color:var(--muted);line-height:1.75;max-width:640px;margin:0 auto 2rem}
+
+.progress-wrap{max-width:420px;margin:0 auto}
+.progress-bar{background:rgba(196,120,58,.18);height:8px;border-radius:100px;overflow:hidden}
+.progress-fill{background:linear-gradient(90deg,var(--warm),var(--warm-dark));height:100%;width:0;border-radius:100px;transition:width 1.4s cubic-bezier(.2,.7,.2,1)}
+.progress-label{font-size:.75rem;color:var(--muted);margin-top:.7rem;letter-spacing:.04em}
+.progress-label strong{color:var(--ink);font-weight:600}
+
+.billing-toggle-wrap{display:flex;justify-content:center;padding:3.5rem 0 2rem}
+.billing-toggle{display:inline-flex;background:rgba(255,255,255,.7);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:100px;padding:.3rem;gap:.2rem;box-shadow:0 4px 16px rgba(150,120,80,.06)}
+.toggle-option{background:transparent;border:none;font-family:inherit;font-size:.82rem;padding:.55rem 1.3rem;border-radius:100px;cursor:pointer;color:var(--muted);transition:all .25s ease;display:inline-flex;align-items:center;gap:.55rem;font-weight:500;letter-spacing:.02em}
+.toggle-option:hover{color:var(--ink)}
+.toggle-option.active{background:var(--ink);color:var(--cream)}
+.save-tag{background:#2D6A4F;color:#fff;font-size:.6rem;padding:.18rem .5rem;border-radius:100px;font-weight:600;letter-spacing:.05em}
+
+.plans-section{padding:0 0 4rem}
+.plans-grid{display:grid;grid-template-columns:1fr 1.08fr 1fr;gap:1.25rem;max-width:1100px;margin:0 auto;align-items:start}
+.plan-card{background:#2C1A0E;border:1px solid rgba(255,255,255,.06);border-radius:20px;padding:2.2rem 1.8rem;color:var(--cream);position:relative;display:flex;flex-direction:column;gap:.95rem;transition:transform .25s ease,box-shadow .25s ease}
+.plan-card.featured{background:#3D2818;border-color:rgba(196,120,58,.4);box-shadow:0 30px 60px rgba(26,23,20,.25);padding:2.6rem 2rem 2.2rem}
+.plan-badge{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:var(--warm);color:#fff;font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;padding:.45rem 1rem;border-radius:100px;font-weight:600;white-space:nowrap;box-shadow:0 4px 14px rgba(196,120,58,.4)}
+.plan-card h3{font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:600;color:var(--cream);margin:0;letter-spacing:-.01em}
+.plan-setup{font-size:.78rem;color:rgba(255,255,255,.55);margin:0}
+.plan-setup strong{color:var(--cream);font-weight:600}
+.plan-price{display:flex;align-items:baseline;gap:.25rem;margin-top:.3rem}
+.plan-amount{font-family:'Playfair Display',serif;font-size:2.6rem;font-weight:700;color:var(--cream);letter-spacing:-.02em;line-height:1}
+.plan-period{font-size:.85rem;color:rgba(255,255,255,.55);font-weight:500}
+.plan-future{font-size:.7rem;color:rgba(240,224,204,.65);font-style:italic;margin-top:-.35rem}
+.plan-includes{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.55rem;flex:1}
+.plan-includes li{font-size:.82rem;color:rgba(255,255,255,.78);line-height:1.5;display:flex;align-items:flex-start;gap:.55rem}
+.plan-includes li::before{content:'→';color:var(--warm);font-weight:600;flex-shrink:0;margin-top:1px}
+.plan-card .btn-primary{align-self:stretch;text-align:center;justify-content:center;margin-top:.6rem;padding:.95rem 1.6rem}
+.plan-card.featured .btn-primary{background:var(--warm)}
+.plan-card.featured .btn-primary:hover{background:var(--warm-dark)}
+
+.plans-note{font-size:.82rem;color:var(--muted);text-align:center;max-width:680px;margin:2.5rem auto 0;line-height:1.7;font-style:italic}
+
+.addons-section{padding:4rem 0}
+.section-heading{text-align:center;margin-bottom:2.5rem}
+.section-heading .section-label{display:block;margin-bottom:.9rem}
+.section-heading h2{font-family:'Playfair Display',serif;font-size:clamp(2rem,4vw,3rem);font-weight:400;color:var(--ink);letter-spacing:-.02em;line-height:1.15}
+.section-heading h2 em{font-style:italic;color:var(--warm)}
+
+.addons-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;max-width:920px;margin:0 auto}
+.addon-card{background:rgba(255,255,255,.7);backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);border:1px solid rgba(180,155,130,.3);border-radius:18px;padding:2rem 1.8rem;box-shadow:0 2px 16px rgba(150,120,80,.1);display:flex;flex-direction:column;gap:.9rem}
+.addon-card h3{font-family:'Playfair Display',serif;font-size:1.25rem;color:var(--ink);font-weight:600;margin:0;letter-spacing:-.01em}
+.addon-price{font-family:'Playfair Display',serif;font-size:1.7rem;color:var(--warm);font-weight:700;letter-spacing:-.02em;line-height:1}
+.addon-price small{font-size:.78rem;color:var(--muted);font-weight:400;font-family:inherit;font-style:italic}
+.addon-card ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.5rem}
+.addon-card li{font-size:.85rem;color:var(--ink);line-height:1.6;display:flex;gap:.55rem;align-items:flex-start}
+.addon-card li::before{content:'→';color:var(--warm);font-weight:600;margin-top:1px;flex-shrink:0}
+
+.info-section{padding:3rem 0}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;max-width:780px;margin:0 auto}
+.info-card{background:rgba(255,255,255,.55);border:1px solid var(--border);border-radius:14px;padding:1.4rem 1.6rem;text-align:left}
+.info-card-label{font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--warm);margin-bottom:.55rem;font-weight:600}
+.info-card p{font-size:.88rem;color:var(--ink);line-height:1.55;margin:0}
+
+.leogo-section{padding:4rem 2rem}
+.leogo-section .inner{max-width:1100px;margin:0 auto;background:linear-gradient(135deg,#1A3A2A 0%,#0F2A1F 100%);border-radius:22px;padding:4rem 2.5rem;color:#E8EFE1;position:relative;overflow:hidden}
+.leogo-section .inner::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 80% 0%,rgba(196,120,58,.18),transparent 55%),radial-gradient(ellipse at 20% 100%,rgba(168,213,186,.12),transparent 50%);pointer-events:none}
+.leogo-section .section-label{color:#A8D5BA;display:block;text-align:center;margin-bottom:1rem}
+.leogo-section h2{font-family:'Playfair Display',serif;font-size:clamp(2.2rem,4vw,3.2rem);color:#E8EFE1;font-weight:400;margin-bottom:1rem;line-height:1.15;text-align:center;letter-spacing:-.02em;position:relative;z-index:1}
+.leogo-section h2 em{font-style:italic;color:#A8D5BA}
+.leogo-section .leogo-sub{text-align:center;color:rgba(232,239,225,.7);max-width:600px;margin:0 auto 2.5rem;font-size:.95rem;line-height:1.7;position:relative;z-index:1}
+.leogo-plans{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;position:relative;z-index:1;max-width:920px;margin:0 auto}
+.leogo-plan{background:rgba(255,255,255,.05);border:1px solid rgba(168,213,186,.18);border-radius:16px;padding:1.6rem 1.4rem;display:flex;flex-direction:column;gap:.55rem}
+.leogo-plan h4{font-family:'Playfair Display',serif;font-size:1.1rem;color:#E8EFE1;font-weight:600;margin:0;letter-spacing:-.01em}
+.leogo-price{display:flex;align-items:baseline;gap:.2rem;margin-top:.25rem}
+.leogo-amount{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;color:#A8D5BA;letter-spacing:-.02em;line-height:1}
+.leogo-period{font-size:.78rem;color:rgba(232,239,225,.55)}
+.leogo-setup{font-size:.72rem;color:rgba(232,239,225,.5);margin-top:.2rem}
+.leogo-annual{font-size:.72rem;color:rgba(168,213,186,.75);font-style:italic}
+.leogo-perks{margin-top:2rem;padding-top:2rem;border-top:1px solid rgba(168,213,186,.18);display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem 1.5rem;max-width:920px;margin-left:auto;margin-right:auto;position:relative;z-index:1}
+.leogo-perk{font-size:.84rem;color:rgba(232,239,225,.78);line-height:1.55;display:flex;gap:.6rem;align-items:flex-start}
+.leogo-perk::before{content:'✓';color:#A8D5BA;font-weight:700;flex-shrink:0;margin-top:1px}
+.leogo-note{font-size:.74rem;color:rgba(232,239,225,.5);font-style:italic;margin-top:2rem;text-align:center;position:relative;z-index:1}
+
+.fine-print{padding:4rem 0 2rem;max-width:760px;margin:0 auto}
+.fine-print h4{font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:var(--warm);margin-bottom:1rem;font-weight:600;text-align:center}
+.fine-print ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.5rem}
+.fine-print li{font-size:.78rem;color:var(--muted);line-height:1.65;padding-left:1.1rem;position:relative}
+.fine-print li::before{content:'·';position:absolute;left:.35rem;color:var(--warm);font-weight:700}
+
+.pricing-cta{padding:1rem 2rem 4rem}
+.pricing-cta .inner{max-width:1100px;margin:0 auto;background:#2C1A0E;border-radius:20px;padding:4rem 2rem;text-align:center}
+.pricing-cta .section-label{color:var(--warm-light)}
+.pricing-cta h2{font-family:'Playfair Display',serif;font-size:clamp(2.6rem,5.5vw,4rem);font-weight:400;letter-spacing:-.02em;margin-bottom:1rem;line-height:1.15;color:var(--cream)}
+.pricing-cta h2 em{font-style:italic;color:var(--warm)}
+.pricing-cta .section-sub{font-size:.95rem;color:rgba(255,255,255,.65);margin-bottom:2.5rem;line-height:1.7}
+
+footer{border-top:1px solid var(--border);padding:3rem 4rem 1.5rem;margin-top:3rem}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:3rem;max-width:1100px;margin:0 auto;padding-bottom:2.5rem;border-bottom:1px solid var(--border)}
+.footer-col-title{font-family:'Playfair Display',serif;font-size:.95rem;font-weight:600;color:var(--ink);margin-bottom:1.1rem;letter-spacing:-.01em}
+.footer-col ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.65rem}
+.footer-col a{font-size:.82rem;color:var(--muted);text-decoration:none;transition:color .2s}
+.footer-col a:hover{color:var(--ink)}
+.footer-brand .logo{font-size:1.4rem;display:inline-block;margin-bottom:.7rem}
+.footer-brand .footer-tagline{font-size:.78rem;color:var(--muted);line-height:1.65;max-width:280px;margin:0}
+.footer-bottom{max-width:1100px;margin:0 auto;padding-top:1.5rem;display:flex;justify-content:space-between;align-items:center;font-size:.72rem;color:var(--muted)}
+
+@media(max-width:768px){
+  .container{padding:0 1.25rem}
+  nav{padding:1.2rem 1.25rem}.nav-links{display:none}.hamburger{display:flex}
+  .page-hero{padding:3rem 1.25rem 2.5rem}
+  .page-hero h1{font-size:2.6rem}
+  .page-hero .lede{font-size:.98rem}
+  .billing-toggle-wrap{padding:2rem 1.25rem 1.5rem}
+  .toggle-option{padding:.5rem 1rem;font-size:.78rem}
+  .plans-section{padding:0 1.25rem 3rem}
+  .plans-grid{grid-template-columns:1fr;gap:1.25rem}
+  .plan-card,.plan-card.featured{padding:2rem 1.5rem;transform:none}
+  .plan-card.featured{margin-top:.6rem}
+  .plans-note{margin-top:2rem;padding:0 1.25rem}
+  .addons-section{padding:3rem 1.25rem}
+  .addons-grid{grid-template-columns:1fr;gap:1rem;max-width:none}
+  .addon-card{padding:1.7rem 1.5rem}
+  .info-section{padding:2rem 1.25rem}
+  .info-grid{grid-template-columns:1fr;gap:.8rem}
+  .leogo-section{padding:3rem 1.25rem}
+  .leogo-section .inner{padding:2.5rem 1.5rem}
+  .leogo-plans{grid-template-columns:1fr;gap:.8rem;max-width:none}
+  .leogo-plan{padding:1.4rem 1.3rem}
+  .leogo-perks{grid-template-columns:1fr;gap:.7rem;padding-top:1.5rem;margin-top:1.5rem}
+  .fine-print{padding:3rem 1.25rem 1.5rem}
+  .pricing-cta{padding:.5rem 1.25rem 1.5rem}
+  .pricing-cta .inner{padding:2.5rem 1.5rem}
+  footer{padding:2rem 1.25rem 1.5rem;margin-top:1rem;text-align:center}
+  .footer-grid{grid-template-columns:1fr 1fr 1fr;gap:1rem;padding-bottom:1.5rem;margin:0 auto;width:calc(100% - 2.5rem);max-width:none}
+  .footer-brand{grid-column:1/-1;text-align:center;margin:0 auto}
+  .footer-brand .footer-tagline{margin:0 auto}
+  .footer-col:nth-child(n+2){text-align:left}
+  .footer-col:nth-child(n+2) ul{align-items:flex-start;gap:.4rem}
+  .footer-bottom{flex-direction:column;gap:.5rem;text-align:center;justify-content:center}
+  .section-heading{padding:0 1.25rem}
+}
 </style>
 </head>
 <body>
-
 <nav>
   <a href="index.html" class="logo">vaani<span>.</span></a>
   <ul class="nav-links nav-center">
@@ -571,266 +212,250 @@
   </div>
 </nav>
 
-<section class="hero">
-  <div class="hero-label">Simple, transparent pricing</div>
-  <h1>Sell more while<br>you <em>sleep.</em></h1>
-  <p>Vaani handles product discovery, shortlisting, and payment — on WhatsApp and Instagram. No app. No friction. Start free, scale as you grow.</p>
+<section class="container">
+  <div class="page-hero">
+    <span class="section-label fade-up">Simple, transparent pricing</span>
+    <h1 class="fade-up delay-1">Be part of the<br><em>first 15.</em></h1>
+    <p class="lede fade-up delay-2">Founding brands get Vaani at a rate that stays as long as you're with us. We're onboarding 2 brands per month — 3 of 15 spots taken.</p>
+    <div class="progress-wrap fade-up delay-3">
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress-label"><strong>3</strong> of <strong>15</strong> founding spots filled</div>
+    </div>
+  </div>
 </section>
 
-<div class="pricing-grid">
-
-  <!-- Simulation -->
-  <div class="plan">
-    <div class="plan-badge">TRY IT FREE</div>
-    <div class="plan-name">Simulation</div>
-    <div class="plan-sub">See exactly what your customers experience</div>
-    <div class="plan-price">
-      <div class="price-amount">₹0</div>
-      <div class="price-period">No signup needed</div>
-    </div>
-    <div class="divider"></div>
-    <ul class="features">
-      <li><span class="check">✓</span> Try WhatsApp + Instagram flows</li>
-      <li><span class="check">✓</span> Pick your store category</li>
-      <li><span class="check">✓</span> See product cards + payment link</li>
-      <li><span class="check">✓</span> Powered by real AI</li>
-    </ul>
-    <a href="/demo.html" class="plan-cta">Try the demo →</a>
+<div class="billing-toggle-wrap">
+  <div class="billing-toggle" role="tablist">
+    <button class="toggle-option active" data-billing="monthly">Monthly</button>
+    <button class="toggle-option" data-billing="annual">Annual<span class="save-tag">save 2 months</span></button>
   </div>
-
-  <!-- Basic -->
-  <div class="plan">
-    <div class="plan-badge">Starter</div>
-    <div class="plan-name">Basic</div>
-    <div class="plan-sub">For stores just getting started with WhatsApp sales</div>
-    <div class="plan-price">
-      <div class="price-amount">₹999<span style="font-size:0.85rem;font-weight:400">/mo</span></div>
-      <div class="price-period">billed monthly</div>
-      <div class="price-setup">+ ₹2,000 setup</div>
-    </div>
-    <div class="divider"></div>
-    <ul class="features">
-      <li><span class="check">✓</span> 300 chats / month</li>
-      <li><span class="check">✓</span> Product discovery + shortlist</li>
-      <li><span class="check">✓</span> Real payment links</li>
-      <li><span class="check">✓</span> Draft orders via Shopify</li>
-      <li><span class="check">✓</span> English + Hindi</li>
-      <li><span class="check">✓</span> Top up — ₹500 / 250 chats</li>
-      <li><span class="check" style="background:#F5EEE8;color:#C4A882;">—</span> <span class="dim">Standard bot voice</span></li>
-    </ul>
-  </div>
-
-  <!-- Pro -->
-  <div class="plan">
-    <div class="plan-badge">Growth</div>
-    <div class="plan-name">Pro</div>
-    <div class="plan-sub">For brands who want a real branded sales assistant</div>
-    <div class="plan-price">
-      <div class="price-amount">₹1,799<span style="font-size:0.85rem;font-weight:400">/mo</span></div>
-      <div class="price-period">billed monthly</div>
-      <div class="price-setup">+ ₹3,500 setup</div>
-    </div>
-    <div class="divider"></div>
-    <ul class="features">
-      <li><span class="check">✓</span> 700 chats / month</li>
-      <li><span class="check">✓</span> Everything in Basic</li>
-      <li><span class="check">✓</span> Custom bot name &amp; voice</li>
-      <li><span class="check">✓</span> Brand personality tuning</li>
-      <li><span class="check">✓</span> English + Hindi</li>
-      <li><span class="check">✓</span> Top up — ₹500 / 250 chats</li>
-      <li><span class="check" style="background:#F5EEE8;color:#C4A882;">—</span> <span class="dim">No regional languages</span></li>
-    </ul>
-  </div>
-
-  <!-- Brand — featured -->
-  <div class="plan featured">
-    <div class="plan-badge">Most Popular</div>
-    <div class="plan-name">Brand</div>
-    <div class="plan-sub">The complete Vaani experience, fully tailored</div>
-    <div class="plan-price">
-      <div class="price-amount">₹2,499<span style="font-size:0.85rem;font-weight:400">/mo</span></div>
-      <div class="price-period">billed monthly</div>
-      <div class="price-setup">+ ₹5,000 setup</div>
-    </div>
-    <div class="divider"></div>
-    <ul class="features">
-      <li><span class="check">✓</span> 1,000 chats / month</li>
-      <li><span class="check">✓</span> Everything in Pro</li>
-      <li><span class="check">✓</span> Instagram included</li>
-      <li><span class="check">✓</span> Multilingual (EN / HI / Regional)</li>
-      <li><span class="check">✓</span> Brand-owner WhatsApp alerts</li>
-      <li><span class="check">✓</span> Priority support</li>
-      <li><span class="check">✓</span> Top up — ₹500 / 250 chats</li>
-      <li><span class="check">✓</span> Quarterly voice refresh</li>
-    </ul>
-  </div>
-
-  <!-- Annual -->
-  <div class="plan">
-    <div class="plan-badge">Best Value</div>
-    <div class="plan-name">Brand · Annual</div>
-    <div class="plan-sub">Brand features, billed yearly — save 1 month</div>
-    <div class="plan-price">
-      <div class="price-amount">₹27,489<span style="font-size:0.85rem;font-weight:400">/yr</span></div>
-      <div class="price-period">pay for 11, get 12</div>
-      <div class="price-setup">+ ₹4,000 setup</div>
-    </div>
-    <div class="divider"></div>
-    <ul class="features">
-      <li><span class="check">✓</span> Everything in Brand</li>
-      <li><span class="check">✓</span> Instagram included</li>
-      <li><span class="check">✓</span> 1,000 chats / month</li>
-      <li><span class="check">✓</span> One month free (save ₹2,499)</li>
-      <li><span class="check">✓</span> Reduced setup (₹4K vs ₹5K)</li>
-      <li><span class="check">✓</span> Locked-in pricing for the year</li>
-      <li><span class="check">✓</span> Priority onboarding</li>
-    </ul>
-    <p style="font-size:0.65rem;color:var(--muted);margin-top:1.2rem;line-height:1.5;">Early exit: ₹2,000 fee, refunded as Leogo service credit (6mo expiry).</p>
-  </div>
-
 </div>
 
-<!-- Add-on info strip -->
-<div class="addon-strip">
+<section class="plans-section">
+  <div class="plans-grid">
+    <div class="plan-card" data-monthly-price="1,999" data-annual-price="19,990" data-monthly-future="₹2,499 after 15 spots" data-annual-future="₹24,990 after">
+      <h3>WhatsApp</h3>
+      <p class="plan-setup">Setup <strong>₹4,000</strong> one-time</p>
+      <div class="plan-price"><span class="plan-amount">₹1,999</span><span class="plan-period">/mo</span></div>
+      <p class="plan-future">→ ₹2,499 after 15 spots</p>
+      <ul class="plan-includes">
+        <li>WhatsApp sales bot</li>
+        <li>1,000 conversations/mo</li>
+        <li>Custom brand voice</li>
+        <li>Multilingual</li>
+        <li>Payment links</li>
+        <li>Shopify optional</li>
+      </ul>
+      <a href="https://wa.me/919403345612" class="btn-primary">Claim your spot →</a>
+    </div>
 
-  <div class="addon-card">
-    <div class="addon-label">How we count chats</div>
-    <h3>One unique customer / day = one chat.</h3>
-    <p>Whether they send 2 messages or 20 in a day, it's still <strong>one chat</strong>. Conversations across multiple days from the same number count as separate chats. Honest, predictable billing — no message-counting anxiety.</p>
-  </div>
+    <div class="plan-card featured" data-monthly-price="2,499" data-annual-price="24,990" data-monthly-future="₹3,499 after 15 spots" data-annual-future="₹34,990 after">
+      <span class="plan-badge">Best value</span>
+      <h3>WhatsApp + Instagram</h3>
+      <p class="plan-setup">Setup <strong>₹6,500</strong> one-time <span style="color:#7FCBA0">· save ₹1,500</span></p>
+      <div class="plan-price"><span class="plan-amount">₹2,499</span><span class="plan-period">/mo</span></div>
+      <p class="plan-future">→ ₹3,499 after 15 spots</p>
+      <ul class="plan-includes">
+        <li>Everything in both plans</li>
+        <li>One bot, two channels</li>
+        <li>Same brand voice everywhere</li>
+        <li>1,000 conversations/mo</li>
+        <li>Payment links</li>
+        <li>Shopify optional</li>
+      </ul>
+      <a href="https://wa.me/919403345612" class="btn-primary">Claim your spot →</a>
+    </div>
 
-  <div class="addon-card">
-    <div class="addon-label">Run out? Just top up</div>
-    <h3>₹500 = 250 chats, anytime.</h3>
-    <p>Top-ups stack on top of your monthly cap and stay valid for <strong>3 months</strong>. Used oldest-first. No re-signup, no recontract — just keep selling.</p>
-  </div>
-
-  <div class="addon-card">
-    <div class="addon-label">Brands using Vaani</div>
-    <h3>Live with brands you trust.</h3>
-    <p style="margin-bottom: 1rem;">Vaani is in production with real Indian D2C brands across jewellery, pets, and apparel.</p>
-    <div style="display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.5rem;">
-      <span style="font-size: 0.75rem; padding: 0.35rem 0.8rem; background: var(--warm-light); color: var(--warm); border-radius: 100px; font-weight: 500;">Ikaa Jewellery</span>
-      <span style="font-size: 0.75rem; padding: 0.35rem 0.8rem; background: var(--warm-light); color: var(--warm); border-radius: 100px; font-weight: 500;">The Woof Parade</span>
-      <span style="font-size: 0.75rem; padding: 0.35rem 0.8rem; background: var(--warm-light); color: var(--warm); border-radius: 100px; font-weight: 500;">Rajathee Sarees</span>
+    <div class="plan-card" data-monthly-price="1,999" data-annual-price="19,990" data-monthly-future="₹2,499 after 15 spots" data-annual-future="₹24,990 after">
+      <h3>Instagram</h3>
+      <p class="plan-setup">Setup <strong>₹4,000</strong> one-time</p>
+      <div class="plan-price"><span class="plan-amount">₹1,999</span><span class="plan-period">/mo</span></div>
+      <p class="plan-future">→ ₹2,499 after 15 spots</p>
+      <ul class="plan-includes">
+        <li>Instagram DM bot</li>
+        <li>Comment triggers</li>
+        <li>Product cards in DMs</li>
+        <li>1,000 conversations/mo</li>
+        <li>Payment links</li>
+      </ul>
+      <a href="https://wa.me/919403345612" class="btn-primary">Claim your spot →</a>
     </div>
   </div>
+  <p class="plans-note">After 15 founding brands, pricing moves to regular rates. No exceptions.</p>
+</section>
 
-  <div class="addon-card">
-    <div class="addon-label">From demo to production</div>
-    <h3>Setup unlocks your real WhatsApp.</h3>
-    <p>The demo runs on our shared number with you only. Setup fee covers <strong>your own Meta WhatsApp Business number</strong>, registration, brand voice tuning, and 2 rounds of flow refinement before customers go live.</p>
+<section class="addons-section">
+  <div class="section-heading">
+    <span class="section-label">Add-ons</span>
+    <h2>Make it <em>truly yours.</em></h2>
   </div>
-
-</div>
-
-<!-- Custom Flow section -->
-<div class="exclusive-section">
-  <div class="exclusive-card">
-    <div class="exclusive-left">
-      <div class="ex-label">Custom Flow — Built for your brand</div>
-      <h2>A flow that's entirely<br><em>yours.</em></h2>
-      <p>Every brand is different. Custom flows are scoped, designed, and built around your exact catalog, categories, and customer journey — not a template. Pricing depends on complexity.</p>
+  <div class="addons-grid">
+    <div class="addon-card">
+      <h3>Custom Flow</h3>
+      <div class="addon-price">₹8,000 <small>one-time</small></div>
+      <ul>
+        <li>Your categories, your persona, your journey</li>
+        <li>Not a template — built around how you sell</li>
+        <li>2 revisions/year included. Extra at ₹2,000 each</li>
+      </ul>
     </div>
-    <div class="exclusive-right">
-      <div class="exclusive-price">
-        <div>
-          <div class="ex-price-label">Custom setup starting at</div>
-          <div class="ex-price-row">
-            <div class="ex-price-amount">₹8,000</div>
-          </div>
-        </div>
-        <div style="margin-top:0.8rem;">
-          <div class="ex-price-label">Monthly recurring starting at</div>
-          <div class="ex-price-row">
-            <div class="ex-price-amount">₹5,999<span style="font-size:1rem;font-weight:400;color:#8A7E74">/mo</span></div>
-          </div>
-        </div>
-        <div class="ex-price-note">Final price scoped after a brief call</div>
-        <div class="ex-tag">Get a custom quote →</div>
+    <div class="addon-card">
+      <h3>High Volume</h3>
+      <div class="addon-price">₹2,000 <small>/mo</small></div>
+      <ul>
+        <li>Up to 3,000 conversations/month</li>
+        <li>Beyond 3,000: ₹1/chat</li>
+        <li>For brands already doing serious volume</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="info-section">
+  <div class="section-heading">
+    <span class="section-label">How chats are counted</span>
+    <h2>Simple. No <em>hidden math.</em></h2>
+  </div>
+  <div class="info-grid">
+    <div class="info-card">
+      <div class="info-card-label">One conversation</div>
+      <p>One unique customer per day = one chat. Multiple messages with the same customer in 24 hours still count as one.</p>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">Broadcast messages</div>
+      <p>Charged separately at Meta rates (approximately ₹0.86 per message). You only pay for what you send.</p>
+    </div>
+  </div>
+</section>
+
+<section class="leogo-section">
+  <div class="inner">
+    <span class="section-label">For Leogo Designs clients only</span>
+    <h2>Because you're already<br><em>family.</em></h2>
+    <p class="leogo-sub">A standing rate for brands on an active Leogo retainer — same Vaani, lower entry, perks built in.</p>
+    <div class="leogo-plans">
+      <div class="leogo-plan">
+        <h4>WhatsApp</h4>
+        <div class="leogo-price"><span class="leogo-amount">₹1,500</span><span class="leogo-period">/mo</span></div>
+        <p class="leogo-setup">Setup ₹4,000 one-time</p>
+        <p class="leogo-annual">or ₹16,500/year</p>
+      </div>
+      <div class="leogo-plan">
+        <h4>Instagram</h4>
+        <div class="leogo-price"><span class="leogo-amount">₹1,500</span><span class="leogo-period">/mo</span></div>
+        <p class="leogo-setup">Setup ₹4,000 one-time</p>
+        <p class="leogo-annual">or ₹16,500/year</p>
+      </div>
+      <div class="leogo-plan">
+        <h4>Both channels</h4>
+        <div class="leogo-price"><span class="leogo-amount">₹2,500</span><span class="leogo-period">/mo</span></div>
+        <p class="leogo-setup">Setup ₹6,000 one-time</p>
+        <p class="leogo-annual">or ₹27,500/year</p>
       </div>
     </div>
+    <div class="leogo-perks">
+      <div class="leogo-perk">Custom flow included</div>
+      <div class="leogo-perk">Priority support — direct line to founder</div>
+      <div class="leogo-perk">Brand voice refresh every 6 months</div>
+    </div>
+    <p class="leogo-note">Leogo rate valid while on active Leogo retainer.</p>
   </div>
-</div>
+</section>
 
-<!-- Leogo Exclusive section -->
-<div class="exclusive-section" style="margin-top: 0rem; padding-top: 1.5rem;">
-  <div class="exclusive-card" style="background: #1C2B24; position: relative; align-items: flex-start; padding: 3rem 3.5rem 2.5rem;">
-    <div style="position:absolute;top:-12px;left:3.5rem;">
-      <span style="background:var(--green);color:white;font-size:0.65rem;letter-spacing:0.14em;text-transform:uppercase;padding:0.3rem 1rem;border-radius:100px;font-weight:500;">For Leogo Designs Clients Only</span>
-    </div>
-    <div class="exclusive-left" style="flex: 1;">
-      <div class="ex-label" style="color:#6FCF97;">Exclusive Partner Rate</div>
-      <h2>Because you're already<br><em style="color:#6FCF97;">family.</em></h2>
-      <p style="margin-bottom: 1.5rem;">If you're an existing Leogo Designs client on an active Social Media retainer or AMC, you get Vaani at a private founder rate. No negotiations needed — this is our way of saying thank you for trusting us with your brand.</p>
-      <div style="display: flex; flex-direction: column; gap: 0.6rem;">
-        <div style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.85rem; color: #C8E6D9;">
-          <span style="width: 16px; height: 16px; border-radius: 50%; background: rgba(111, 207, 151, 0.15); color: #6FCF97; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; flex-shrink: 0; font-weight: 700;">✓</span>
-          <span><strong style="color: #E5DDD4;">Custom chat flow included</strong> — built around your catalog, not a template (saves ₹5,999/mo)</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.85rem; color: #C8E6D9;">
-          <span style="width: 16px; height: 16px; border-radius: 50%; background: rgba(111, 207, 151, 0.15); color: #6FCF97; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; flex-shrink: 0; font-weight: 700;">✓</span>
-          <span><strong style="color: #E5DDD4;">Priority support</strong> — direct line to Shweta, no waitlist, real human</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.85rem; color: #C8E6D9;">
-          <span style="width: 16px; height: 16px; border-radius: 50%; background: rgba(111, 207, 151, 0.15); color: #6FCF97; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; flex-shrink: 0; font-weight: 700;">✓</span>
-          <span><strong style="color: #E5DDD4;">Brand voice refresh every 6 months</strong> — keep Vaani's tone aligned as your brand evolves</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.85rem; color: #C8E6D9;">
-          <span style="width: 16px; height: 16px; border-radius: 50%; background: rgba(111, 207, 151, 0.15); color: #6FCF97; display: flex; align-items: center; justify-content: center; font-size: 0.6rem; flex-shrink: 0; font-weight: 700;">✓</span>
-          <span><strong style="color: #E5DDD4;">All Brand tier features</strong> — multilingual, custom voice, owner alerts</span>
-        </div>
-      </div>
-    </div>
-    <div class="exclusive-right" style="margin-top: 0.5rem;">
-      <div class="exclusive-price">
-        <div>
-          <div class="ex-price-label">One-time setup</div>
-          <div class="ex-price-row">
-            <div class="ex-price-amount">₹4,000</div>
-          </div>
-        </div>
-        <div style="margin-top:0.8rem;">
-          <div class="ex-price-label">Monthly recurring</div>
-          <div class="ex-price-row">
-            <div class="ex-price-amount">₹1,500<span style="font-size:1rem;font-weight:400;color:#8A7E74">/mo</span></div>
-          </div>
-        </div>
-        <div style="margin-top:0.8rem;">
-          <div class="ex-price-label">Annual recurring</div>
-          <div class="ex-price-row">
-            <div class="ex-price-amount" style="font-size: 1.6rem;">₹16,500<span style="font-size:0.85rem;font-weight:400;color:#8A7E74">/yr</span></div>
-          </div>
-        </div>
-        <div class="ex-price-note">Save 1 month with annual</div>
-        <div class="ex-tag" style="background:var(--green);">Exclusive — not listed publicly</div>
-      </div>
-    </div>
+<section class="fine-print">
+  <h4>Fine print</h4>
+  <ul>
+    <li>Founding rate stays while subscription is active</li>
+    <li>Minimum 3-month commitment</li>
+    <li>Setup fee non-refundable</li>
+    <li>Pricing subject to revision if API costs increase significantly — 60 days notice given</li>
+    <li>Early exit fee: ₹2,000 (Leogo clients: refunded as service credit, 6-month expiry)</li>
+    <li>We onboard maximum 2 brands per month</li>
+  </ul>
+</section>
+
+<section class="pricing-cta">
+  <div class="inner">
+    <p class="section-label">Ready?</p>
+    <h2>Ready to claim<br><em>your spot?</em></h2>
+    <p class="section-sub">Talk to us on WhatsApp. We'll have you live in under a week.</p>
+    <a href="https://wa.me/919403345612" class="btn-primary"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413"/></svg>GET STARTED →</a>
   </div>
-</div>
+</section>
 
 <footer>
-  <div class="footer-left">
-    <a href="index.html" class="logo">vaani<span>.</span></a>
-    <p class="footer-tagline">A Leogo Designs product</p>
+  <div class="footer-grid">
+    <div class="footer-col footer-brand">
+      <a href="index.html" class="logo">vaani<span>.</span></a>
+      <p class="footer-tagline">Always-on AI sales on WhatsApp and Instagram. A Leogo Designs product.</p>
+    </div>
+    <div class="footer-col">
+      <h5 class="footer-col-title">Product</h5>
+      <ul>
+        <li><a href="index.html#how-it-works">How it Works</a></li>
+        <li><a href="features.html">Features</a></li>
+        <li><a href="pricing.html">Pricing</a></li>
+        <li><a href="case-studies.html">Case Studies</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h5 class="footer-col-title">Company</h5>
+      <ul>
+        <li><a href="about.html">About</a></li>
+        <li><a href="contact.html">Contact</a></li>
+        <li><a href="demo.html">Try Demo</a></li>
+        <li><a href="https://vaani-dashboard-production.up.railway.app">Login</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h5 class="footer-col-title">Legal</h5>
+      <ul>
+        <li><a href="privacy.html">Privacy</a></li>
+        <li><a href="terms.html">Terms</a></li>
+      </ul>
+    </div>
   </div>
-  <ul class="footer-links-f">
-    <li><a href="features.html">Features</a></li>
-    <li><a href="pricing.html">Pricing</a></li>
-    <li><a href="about.html">About</a></li>
-    <li><a href="contact.html">Contact</a></li>
-    <li><a href="privacy.html">Privacy</a></li>
-    <li><a href="terms.html">Terms</a></li>
-  </ul>
-  <div class="footer-right">© 2026 Vaani by Leogo Designs<br>Made with ♥ in Pune</div>
+  <div class="footer-bottom">
+    <div>© 2026 Vaani by Leogo Designs</div>
+    <div>Made with ♥ in Pune</div>
+  </div>
 </footer>
-
 <script>
 document.querySelector('.hamburger').addEventListener('click',function(){
   this.classList.toggle('open');
   document.querySelector('.mobile-menu').classList.toggle('open');
   this.setAttribute('aria-expanded', this.classList.contains('open'));
 });
+(function(){
+  const fill=document.getElementById('progress-fill');
+  if(!fill)return;
+  const ob=new IntersectionObserver(es=>{
+    es.forEach(e=>{if(e.isIntersecting){fill.style.width='20%';ob.disconnect();}});
+  },{threshold:.4});
+  ob.observe(fill);
+})();
+(function(){
+  const buttons=document.querySelectorAll('.toggle-option');
+  const cards=document.querySelectorAll('.plan-card[data-monthly-price]');
+  function apply(mode){
+    buttons.forEach(b=>b.classList.toggle('active',b.dataset.billing===mode));
+    cards.forEach(card=>{
+      const amount=card.querySelector('.plan-amount');
+      const period=card.querySelector('.plan-period');
+      const future=card.querySelector('.plan-future');
+      if(mode==='monthly'){
+        amount.textContent='₹'+card.dataset.monthlyPrice;
+        period.textContent='/mo';
+        future.textContent='→ '+card.dataset.monthlyFuture;
+      }else{
+        amount.textContent='₹'+card.dataset.annualPrice;
+        period.textContent='/yr';
+        future.textContent='→ '+card.dataset.annualFuture;
+      }
+    });
+  }
+  buttons.forEach(b=>b.addEventListener('click',()=>apply(b.dataset.billing)));
+})();
 </script>
 </body>
 </html>
