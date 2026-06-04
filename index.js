@@ -732,6 +732,54 @@ app.get(['/api/debug-schema', '/api/debug/schema-check'], async (req, res) => {
     out.conversationEventsErr = e.message;
   }
 
+  // Bhagare duplicate-row probe. Lists every tenant row whose
+  // shop_domain or store_name looks Bhagare-ish so we can pick the
+  // canonical one and drop the rest. Read-only.
+  try {
+    const r6 = await pool.query(`
+      SELECT id, shop_domain, store_name, bot_name, channel, live_since,
+             show_in_case_studies, onboarded_at, created_at, flow_template
+      FROM tenants
+      WHERE shop_domain ILIKE '%bhagare%'
+         OR shop_domain ILIKE '%misal%'
+         OR store_name  ILIKE '%bhagare%'
+         OR store_name  ILIKE '%misal%'
+      ORDER BY id
+    `);
+    out.bhagareTenants = r6.rows;
+    // Also probe linked rows that reference any of these tenant_ids so we
+    // know what we'd cascade-orphan if a row gets deleted.
+    if (r6.rows.length > 0) {
+      const ids = r6.rows.map(r => r.id);
+      const linked = await pool.query(`
+        SELECT
+          (SELECT COUNT(*)::int FROM dashboard_user_tenants WHERE tenant_id = ANY($1::int[])) AS dut_links,
+          (SELECT COUNT(*)::int FROM conversations         WHERE tenant_id = ANY($1::int[])) AS conversations,
+          (SELECT COUNT(*)::int FROM orders                WHERE tenant_id = ANY($1::int[])) AS orders,
+          (SELECT COUNT(*)::int FROM milestones            WHERE tenant_id = ANY($1::int[])) AS milestones,
+          (SELECT COUNT(*)::int FROM analytics             WHERE tenant_id = ANY($1::int[])) AS analytics
+      `, [ids]);
+      out.bhagareLinkedCounts = linked.rows[0];
+      // Per-tenant detail for the same counts so we can tell which row is
+      // load-bearing vs. which is empty/stale.
+      const perTenant = await pool.query(`
+        SELECT t.id,
+               t.shop_domain,
+               (SELECT COUNT(*)::int FROM dashboard_user_tenants WHERE tenant_id = t.id) AS dut_links,
+               (SELECT COUNT(*)::int FROM conversations         WHERE tenant_id = t.id) AS conversations,
+               (SELECT COUNT(*)::int FROM orders                WHERE tenant_id = t.id) AS orders,
+               (SELECT COUNT(*)::int FROM milestones            WHERE tenant_id = t.id) AS milestones,
+               (SELECT COUNT(*)::int FROM analytics             WHERE tenant_id = t.id) AS analytics
+        FROM tenants t
+        WHERE t.id = ANY($1::int[])
+        ORDER BY t.id
+      `, [ids]);
+      out.bhagarePerTenantCounts = perTenant.rows;
+    }
+  } catch (e) {
+    out.bhagareErr = e.message;
+  }
+
   res.json(out);
 });
 
