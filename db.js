@@ -98,6 +98,38 @@ async function initDB() {
       live_since = EXCLUDED.live_since,
       show_in_case_studies = EXCLUDED.show_in_case_studies;
 
+    -- One-time cleanup: an earlier tenant onboarding path created a
+    -- second Bhagare row at shop_domain='bhagaremisal.instagram' (no
+    -- separator, with no live_since and show_in_case_studies = false).
+    -- Canonical slug is bhagare-misal (hyphen), matching all hardcoded
+    -- references in this repo and vaani-dashboard. This block:
+    --   1. migrates any dashboard_user_tenants rows from the stale
+    --      tenant to the canonical one (ON CONFLICT DO NOTHING so a
+    --      user already linked to both keeps a single clean link),
+    --   2. deletes the leftover stale-tenant dut rows,
+    --   3. deletes the stale tenant row itself.
+    -- Idempotent: a second run finds bad_id NULL and is a no-op.
+    -- Bare DELETE is safe because the prior /api/debug-schema FK probe
+    -- confirmed dashboard_user_tenants is the ONLY table with a row
+    -- referencing tenant_id=16 (zero conversations/orders/milestones/
+    -- analytics/broadcasts/customer_profiles/team_messages/etc.).
+    DO $$
+    DECLARE
+      bad_id INT;
+      good_id INT;
+    BEGIN
+      SELECT id INTO bad_id FROM tenants
+        WHERE shop_domain IN ('bhagaremisal.instagram','bhagaremisal','bhagare_misal');
+      SELECT id INTO good_id FROM tenants WHERE shop_domain = 'bhagare-misal.local';
+      IF bad_id IS NOT NULL AND good_id IS NOT NULL AND bad_id <> good_id THEN
+        INSERT INTO dashboard_user_tenants (user_id, tenant_id)
+          SELECT user_id, good_id FROM dashboard_user_tenants WHERE tenant_id = bad_id
+          ON CONFLICT DO NOTHING;
+        DELETE FROM dashboard_user_tenants WHERE tenant_id = bad_id;
+        DELETE FROM tenants WHERE id = bad_id;
+      END IF;
+    END $$;
+
     -- Retired milestone: removed from the case-studies grid (2026-06-04).
     DELETE FROM milestones WHERE milestone_key = 'first_conversation';
 
