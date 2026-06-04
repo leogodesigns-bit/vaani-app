@@ -85,6 +85,19 @@ async function initDB() {
     ALTER TABLE conversations ADD COLUMN IF NOT EXISTS monthly_messages INTEGER DEFAULT 0;
     ALTER TABLE conversations ADD COLUMN IF NOT EXISTS message_month VARCHAR(7);
 
+    -- Instagram engagement counters (per-tenant per-day). Aggregated by /api/stats.
+    ALTER TABLE analytics ADD COLUMN IF NOT EXISTS instagram_comments_replied INTEGER DEFAULT 0;
+    ALTER TABLE analytics ADD COLUMN IF NOT EXISTS instagram_dms_sent INTEGER DEFAULT 0;
+
+    -- Bhagare Misal — Instagram-only, no Shopify install, bot_name TBD.
+    INSERT INTO tenants (shop_domain, store_name, bot_name, channel, live_since, show_in_case_studies)
+    VALUES ('bhagare-misal.local', 'Bhagare Misal', NULL, 'Instagram', '2026-06-04 00:00:00', TRUE)
+    ON CONFLICT (shop_domain) DO UPDATE SET
+      store_name = EXCLUDED.store_name,
+      channel = EXCLUDED.channel,
+      live_since = EXCLUDED.live_since,
+      show_in_case_studies = EXCLUDED.show_in_case_studies;
+
     -- Retired milestone: removed from the case-studies grid (2026-06-04).
     DELETE FROM milestones WHERE milestone_key = 'first_conversation';
 

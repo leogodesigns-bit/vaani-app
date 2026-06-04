@@ -225,10 +225,10 @@ footer{border-top:1px solid var(--border);padding:3rem 4rem 1.5rem;margin-top:3r
   <div class="page-hero">
     <span class="section-label fade-up">Simple, transparent pricing</span>
     <h1 class="fade-up delay-1">Be part of the<br><em>first 15.</em></h1>
-    <p class="lede fade-up delay-2">Founding brands get Vaani at a rate that stays as long as you're with us. We're onboarding 2 brands per month — 3 of 15 spots taken.</p>
+    <p class="lede fade-up delay-2">Founding brands get Vaani at a rate that stays as long as you're with us. We're onboarding 2 brands per month — 4 of 15 spots taken.</p>
     <div class="progress-wrap fade-up delay-3">
       <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
-      <div class="progress-label"><strong>3</strong> of <strong>15</strong> founding spots filled</div>
+      <div class="progress-label"><strong>4</strong> of <strong>15</strong> founding spots filled</div>
     </div>
   </div>
 </section>
@@ -450,7 +450,7 @@ document.querySelector('.hamburger').addEventListener('click',function(){
   const fill=document.getElementById('progress-fill');
   if(!fill)return;
   const ob=new IntersectionObserver(es=>{
-    es.forEach(e=>{if(e.isIntersecting){fill.style.width='20%';ob.disconnect();}});
+    es.forEach(e=>{if(e.isIntersecting){fill.style.width='26.67%';ob.disconnect();}});
   },{threshold:.4});
   ob.observe(fill);
 })();

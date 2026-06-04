@@ -241,6 +241,7 @@ document.querySelector('.hamburger').addEventListener('click',function(){
     Tara:{brandName:'Rajathee Sarees',headline:'First order on launch day.',body:'Rajathee Sarees went live with Tara on WhatsApp. A customer browsed the saree catalogue, asked questions, and placed an order — all within 24 hours of going live. No human needed.',stat:'Day 1 → First order'},
     Jhilmil:{brandName:'Ikaa',headline:'Customers who never used to ask, now ask everything.',body:"With Jhilmil always on, Ikaa's customers browse at night, revisit conversations, and ask the same question three different ways — without anyone feeling bothered. That's what 24/7 really means.",stat:'24/7 · Zero guilt'},
     Rio:{brandName:'The Woof Parade',headline:'A bot that knows every product, every time.',body:"Rio handles product questions, order follow-ups, and late-night curiosity from dog parents. Kashmira's team focuses on what needs a human. Rio handles the rest.",stat:'Always on · Never tired'},
+    'Bhagare Misal':{brandName:'Bhagare Misal',headline:'A Pune institution, now on Instagram.',body:"Bhagare Misal has been serving Pune for years. Now their Instagram handles questions, directions, and table enquiries — so the team focuses on the food.",stat:'Day 1 · Instagram DM'},
   };
   function deriveTag(brand){
     const unlocked=(brand.milestones||[]).filter(m=>m.achievedAt);
@@ -250,15 +251,16 @@ document.querySelector('.hamburger').addEventListener('click',function(){
   }
   function cardHtml(brand){
     const fallback={headline:`${brand.storeName||'New brand'} is live.`,body:`${brand.botName||'The bot'} is handling conversations on ${brand.channel||'WhatsApp'} — milestones unlock as customers come in.`,stat:'Just getting started'};
-    const c=COPY[brand.botName]||fallback;
+    const c=COPY[brand.botName]||COPY[brand.storeName]||fallback;
     const displayName=c.brandName||brand.storeName||brand.shopDomain||'Brand';
     const tag=deriveTag(brand);
+    const pillText=brand.botName?`${brand.botName} · ${brand.channel||'WhatsApp'}`:(brand.channel||'WhatsApp');
     return `
       <article class="milestone-card" data-live-since="${escapeHtml(brand.liveSince||'')}">
         <span class="milestone-tag ${tag.cls}">${escapeHtml(tag.text)}</span>
         <div class="milestone-head">
           <h3 class="milestone-brand">${escapeHtml(displayName)}</h3>
-          <span class="milestone-pill">${escapeHtml(brand.botName||'Bot')} · ${escapeHtml(brand.channel||'WhatsApp')}</span>
+          <span class="milestone-pill">${escapeHtml(pillText)}</span>
         </div>
         <div class="live-since">
           <span class="live-since-label">Live since</span>
@@ -307,6 +309,12 @@ document.querySelector('.hamburger').addEventListener('click',function(){
     const items=card.querySelector('[data-items]');
     const toggle=card.querySelector('[data-toggle]');
     if(!items)return;
+    const anyUnlocked=(milestones||[]).some(m=>m.achievedAt);
+    if(!anyUnlocked){
+      const grid=card.querySelector('[data-milestones-container]');
+      if(grid)grid.style.display='none';
+      return;
+    }
     let expanded=false;
     function paint(){
       const visible=getVisible(milestones,expanded);

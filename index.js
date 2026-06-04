@@ -638,9 +638,14 @@ app.get('/api/stats', async (req, res) => {
   try {
     const orders = await pool.query("SELECT COUNT(*)::int AS c, COALESCE(SUM(grand_total),0)::numeric AS s FROM orders WHERE status = 'paid'");
     const convos = await pool.query("SELECT COUNT(*)::int AS c FROM conversations");
+    const brands = await pool.query("SELECT COUNT(*)::int AS c FROM tenants WHERE show_in_case_studies = TRUE");
+    const ig = await pool.query("SELECT COALESCE(SUM(instagram_comments_replied),0)::int AS comments, COALESCE(SUM(instagram_dms_sent),0)::int AS dms FROM analytics");
     const dbOrders = orders.rows[0].c;
     const dbRevenue = Number(orders.rows[0].s);
     const dbConversations = convos.rows[0].c;
+    const dbBrands = brands.rows[0].c;
+    const dbCommentsReplied = ig.rows[0].comments;
+    const dbDmsSent = ig.rows[0].dms;
 
     let shopifyOrders = 0;
     let shopifyRevenue = 0;
@@ -693,9 +698,18 @@ app.get('/api/stats', async (req, res) => {
     });
 
     res.json({
+      // Legacy field names kept for backward compatibility with any older
+      // consumer; new field names match the public hero stats spec.
       orders: dbOrders + shopifyOrders,
       revenue: dbRevenue + shopifyRevenue,
       conversations: dbConversations,
+      brands_count: dbBrands,
+      orders_count: dbOrders + shopifyOrders,
+      revenue_total: dbRevenue + shopifyRevenue,
+      conversations_count: dbConversations,
+      comments_replied: dbCommentsReplied,
+      dms_sent: dbDmsSent,
+      // directions_sent omitted — not currently tracked.
     });
   } catch (e) {
     console.error('[api/stats]', e.message);
