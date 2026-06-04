@@ -639,13 +639,64 @@ app.get('/api/stats', async (req, res) => {
     const orders = await pool.query("SELECT COUNT(*)::int AS c, COALESCE(SUM(grand_total),0)::numeric AS s FROM orders WHERE status = 'paid'");
     const convos = await pool.query("SELECT COUNT(*)::int AS c FROM conversations");
     const brands = await pool.query("SELECT COUNT(*)::int AS c FROM tenants WHERE show_in_case_studies = TRUE");
-    const ig = await pool.query("SELECT COALESCE(SUM(instagram_comments_replied),0)::int AS comments, COALESCE(SUM(instagram_dms_sent),0)::int AS dms FROM analytics");
     const dbOrders = orders.rows[0].c;
     const dbRevenue = Number(orders.rows[0].s);
     const dbConversations = convos.rows[0].c;
     const dbBrands = brands.rows[0].c;
-    const dbCommentsReplied = ig.rows[0].comments;
-    const dbDmsSent = ig.rows[0].dms;
+
+    // ── Instagram engagement: query real bot-role messages from conversations
+    // for tenants where channel = 'Instagram', plus any aggregate already
+    // recorded in analytics.* Source-of-truth + sum so future tracking writes
+    // to either path get reflected. Schema findings:
+    //   - conversations.messages is JSONB: array of {role, content}; no
+    //     channel column on the row itself.
+    //   - tenants.channel ('WhatsApp'|'Instagram') is the only IG marker.
+    //   - No dedicated comments table — no in-DB distinction between a
+    //     comment reply and a DM today.
+    let dbDmsSent = 0;
+    let dbCommentsReplied = 0;
+    let _igDebug = { igTenants: [], jsonbDmCount: 0, analyticsCommentsSum: 0, analyticsDmsSum: 0, schemaNote: null };
+    try {
+      const igTenants = await pool.query(
+        "SELECT id, shop_domain, store_name, channel FROM tenants WHERE channel = 'Instagram'"
+      );
+      _igDebug.igTenants = igTenants.rows.map(r => ({ id: r.id, shop: r.shop_domain, store: r.store_name }));
+
+      if (igTenants.rows.length > 0) {
+        // Count bot/assistant messages in conversations.messages JSONB for
+        // every IG-channel tenant — closest proxy for "DMs sent by the bot".
+        const dmFromJsonb = await pool.query(`
+          SELECT COALESCE(COUNT(*) FILTER (WHERE msg->>'role' IN ('bot','assistant')), 0)::int AS dms
+          FROM conversations c
+          JOIN tenants t ON c.tenant_id = t.id
+          CROSS JOIN LATERAL jsonb_array_elements(COALESCE(c.messages, '[]'::jsonb)) AS msg
+          WHERE t.channel = 'Instagram' AND jsonb_typeof(c.messages) = 'array'
+        `);
+        _igDebug.jsonbDmCount = dmFromJsonb.rows[0].dms;
+      } else {
+        _igDebug.schemaNote = "no tenants with channel='Instagram' found";
+      }
+
+      // Aggregate counters (will be 0 until a tracking writer increments them).
+      const igAgg = await pool.query(
+        "SELECT COALESCE(SUM(instagram_comments_replied),0)::int AS comments, COALESCE(SUM(instagram_dms_sent),0)::int AS dms FROM analytics"
+      );
+      _igDebug.analyticsCommentsSum = igAgg.rows[0].comments;
+      _igDebug.analyticsDmsSum = igAgg.rows[0].dms;
+
+      // Final values: prefer the higher of the two sources so legacy tracking
+      // and live JSONB never undercount each other.
+      dbDmsSent = Math.max(_igDebug.jsonbDmCount, _igDebug.analyticsDmsSum);
+      dbCommentsReplied = _igDebug.analyticsCommentsSum;
+
+      if (dbCommentsReplied === 0 && igTenants.rows.length > 0) {
+        _igDebug.schemaNote = "comments_replied has no source — no comment-typed messages or comments table in schema. Increment analytics.instagram_comments_replied to populate.";
+      }
+    } catch (igErr) {
+      _igDebug.error = igErr.message;
+      console.error('[api/stats ig]', igErr.message);
+    }
+    console.log('[api/stats ig debug]', _igDebug);
 
     let shopifyOrders = 0;
     let shopifyRevenue = 0;
