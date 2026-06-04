@@ -775,6 +775,42 @@ app.get(['/api/debug-schema', '/api/debug/schema-check'], async (req, res) => {
         ORDER BY t.id
       `, [ids]);
       out.bhagarePerTenantCounts = perTenant.rows;
+
+      // Per-tenant reference counts in every table that has a tenant_id
+      // column. Catches FK-blocking rows in tables I didn't probe above.
+      const refTables = await pool.query(`
+        SELECT table_name FROM information_schema.columns
+        WHERE column_name = 'tenant_id' AND table_schema = 'public'
+        ORDER BY table_name
+      `);
+      const refCounts = {};
+      for (const id of ids) {
+        refCounts[id] = {};
+        for (const r of refTables.rows) {
+          try {
+            const c = await pool.query(
+              `SELECT COUNT(*)::int AS n FROM "${r.table_name}" WHERE tenant_id = $1`,
+              [id]
+            );
+            if (c.rows[0].n > 0) refCounts[id][r.table_name] = c.rows[0].n;
+          } catch (_) { /* skip tables we can't read */ }
+        }
+      }
+      out.bhagareAllRefs = refCounts;
+
+      // Per-tenant dut count by admin tier so we can size the migration
+      // without exposing user identities on this public endpoint.
+      const dutAgg = await pool.query(`
+        SELECT dut.tenant_id,
+               COUNT(*)::int AS users,
+               COUNT(*) FILTER (WHERE du.is_admin)::int AS admins
+        FROM dashboard_user_tenants dut
+        JOIN dashboard_users du ON du.id = dut.user_id
+        WHERE dut.tenant_id = ANY($1::int[])
+        GROUP BY dut.tenant_id
+        ORDER BY dut.tenant_id
+      `, [ids]);
+      out.bhagareDutByTier = dutAgg.rows;
     }
   } catch (e) {
     out.bhagareErr = e.message;
