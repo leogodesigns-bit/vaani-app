@@ -635,7 +635,7 @@ app.use('/api/demo-leads', require('./routes/demo-leads'));
 
 // ── TEMP: schema probe to find Instagram DM / comment storage.
 // Remove after schema is confirmed. Read-only, no writes.
-app.get('/api/debug/schema-check', async (req, res) => {
+app.get(['/api/debug-schema', '/api/debug/schema-check'], async (req, res) => {
   const out = { ts: new Date().toISOString() };
 
   // Query 1: column listing for likely-relevant tables.
