@@ -684,6 +684,54 @@ app.get(['/api/debug-schema', '/api/debug/schema-check'], async (req, res) => {
     out.allTablesErr = e.message;
   }
 
+  // Round 2: inspect tables that *might* hold typed IG events.
+  const drilldownTables = [
+    'conversation_events','conversation_ai','customer_profiles',
+    'tenant_daily_conversations','broadcasts','team_messages',
+    'notify_requests','pending_drafts'
+  ];
+  try {
+    const r4 = await pool.query(`
+      SELECT table_name, column_name, data_type
+      FROM information_schema.columns
+      WHERE table_name = ANY($1::text[])
+      ORDER BY table_name, ordinal_position
+    `, [drilldownTables]);
+    out.drilldownColumns = r4.rows;
+  } catch (e) {
+    out.drilldownColumnsErr = e.message;
+  }
+
+  // Aggregate event_type distribution from conversation_events — counts
+  // only, no row data, no metadata. Tells us whether IG comment/DM events
+  // are recorded as discrete types without exposing customer content.
+  try {
+    const r5 = await pool.query(`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_name = 'conversation_events' AND table_schema = 'public'
+    `);
+    const cols = r5.rows.map(r => r.column_name);
+    out.conversationEventsColumns = cols;
+    if (cols.includes('event_type')) {
+      const dist = await pool.query(
+        `SELECT event_type, COUNT(*)::int AS count FROM conversation_events GROUP BY event_type ORDER BY count DESC LIMIT 50`
+      );
+      out.conversationEventsByType = dist.rows;
+    }
+    // Same drill for 'source' / 'channel' / 'type' columns if any exist —
+    // pure enum-distribution counts.
+    for (const c of ['source','channel','type','kind']) {
+      if (cols.includes(c)) {
+        const d = await pool.query(
+          `SELECT ${c} AS value, COUNT(*)::int AS count FROM conversation_events GROUP BY ${c} ORDER BY count DESC LIMIT 20`
+        );
+        out['conversationEventsBy_' + c] = d.rows;
+      }
+    }
+  } catch (e) {
+    out.conversationEventsErr = e.message;
+  }
+
   res.json(out);
 });
 
