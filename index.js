@@ -633,6 +633,60 @@ app.use('/admin', require('./routes/admin'));
 app.use('/team-timeline', require('./routes/team-timeline'));
 app.use('/api/demo-leads', require('./routes/demo-leads'));
 
+// ── TEMP: schema probe to find Instagram DM / comment storage.
+// Remove after schema is confirmed. Read-only, no writes.
+app.get('/api/debug/schema-check', async (req, res) => {
+  const out = { ts: new Date().toISOString() };
+
+  // Query 1: column listing for likely-relevant tables.
+  try {
+    const r1 = await pool.query(`
+      SELECT table_name, column_name, data_type
+      FROM information_schema.columns
+      WHERE table_name IN ('messages', 'conversations', 'instagram_messages', 'analytics', 'events')
+      ORDER BY table_name, column_name
+    `);
+    out.schema = r1.rows;
+    console.log('[schema-check] information_schema rows:', r1.rows.length);
+    r1.rows.forEach(r => console.log(`  ${r.table_name}.${r.column_name} :: ${r.data_type}`));
+  } catch (e) {
+    out.schemaErr = e.message;
+    console.error('[schema-check] schema query failed:', e.message);
+  }
+
+  // Query 2: messages breakdown — will fail if the table doesn't exist.
+  try {
+    const r2 = await pool.query(`
+      SELECT COUNT(*)::int AS count, source, type, channel
+      FROM messages
+      GROUP BY source, type, channel
+      LIMIT 20
+    `);
+    out.messagesBreakdown = r2.rows;
+    console.log('[schema-check] messages breakdown:', JSON.stringify(r2.rows, null, 2));
+  } catch (e) {
+    out.messagesErr = e.message;
+    console.error('[schema-check] messages query failed:', e.message);
+  }
+
+  // Bonus: enumerate every public table so we don't miss an IG-named one
+  // outside the hard-coded probe list above.
+  try {
+    const r3 = await pool.query(`
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+      ORDER BY table_name
+    `);
+    out.allPublicTables = r3.rows.map(r => r.table_name);
+    console.log('[schema-check] all public tables:', out.allPublicTables.join(', '));
+  } catch (e) {
+    out.allTablesErr = e.message;
+  }
+
+  res.json(out);
+});
+
 // ── PUBLIC STATS for landing page hero ──────────────────────
 app.get('/api/stats', async (req, res) => {
   try {
