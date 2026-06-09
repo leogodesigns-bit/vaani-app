@@ -297,6 +297,28 @@ const scenarios = [
       ['no "Coupon noted" persisted',     !msgs.some(m => /Coupon.*noted/i.test(m.content || ''))],
     ]),
   },
+  {
+    name: '18. Add to cart works for bestseller-only product (not in all-sarees)',
+    inputs: [{
+      text: 'Add to cart',
+      seedCart: {
+        rajathee: {
+          browseMode: 'product_detail',
+          product: {
+            handle: 'soumya-plain-mul-cotton-saree',  // exists in best-sellers, NOT in all-sarees
+            id: 999999,
+            currentVariantId: null,                    // single-variant, falls back to variants[0]
+            picsShownCount: 2,
+          },
+        },
+      },
+    }],
+    checks: (msgs) => ([
+      ['no "Couldn\'t find" error',  !msgs.some(m => /Couldn't find that one/i.test(m.content || ''))],
+      ['add confirmation shown',     msgs.some(m => /Added.*cart/i.test(m.content || ''))],
+      ['addon prompt shown',         msgs.some(m => m.kind === 'buttons' && /Ready to Wear/.test(m.content || ''))],
+    ]),
+  },
 ];
 
 async function main() {

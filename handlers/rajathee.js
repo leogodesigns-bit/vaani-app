@@ -1282,8 +1282,14 @@ async function sendVariantDetail(ctx, variantId) {
 
   // Fetch via collection endpoint — products.json reliably returns 'available'.
   // /products/{handle}.json omits availability, which broke sold-out detection.
-  const allProducts = await getCollectionProducts(tenant, 'all-sarees');
-  const product = allProducts.find(p => p.handle === productHandle);
+  // Try all-sarees first (reliable .available), fall back to direct-handle
+  // fetch — same fallback as handleAddToCart, since bestseller-only products
+  // aren't in the all-sarees collection.
+  const allProducts = await getCollectionProducts(tenant, 'all-sarees').catch(() => []);
+  let product = allProducts.find(p => p.handle === productHandle);
+  if (!product) {
+    product = await getProductByHandle(tenant, productHandle).catch(() => null);
+  }
   if (!product) {
     await sendWelcome(ctx);
     return;
@@ -1463,9 +1469,16 @@ async function handleAddToCart(ctx) {
     return;
   }
 
-  // Resolve product + variant via collection (has .available reliably).
-  const allProducts = await getCollectionProducts(tenant, 'all-sarees');
-  const product = allProducts.find(p => p.handle === productHandle);
+  // Resolve product + variant. Try all-sarees first (gives reliable .available
+  // on variants) then fall back to direct-handle fetch for products that live
+  // only in other collections (e.g. best-sellers-only items). Without the
+  // fallback, those items hit "Couldn't find that one" even though
+  // sendProductDetail loaded them fine via the same direct path.
+  const allProducts = await getCollectionProducts(tenant, 'all-sarees').catch(() => []);
+  let product = allProducts.find(p => p.handle === productHandle);
+  if (!product) {
+    product = await getProductByHandle(tenant, productHandle).catch(() => null);
+  }
   if (!product) {
     await sendMessage(from, "Couldn't find that one. Let me bring you back to browse.", waToken, phoneNumberId);
     await sendWelcome(ctx);
