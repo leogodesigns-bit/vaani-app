@@ -1587,6 +1587,14 @@ async function handleCheckout(ctx) {
     return;
   }
 
+  // If address is already on file (returning customer or post-edit re-tap),
+  // skip re-collection and jump straight to payment.
+  const co = cart.rajathee?.checkout || {};
+  if (co.name && co.address1 && co.city && co.state && co.pin) {
+    await handlePaymentMenu(ctx);
+    return;
+  }
+
   // Begin name collection.
   await sendMessage(from, CHECKOUT_PROMPT[CHECKOUT_STEP.NAME], waToken, phoneNumberId);
 
