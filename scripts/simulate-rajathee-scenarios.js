@@ -319,6 +319,23 @@ const scenarios = [
       ['addon prompt shown',         msgs.some(m => m.kind === 'buttons' && /Ready to Wear/.test(m.content || ''))],
     ]),
   },
+  {
+    name: '19. "Edit cart?" after payment menu → cart view, not off-topic',
+    inputs: [{
+      text: 'Edit cart?',
+      seedCart: {
+        rajathee: {
+          items: [{ kind:'saree', productHandle:'x', productTitle:'X', price:1190, quantity:1 }],
+          checkout: { step:'payment_method', name:'T', address1:'A', city:'C', state:'S', pin:'400001', phone:TEST_PHONE },
+        },
+      },
+    }],
+    checks: (msgs) => ([
+      ['cart summary shown',      msgs.some(m => /Your cart/i.test(m.content || ''))],
+      ['no off-topic warning',    !msgs.some(m => /I'm here to help you find the right saree/i.test(m.content || ''))],
+      ['coupon/checkout actions', msgs.some(m => m.kind === 'buttons' && /Apply coupon|Checkout/.test(m.content || ''))],
+    ]),
+  },
 ];
 
 async function main() {

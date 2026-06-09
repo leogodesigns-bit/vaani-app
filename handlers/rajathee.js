@@ -543,6 +543,16 @@ async function handle(ctx) {
     return;
   }
 
+  // ── Cart-edit intent — "edit cart", "Edit cart?", "change cart", "modify cart",
+  //    "remove item". Routes to handleViewCart (cart summary + coupon/checkout
+  //    buttons). Without this, the phrases fall through to off-topic warning,
+  //    most painfully after the payment menu has been shown.
+  if (/\b(edit|change|modify|remove)(\s+(my|an|the))?\s+(cart|carts|item|items)\b/i.test(trimmed)) {
+    console.log(`[rajathee] Cart-edit intent detected in "${trimmed}"`);
+    await handleViewCart(ctx);
+    return;
+  }
+
   // ── Payment intent detection — "checkout" (case-insensitive), "pay", "payment",
   //    "how to pay", "place order". Bare "Checkout" already matches via CART_BTN
   //    above; this catches the natural-language phrasings that previously fell
