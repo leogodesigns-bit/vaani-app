@@ -2374,6 +2374,7 @@ async function handleStylistRequest(ctx) {
     'Our stylist will reach out shortly to help you find the perfect drape.\n\n' +
     'In the meantime, feel free to keep browsing.',
     waToken, phoneNumberId);
+  await sendHandoffFollowups(ctx);
   await sendButtons(from, 'While you wait:',
     ['Browse by fabric', 'Browse by colour'],
     waToken, phoneNumberId);
@@ -2533,6 +2534,49 @@ async function handleShowMore(ctx) {
     return;
   }
   await sendWelcome(ctx);
+}
+
+// ─── HANDOFF FOLLOW-UPS ───────────────────────────────────────────────────
+// Sent to customer after a human handoff confirmation: wait-time line, top-3
+// bestsellers, then 3 more sarees not already shown this session.
+
+async function sendHandoffFollowups(ctx) {
+  const { tenant, from, waToken, phoneNumberId, cart } = ctx;
+  const shownHandles = new Set(cart?.rajathee?.productHandles || []);
+
+  await sendMessage(from,
+    "We'll reach out shortly. Typically 20-30 mins during working hours 🕐",
+    waToken, phoneNumberId);
+
+  const bestRaw = await getCollectionProducts(tenant, 'best-sellers').catch(e => {
+    console.error('[rajathee] bestsellers fetch failed:', e.message);
+    return [];
+  });
+  const bestsellers = filterInStock(bestRaw).slice(0, 3);
+  for (const p of bestsellers) {
+    const v0 = p.variants?.[0];
+    const img = p.images?.[0]?.src || v0?.featured_image?.src;
+    const caption = buildProductCaption(p);
+    if (img) await sendImage(from, img, caption, waToken, phoneNumberId);
+    else await sendMessage(from, caption, waToken, phoneNumberId);
+    shownHandles.add(p.handle);
+  }
+
+  const moreRaw = await getCollectionProducts(tenant, 'all-sarees').catch(e => {
+    console.error('[rajathee] all-sarees fetch for handoff followup failed:', e.message);
+    return [];
+  });
+  const more = filterInStock(moreRaw).filter(p => !shownHandles.has(p.handle)).slice(0, 3);
+  if (more.length) {
+    await sendMessage(from, 'More sarees you might love 🌸', waToken, phoneNumberId);
+    for (const p of more) {
+      const v0 = p.variants?.[0];
+      const img = p.images?.[0]?.src || v0?.featured_image?.src;
+      const caption = buildProductCaption(p);
+      if (img) await sendImage(from, img, caption, waToken, phoneNumberId);
+      else await sendMessage(from, caption, waToken, phoneNumberId);
+    }
+  }
 }
 
 // ─── CURATED COLLECTIONS (Bestsellers, Akshay Tritiya) ────────────────────
