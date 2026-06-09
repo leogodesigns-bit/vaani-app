@@ -497,6 +497,7 @@ async function handle(ctx) {
   }
 
   // ── Product action buttons ──
+  if (trimmed === 'Add to cart 🛒')           { await handleAddToCartPromptTap(ctx); return; }
   if (trimmed === PRODUCT_BTN.ADD_TO_CART)    { await handleAddToCart(ctx); return; }
   if (trimmed === PRODUCT_BTN.SEE_MORE_PICS)  { await sendMorePics(ctx); return; }
   if (trimmed === PRODUCT_BTN.SEE_EVEN_MORE)  { await sendMorePics(ctx); return; }
@@ -612,6 +613,8 @@ async function handle(ctx) {
           shownCount: firstBatch.length,
           query: trimmed,
         };
+
+        await sendAddToCartPrompt(ctx);
 
         if (remaining.length > 0) {
           await sendButtons(ctx.from, `Want to see more? (${remaining.length} left)`,
@@ -779,6 +782,7 @@ async function sendFabricResults(ctx, fabricRowId, page) {
 
   // C.3.5: saree-picker list above the action buttons.
   await sendSareePickerList(ctx, slice);
+  await sendAddToCartPrompt(ctx);
 
   const totalShownAfter = Math.min((page + 1) * PAGE_SIZE, products.length);
   const moreAvailable = totalShownAfter < Math.min(products.length, MAX_SHOWN);
@@ -946,6 +950,7 @@ async function sendColourResults(ctx, colourRowId, page) {
 
   // C.3.5 retrofit: saree-picker list.
   await sendSareePickerList(ctx, slice);
+  await sendAddToCartPrompt(ctx);
 
   const totalShownAfter = Math.min((page + 1) * PAGE_SIZE, matched.length);
   const moreAvailable = totalShownAfter < Math.min(matched.length, MAX_SHOWN);
@@ -1028,6 +1033,24 @@ async function sendSareePickerList(ctx, products) {
 
   const sections = [{ title: 'Tap to see details', rows }];
   await sendList(from, 'Tap any saree to see colours, sizes & order details.', sections, waToken, phoneNumberId);
+}
+
+// ─── ADD-TO-CART CTA (shown after each batch of product cards) ───────────
+// Reinforces the picker shown just above. Button label uses a trailing emoji
+// so it does NOT collide with the existing exact-match PRODUCT_BTN.ADD_TO_CART
+// handler (which expects to act on a product the user is viewing in detail).
+
+async function sendAddToCartPrompt(ctx) {
+  await sendButtons(ctx.from,
+    'Ready to order? Tap to add a saree to your cart',
+    ['Add to cart 🛒'],
+    ctx.waToken, ctx.phoneNumberId);
+}
+
+async function handleAddToCartPromptTap(ctx) {
+  await sendMessage(ctx.from,
+    "Tap any saree from the list above 👆, then choose 'Add to cart' from its details ✨",
+    ctx.waToken, ctx.phoneNumberId);
 }
 
 // ─── PDF SECTION 4 — PRODUCT DETAIL ───────────────────────────────────────
@@ -2536,6 +2559,7 @@ async function sendHandoffFollowups(ctx) {
     else await sendMessage(from, caption, waToken, phoneNumberId);
     shownHandles.add(p.handle);
   }
+  if (bestsellers.length) await sendAddToCartPrompt(ctx);
 
   const moreRaw = await getCollectionProducts(tenant, 'all-sarees').catch(e => {
     console.error('[rajathee] all-sarees fetch for handoff followup failed:', e.message);
@@ -2551,6 +2575,7 @@ async function sendHandoffFollowups(ctx) {
       if (img) await sendImage(from, img, caption, waToken, phoneNumberId);
       else await sendMessage(from, caption, waToken, phoneNumberId);
     }
+    await sendAddToCartPrompt(ctx);
   }
 }
 
@@ -2585,6 +2610,7 @@ async function sendCuratedCollection(ctx, handle, label, voice) {
 
   await sendMessage(from, `${label}. ${voice}.`, waToken, phoneNumberId);
   await sendSareePickerList(ctx, slice);
+  await sendAddToCartPrompt(ctx);
 
   const totalShownAfter = Math.min(PAGE_SIZE, products.length);
   const moreAvailable = totalShownAfter < Math.min(products.length, MAX_SHOWN);
@@ -2635,6 +2661,7 @@ async function sendBudgetResults(ctx, within, maxPrice, header, logTag) {
   }
 
   await sendSareePickerList(ctx, slice);
+  await sendAddToCartPrompt(ctx);
   await sendButtons(from, 'Or:',
     ['Browse by fabric', 'Browse by colour', FABRIC_BTN.HELP_CHOOSE],
     waToken, phoneNumberId);
@@ -2730,6 +2757,7 @@ async function handleInStockFilter(ctx) {
     `Showing only in-stock pieces from the ${label} edit.`,
     waToken, phoneNumberId);
   await sendSareePickerList(ctx, slice);
+  await sendAddToCartPrompt(ctx);
 
   await sendButtons(from, 'Or:',
     ['Switch fabric', 'Switch colour', FABRIC_BTN.HELP_CHOOSE],
@@ -2793,6 +2821,7 @@ async function handleSareeSearchShowMore(ctx) {
   await sendList(ctx.from, 'Or tap below to pick a saree by number 👇',
     [{ title: `Showing ${startNum}-${startNum + batch.length - 1}`, rows: pickerRows }],
     ctx.waToken, ctx.phoneNumberId, 'Tap a saree');
+  await sendAddToCartPrompt(ctx);
 
   // Update state
   ctx.cart.rajathee.sareeSearch = {
