@@ -418,6 +418,25 @@ async function handle(ctx) {
     return;
   }
 
+  // ── Free-text colour variant pick (typed instead of tapped) ──
+  //    Catches "Yellow", "Blue", "Yellow ₹2,690" etc. when the customer is
+  //    on a product-detail screen with colour variants offered. Without this,
+  //    typed colour replies fall through to saree-search / off-topic / welcome.
+  const availableColours = ctx.cart?.rajathee?.product?.availableColours || [];
+  if (availableColours.length > 0 && trimmed.length > 0 && !listReplyId && !buttonReplyId) {
+    const normalized = trimmed
+      .replace(/[₹$].*$/, '')       // strip price suffix
+      .replace(/\s*[—–-]\s*.*$/, '') // strip em-dash trailer
+      .trim()
+      .toLowerCase();
+    const match = availableColours.find(c => c.name && c.name.trim().toLowerCase() === normalized);
+    if (match) {
+      console.log(`[rajathee] free-text variant pick: "${trimmed}" → ${match.name} (id=${match.id})`);
+      await sendVariantDetail(ctx, match.id);
+      return;
+    }
+  }
+
   // ── Add-on list-row taps (PDF Section 6) ──
   if (listReplyId === ADDON_ROW.FP)   { await handleAddon(ctx, 'fp');   return; }
   // New button-based add-on routing (3-button flow).
@@ -1239,6 +1258,9 @@ async function sendProductDetail(ctx, productHandle) {
         id: product.id,
         currentVariantId: null,
         picsShownCount: 2,
+        availableColours: availableVariants.map(v => ({
+          id: String(v.id), name: v.option1, price: v.price,
+        })),
       },
     },
   });

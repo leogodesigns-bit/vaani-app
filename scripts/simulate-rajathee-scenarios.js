@@ -219,6 +219,35 @@ const scenarios = [
       ];
     },
   },
+  {
+    name: '14. Typing a colour in product detail → variant flow, no welcome bounce',
+    inputs: [{
+      text: 'Purple',
+      seedCart: {
+        rajathee: {
+          browseMode: 'product_detail',
+          product: {
+            handle: 'meera-bloom-ivory-crepe-abstract-floral-saree',
+            id: 999999,
+            currentVariantId: null,
+            picsShownCount: 2,
+            availableColours: [
+              { id: '47057060790455', name: 'Blue',     price: '1190.00' },
+              { id: '47057060823223', name: 'Red',      price: '1190.00' },
+              { id: '47057060855991', name: 'Purple',   price: '1190.00' },
+              { id: '47057060888759', name: 'Sky Blue', price: '1190.00' },
+            ],
+          },
+        },
+      },
+    }],
+    checks: (msgs) => ([
+      ['variant images sent',           msgs.filter(m => m.kind === 'image').length >= 1],
+      ['variant caption with price',    hasText(msgs, '₹1,190')],
+      ['Add to cart button presented',  msgs.some(m => m.kind === 'buttons' && /Add to cart/.test(m.content || ''))],
+      ['no welcome bounce',             !msgs.some(m => /Welcome to Rajathee/i.test(m.content || ''))],
+    ]),
+  },
 ];
 
 async function main() {
