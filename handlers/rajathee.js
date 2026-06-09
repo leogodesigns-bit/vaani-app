@@ -26,6 +26,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const edge = require('./rajathee-edge');
 const qa = require('./rajathee-qa');
 const sareeSearch = require('./rajathee-product-search');
+const budgetParser = require('./rajathee-budget');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const { getCollectionProducts, getProductByHandle, formatPrice, stripHtml, createCheckoutDraftOrder } = require('../shopify');
@@ -545,6 +546,34 @@ async function handle(ctx) {
   if (orderNum) {
     console.log(`[rajathee] Order inquiry detected: #${orderNum} from ${ctx.from}`);
     await handleOrderInquiry(ctx, orderNum);
+    return;
+  }
+
+  // ── Budget detection — "under 1500", "1000 se kam", "silk under 2k" ──
+  const budget = budgetParser.detectBudget(trimmed);
+  if (budget) {
+    console.log(`[rajathee] Budget detected: max=${budget.maxPrice} cleaned="${budget.cleanedText}"`);
+    const remaining = budget.cleanedText.trim();
+    if (remaining.length > 0) {
+      try {
+        const search = await sareeSearch.findSareeFromText(ctx.tenant, remaining);
+        let candidates = [];
+        if (search.mode === 'high') candidates = [search.best];
+        else if (search.mode === 'low') candidates = search.candidates;
+        const within = budgetParser.filterByBudget(filterInStock(candidates), budget.maxPrice);
+        if (within.length > 0) {
+          const header = within.length === 1
+            ? `Here's what I found matching "${remaining}" under ${formatPrice(budget.maxPrice)} 💛`
+            : `Here are ${within.length} sarees matching "${remaining}" under ${formatPrice(budget.maxPrice)} 💛`;
+          await sendBudgetResults(ctx, within, budget.maxPrice, header, `q="${remaining}"`);
+          return;
+        }
+        console.log(`[rajathee] budget+search "${remaining}" max=${budget.maxPrice} → 0 results, falling back to bare budget`);
+      } catch (e) {
+        console.error('[rajathee] budget+search error:', e.message);
+      }
+    }
+    await handleBudgetBrowse(ctx, budget.maxPrice);
     return;
   }
 
@@ -2639,6 +2668,70 @@ async function sendCuratedCollection(ctx, handle, label, voice) {
 }
 
 // ─── IN-STOCK FILTER ──────────────────────────────────────────────────────
+
+// ─── BUDGET BROWSE ────────────────────────────────────────────────────────
+// Entry point when the user types a bare budget phrase ("under 1500",
+// "1000 se kam"). Also used as the fallback when a refined query like
+// "silk under 1500" returns no products within the cap.
+
+async function sendBudgetResults(ctx, within, maxPrice, header, logTag) {
+  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
+  const slice = within.slice(0, PAGE_SIZE);
+
+  await sendMessage(from, header, waToken, phoneNumberId);
+
+  for (const p of slice) {
+    const v0 = p.variants?.[0];
+    const img = p.images?.[0]?.src || v0?.featured_image?.src;
+    const caption = buildProductCaption(p);
+    if (img) await sendImage(from, img, caption, waToken, phoneNumberId);
+    else await sendMessage(from, caption, waToken, phoneNumberId);
+  }
+
+  await sendSareePickerList(ctx, slice);
+  await sendButtons(from, 'Or:',
+    ['Browse by fabric', 'Browse by colour', FABRIC_BTN.HELP_CHOOSE],
+    waToken, phoneNumberId);
+
+  await upsertConversation(tenant.id, from, [
+    ...history,
+    { role: 'user', content: text },
+    { role: 'assistant', content: `[rajathee budget=${maxPrice} ${logTag} shown=${slice.length}/${within.length}]` },
+  ], {
+    ...cart,
+    rajathee: {
+      ...(cart.rajathee || {}),
+      browseMode: 'budget',
+      budgetCap: maxPrice,
+      page: 0,
+      totalShown: slice.length,
+      productHandles: slice.map(p => p.handle),
+    },
+  });
+}
+
+async function handleBudgetBrowse(ctx, maxPrice) {
+  const { tenant, from, phoneNumberId, waToken } = ctx;
+
+  const all = filterInStock(await getCollectionProducts(tenant, 'all-sarees').catch(() => []));
+  const within = budgetParser.filterByBudget(all, maxPrice);
+
+  if (!within.length) {
+    const min = all.reduce((m, p) => Math.min(m, budgetParser.variantMinPrice(p)), Infinity);
+    const hint = isFinite(min)
+      ? ` Our edit starts from ${formatPrice(min)} — want to see a few near that?`
+      : '';
+    await sendMessage(from,
+      `I couldn't find any sarees under ${formatPrice(maxPrice)} right now.${hint}`,
+      waToken, phoneNumberId);
+    await sendWelcome(ctx);
+    return;
+  }
+
+  await sendBudgetResults(ctx, within, maxPrice,
+    `Here's what we have under ${formatPrice(maxPrice)} 💛`,
+    'q=bare');
+}
 
 async function handleInStockFilter(ctx) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
