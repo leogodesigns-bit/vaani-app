@@ -624,6 +624,7 @@ async function handle(ctx) {
         // Save state for Show more + digit-typed shortcut
         ctx.cart = ctx.cart || {};
         ctx.cart.rajathee = ctx.cart.rajathee || {};
+        ctx.cart.rajathee.lastShown = buildLastShown(firstBatch);
         ctx.cart.rajathee.sareeSearch = {
           allCandidates,                          // full list, 1-based via i+1
           remainingHandles: remaining.map(p => ({ id: p.id, handle: p.handle, title: p.title, price: p.variants?.[0]?.price, image: p.images?.[0]?.src })),
@@ -802,8 +803,6 @@ async function sendFabricResults(ctx, fabricRowId, page) {
   const introPrefix = `From the ${label === 'The Silk Edit' ? 'Silk Edit' : label + ' Edit'}. `;
   await sendMessage(from, introPrefix + voice, waToken, phoneNumberId);
 
-  // C.3.5: saree-picker list above the action buttons.
-  await sendSareePickerList(ctx, slice);
   await sendAddToCartPrompt(ctx);
 
   const totalShownAfter = Math.min((page + 1) * PAGE_SIZE, products.length);
@@ -828,6 +827,7 @@ async function sendFabricResults(ctx, fabricRowId, page) {
       page: page,
       totalShown: totalShownAfter,
       productHandles: products.slice(0, totalShownAfter).map(p => p.handle),
+      lastShown: buildLastShown(slice),
     },
   });
 }
@@ -969,9 +969,6 @@ async function sendColourResults(ctx, colourRowId, page) {
   }
 
   await sendMessage(from, voice, waToken, phoneNumberId);
-
-  // C.3.5 retrofit: saree-picker list.
-  await sendSareePickerList(ctx, slice);
   await sendAddToCartPrompt(ctx);
 
   const totalShownAfter = Math.min((page + 1) * PAGE_SIZE, matched.length);
@@ -996,6 +993,7 @@ async function sendColourResults(ctx, colourRowId, page) {
       page: page,
       totalShown: totalShownAfter,
       productHandles: matched.slice(0, totalShownAfter).map(p => p.handle),
+      lastShown: buildLastShown(slice),
     },
   });
 }
@@ -1054,13 +1052,18 @@ async function sendSareePickerList(ctx, products) {
   });
 
   const sections = [{ title: 'Tap to see details', rows }];
-  await sendList(from, '👇', sections, waToken, phoneNumberId);
+  await sendList(from, 'Pick a saree to add 🛒', sections, waToken, phoneNumberId);
 }
 
 // ─── ADD-TO-CART CTA (shown after each batch of product cards) ───────────
-// Reinforces the picker shown just above. Button label uses a trailing emoji
-// so it does NOT collide with the existing exact-match PRODUCT_BTN.ADD_TO_CART
-// handler (which expects to act on a product the user is viewing in detail).
+// Button label uses a trailing emoji so it does NOT collide with the existing
+// exact-match PRODUCT_BTN.ADD_TO_CART handler (which expects to act on a
+// product the user is viewing in detail).
+//
+// Tap behaviour reads cart.rajathee.lastShown:
+//   - empty → welcome menu
+//   - single → open that saree's detail directly
+//   - multiple → re-send the picker so the user can choose
 
 async function sendAddToCartPrompt(ctx) {
   await sendButtons(ctx.from,
@@ -1069,10 +1072,32 @@ async function sendAddToCartPrompt(ctx) {
     ctx.waToken, ctx.phoneNumberId);
 }
 
+// Used by every batch-sending function to record the LAST batch shown, so
+// the smart Add-to-cart tap can act on it.
+function buildLastShown(products) {
+  return (products || []).map(p => ({
+    handle: p.handle,
+    title:  p.title,
+    price:  p.variants?.[0]?.price,
+  }));
+}
+
 async function handleAddToCartPromptTap(ctx) {
-  await sendMessage(ctx.from,
-    "Tap any saree from the list above 👆, then choose 'Add to cart' from its details ✨",
-    ctx.waToken, ctx.phoneNumberId);
+  const ls = ctx.cart?.rajathee?.lastShown || [];
+  if (ls.length === 0) {
+    await sendWelcome(ctx);
+    return;
+  }
+  if (ls.length === 1) {
+    await sendProductDetail(ctx, ls[0].handle);
+    return;
+  }
+  // Re-show picker built from the recorded handles/titles/prices.
+  await sendSareePickerList(ctx, ls.map(p => ({
+    handle: p.handle,
+    title: p.title,
+    variants: [{ price: p.price }],
+  })));
 }
 
 // ─── PDF SECTION 4 — PRODUCT DETAIL ───────────────────────────────────────
@@ -2576,6 +2601,9 @@ async function handleShowMore(ctx) {
   const r = cart.rajathee || {};
   if (r.totalShown >= MAX_SHOWN) {
     if (r.browseMode === 'colour') await sendColourPicker(ctx);
+    else if (r.browseMode === 'curated' && r.curatedHandle) {
+      await sendCuratedCollection(ctx, r.curatedHandle, r.curatedLabel || 'edit', '', (r.page || 0) + 1);
+    }
     else await sendFabricPicker(ctx);
     return;
   }
@@ -2587,6 +2615,10 @@ async function handleShowMore(ctx) {
     await sendFabricResults(ctx, r.fabric, (r.page || 0) + 1);
     return;
   }
+  if (r.browseMode === 'curated' && r.curatedHandle) {
+    await sendCuratedCollection(ctx, r.curatedHandle, r.curatedLabel || 'edit', '', (r.page || 0) + 1);
+    return;
+  }
   await sendWelcome(ctx);
 }
 
@@ -2596,7 +2628,6 @@ async function handleShowMore(ctx) {
 
 async function sendHandoffFollowups(ctx) {
   const { tenant, from, waToken, phoneNumberId, cart } = ctx;
-  const shownHandles = new Set(cart?.rajathee?.productHandles || []);
 
   await sendMessage(from,
     "We'll reach out shortly. Typically 20-30 mins during working hours 🕐",
@@ -2606,26 +2637,38 @@ async function sendHandoffFollowups(ctx) {
     'While you wait — see how real customers are draping them: https://rajathee.com/#draped',
     waToken, phoneNumberId);
 
+  // 1) Fetch bestsellers and collect their handles UPFRONT so the dedup for
+  //    the "more sarees" set doesn't depend on loop ordering.
   const bestRaw = await getCollectionProducts(tenant, 'best-sellers').catch(e => {
     console.error('[rajathee] bestsellers fetch failed:', e.message);
     return [];
   });
   const bestsellers = filterInStock(bestRaw).slice(0, 3);
+  const bestsellerHandles = new Set(bestsellers.map(p => p.handle));
+
+  // Strict exclusion set: anything already shown to this session + every
+  // bestseller we're about to render.
+  const priorHandles = new Set(cart?.rajathee?.productHandles || []);
+  const blocked = new Set([...priorHandles, ...bestsellerHandles]);
+
   for (const p of bestsellers) {
     const v0 = p.variants?.[0];
     const img = p.images?.[0]?.src || v0?.featured_image?.src;
     const caption = buildProductCaption(p);
     if (img) await sendImage(from, img, caption, waToken, phoneNumberId);
     else await sendMessage(from, caption, waToken, phoneNumberId);
-    shownHandles.add(p.handle);
   }
   if (bestsellers.length) await sendAddToCartPrompt(ctx);
 
+  // 2) "More sarees" set — strict exclusion of both prior session + bestsellers
   const moreRaw = await getCollectionProducts(tenant, 'all-sarees').catch(e => {
     console.error('[rajathee] all-sarees fetch for handoff followup failed:', e.message);
     return [];
   });
-  const more = filterInStock(moreRaw).filter(p => !shownHandles.has(p.handle)).slice(0, 3);
+  const more = filterInStock(moreRaw)
+    .filter(p => !blocked.has(p.handle))
+    .slice(0, 3);
+
   if (more.length) {
     await sendMessage(from, 'More sarees you might love 🌸', waToken, phoneNumberId);
     for (const p of more) {
@@ -2637,11 +2680,24 @@ async function sendHandoffFollowups(ctx) {
     }
     await sendAddToCartPrompt(ctx);
   }
+
+  // Record the last batch shown for the smart Add-to-cart tap. Prefer "more"
+  // since it's chronologically last; fall back to bestsellers if "more" empty.
+  const lastBatch = more.length ? more : bestsellers;
+  if (lastBatch.length) {
+    await upsertConversation(ctx.tenant.id, from, ctx.history || [], {
+      ...(ctx.cart || {}),
+      rajathee: {
+        ...(ctx.cart?.rajathee || {}),
+        lastShown: buildLastShown(lastBatch),
+      },
+    });
+  }
 }
 
 // ─── CURATED COLLECTIONS (Bestsellers, Akshay Tritiya) ────────────────────
 
-async function sendCuratedCollection(ctx, handle, label, voice) {
+async function sendCuratedCollection(ctx, handle, label, voice, page = 0) {
   const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
 
   const productsRaw = await getCollectionProducts(tenant, handle).catch(e => {
@@ -2658,7 +2714,16 @@ async function sendCuratedCollection(ctx, handle, label, voice) {
     return;
   }
 
-  const slice = products.slice(0, PAGE_SIZE);
+  const start = page * PAGE_SIZE;
+  const slice = products.slice(start, start + PAGE_SIZE);
+
+  if (!slice.length) {
+    await sendMessage(from, `That's all the ${label.toLowerCase()} for now. Want to explore another way?`, waToken, phoneNumberId);
+    await sendButtons(from, 'Or:',
+      ['Browse by fabric', 'Browse by colour', FABRIC_BTN.HELP_CHOOSE],
+      waToken, phoneNumberId);
+    return;
+  }
 
   for (const p of slice) {
     const v0 = p.variants?.[0];
@@ -2668,11 +2733,13 @@ async function sendCuratedCollection(ctx, handle, label, voice) {
     else await sendMessage(from, caption, waToken, phoneNumberId);
   }
 
-  await sendMessage(from, `${label}. ${voice}.`, waToken, phoneNumberId);
-  await sendSareePickerList(ctx, slice);
+  // Voice line only on first page — repetitive otherwise.
+  if (page === 0 && voice) {
+    await sendMessage(from, `${label}. ${voice}.`, waToken, phoneNumberId);
+  }
   await sendAddToCartPrompt(ctx);
 
-  const totalShownAfter = Math.min(PAGE_SIZE, products.length);
+  const totalShownAfter = Math.min((page + 1) * PAGE_SIZE, products.length);
   const moreAvailable = totalShownAfter < Math.min(products.length, MAX_SHOWN);
 
   const buttons = moreAvailable
@@ -2684,7 +2751,7 @@ async function sendCuratedCollection(ctx, handle, label, voice) {
   await upsertConversation(tenant.id, from, [
     ...history,
     { role: 'user', content: text },
-    { role: 'assistant', content: `[rajathee curated=${handle} shown=${slice.length}]` },
+    { role: 'assistant', content: `[rajathee curated=${handle} page=${page} shown=${slice.length}]` },
   ], {
     ...cart,
     rajathee: {
@@ -2692,9 +2759,10 @@ async function sendCuratedCollection(ctx, handle, label, voice) {
       browseMode: 'curated',
       curatedHandle: handle,
       curatedLabel: label,
-      page: 0,
+      page,
       totalShown: totalShownAfter,
       productHandles: products.slice(0, totalShownAfter).map(p => p.handle),
+      lastShown: buildLastShown(slice),
     },
   });
 }
@@ -2720,7 +2788,6 @@ async function sendBudgetResults(ctx, within, maxPrice, header, logTag) {
     else await sendMessage(from, caption, waToken, phoneNumberId);
   }
 
-  await sendSareePickerList(ctx, slice);
   await sendAddToCartPrompt(ctx);
   await sendButtons(from, 'Or:',
     ['Browse by fabric', 'Browse by colour', FABRIC_BTN.HELP_CHOOSE],
@@ -2739,6 +2806,7 @@ async function sendBudgetResults(ctx, within, maxPrice, header, logTag) {
       page: 0,
       totalShown: slice.length,
       productHandles: slice.map(p => p.handle),
+      lastShown: buildLastShown(slice),
     },
   });
 }
@@ -2816,7 +2884,6 @@ async function handleInStockFilter(ctx) {
   await sendMessage(from,
     `Showing only in-stock pieces from the ${label} edit.`,
     waToken, phoneNumberId);
-  await sendSareePickerList(ctx, slice);
   await sendAddToCartPrompt(ctx);
 
   await sendButtons(from, 'Or:',
@@ -2827,7 +2894,13 @@ async function handleInStockFilter(ctx) {
     ...history,
     { role: 'user', content: text },
     { role: 'assistant', content: `[rajathee in_stock_filter mode=${r.browseMode} shown=${slice.length}]` },
-  ], cart);
+  ], {
+    ...cart,
+    rajathee: {
+      ...(cart.rajathee || {}),
+      lastShown: buildLastShown(slice),
+    },
+  });
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────
@@ -2890,6 +2963,7 @@ async function handleSareeSearchShowMore(ctx) {
     remainingHandles: stillRemaining,
     shownCount: (state.shownCount || 0) + batch.length,
   };
+  ctx.cart.rajathee.lastShown = buildLastShown(batch);
 
   if (stillRemaining.length > 0) {
     await sendButtons(ctx.from, `Want to see more? (${stillRemaining.length} left)`,

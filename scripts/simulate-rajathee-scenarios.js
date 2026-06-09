@@ -188,6 +188,37 @@ const scenarios = [
       ['no address re-collection',     !hasText(msgs, 'Full Name')],
     ]),
   },
+  {
+    name: '12. "Show more products" after bestseller browse — paginates, no welcome bounce',
+    inputs: [
+      { text: 'bestsellers' },
+      { text: 'Show more products', keepState: true },
+    ],
+    checks: (msgs) => {
+      // Slice to focus on messages from the SECOND turn only.
+      // First turn sends ~6 msgs (3 cards + voice + CTA + buttons), so anything after that.
+      const tailIdx = msgs.findIndex(m => /Show more/.test(m.content || ''));
+      const second = tailIdx >= 0 ? msgs.slice(tailIdx) : msgs.slice(-6);
+      return [
+        ['second batch has product cards',     second.filter(m => m.kind === 'image').length >= 1],
+        ['no welcome greeting after Show more', !second.some(m => /Welcome to Rajathee/i.test(m.content || ''))],
+      ];
+    },
+  },
+  {
+    name: '13. Smart Add-to-cart tap with multiple sarees → re-shows picker, no welcome',
+    inputs: [
+      { text: 'bestsellers' },
+      { text: 'Add to cart 🛒', keepState: true },
+    ],
+    checks: (msgs) => {
+      const tail = msgs.slice(-3);
+      return [
+        ['picker list re-sent',  tail.some(m => m.kind === 'list' && /Pick a saree to add/i.test(m.content || ''))],
+        ['no welcome bounce',    !tail.some(m => /Welcome to Rajathee/i.test(m.content || ''))],
+      ];
+    },
+  },
 ];
 
 async function main() {
