@@ -1044,7 +1044,7 @@ async function sendSareePickerList(ctx, products) {
   });
 
   const sections = [{ title: 'Tap to see details', rows }];
-  await sendList(from, 'Tap any saree to see colours, sizes & order details.', sections, waToken, phoneNumberId);
+  await sendList(from, '👇', sections, waToken, phoneNumberId);
 }
 
 // ─── ADD-TO-CART CTA (shown after each batch of product cards) ───────────
