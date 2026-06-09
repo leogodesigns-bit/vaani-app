@@ -29,6 +29,109 @@ router.get('/', (req, res) => {
   }
 });
 
+// ─── TEST-ONLY simulation endpoint ─────────────────────────────────────────
+// POST /webhook/test-simulate { tenant_id, from, message, reset?: bool }
+// Runs the message through the tenant's handler with WhatsApp axios calls
+// stubbed, and returns the captured outbound messages. Use a test phone like
+// "9999900000" to avoid colliding with real conversations.
+//
+// SAFETY: gated behind ENABLE_TEST_SIMULATE=true. When the env var is unset
+// or anything other than "true", the route returns 404 AND the axios.post
+// patch is never installed — production behaviour is identical to a build
+// without this code.
+//
+// Concurrency: a Promise-based mutex serialises requests so the patched
+// axios state can't bleed into a real webhook send when enabled.
+
+const TEST_SIMULATE_ENABLED = process.env.ENABLE_TEST_SIMULATE === 'true';
+
+if (TEST_SIMULATE_ENABLED) {
+  const axiosLib = require('axios');
+  const waModule = require('../whatsapp');
+  const _realAxiosPost = axiosLib.post.bind(axiosLib);
+  const _realDrain = waModule.drainSentMessages;
+  let _simActive = false;
+  let _simMutex = Promise.resolve();
+
+  axiosLib.post = async function _maybePatchedPost(url, ...rest) {
+    if (_simActive && typeof url === 'string' && url.includes('graph.facebook.com')) {
+      return { data: { messages: [{ id: 'sim_' + Date.now() + '_' + Math.random().toString(36).slice(2,8) }] } };
+    }
+    return _realAxiosPost(url, ...rest);
+  };
+
+  router.post('/test-simulate', async (req, res) => {
+    const { tenant_id, from, message, reset } = req.body || {};
+    if (!tenant_id || !from || typeof message !== 'string') {
+      return res.status(400).json({ error: 'tenant_id, from, message required' });
+    }
+
+  // Serialise so concurrent test calls don't share the patched axios state.
+  let release;
+  const next = new Promise(r => { release = r; });
+  const prev = _simMutex;
+  _simMutex = _simMutex.then(() => next);
+  await prev;
+
+  try {
+    const tRes = await pool.query('SELECT * FROM tenants WHERE id = $1', [tenant_id]);
+    const tenant = tRes.rows[0];
+    if (!tenant) return res.status(404).json({ error: 'tenant not found' });
+
+    if (reset) {
+      await pool.query('DELETE FROM conversations WHERE tenant_id = $1 AND customer_phone = $2', [tenant_id, from]);
+    }
+
+    const conv = await getConversation(tenant_id, from);
+    const history = conv?.messages || [];
+    const cart = conv?.cart || {};
+
+    // Suppress drain inside upsertConversation so our final drain sees all sends.
+    waModule.drainSentMessages = () => [];
+    _simActive = true;
+
+    const ctx = {
+      tenant,
+      message: { type: 'text', text: { body: message } },
+      from,
+      text: message,
+      phoneNumberId: 'sim_phone',
+      waToken: 'sim_token',
+      history,
+      cart,
+    };
+
+    try {
+      if (tenant.flow_template === 'rajathee') {
+        await rajatheeHandler.handle(ctx);
+      } else if (tenant.flow_template === 'woofparade') {
+        await woofparadeHandler.handle(ctx);
+      } else {
+        return res.status(400).json({ error: `flow_template ${tenant.flow_template} not supported in simulator` });
+      }
+    } catch (handlerErr) {
+      console.error('[test-simulate] handler error:', handlerErr.stack || handlerErr.message);
+      return res.status(500).json({ error: 'handler threw: ' + handlerErr.message });
+    }
+
+    const messages = _realDrain.call(waModule, from);
+    const convAfter = await getConversation(tenant_id, from);
+    res.json({
+      messages,
+      cart_after: convAfter?.cart || null,
+      history_count: (convAfter?.messages || []).length,
+    });
+  } catch (err) {
+    console.error('[test-simulate] error:', err.stack || err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    _simActive = false;
+    waModule.drainSentMessages = _realDrain;
+    release();
+  }
+});
+}  // end if (TEST_SIMULATE_ENABLED)
+
 // Helper: send 3 products starting at offset, return how many were sent
 async function sendProductPage(from, products, offset, waToken, phoneNumberId) {
   const page = products.slice(offset, offset + 3);
