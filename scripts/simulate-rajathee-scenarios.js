@@ -248,6 +248,55 @@ const scenarios = [
       ['no welcome bounce',             !msgs.some(m => /Welcome to Rajathee/i.test(m.content || ''))],
     ]),
   },
+  {
+    name: '15. Address typed mid-checkout never becomes coupon (stuck awaitingCoupon)',
+    inputs: [{
+      text: 'Poorva Konde',
+      seedCart: {
+        rajathee: {
+          items: [{ kind:'saree', productHandle:'x', productTitle:'X', price:1190, quantity:1 }],
+          awaitingCoupon: true,
+          checkout: { step: 'name', name:null, address1:null, city:null, state:null, pin:null, phone:TEST_PHONE },
+        },
+      },
+    }],
+    checks: (msgs) => ([
+      ['no "Coupon noted" persisted',          !msgs.some(m => /Coupon.*noted/i.test(m.content || ''))],
+      ['name validated, next field requested', msgs.some(m => /house\/flat|address|street/i.test(m.content || ''))],
+    ]),
+  },
+  {
+    name: '16. "Ready to Wear" addon does not double-charge with Pico Fall',
+    inputs: [{
+      text: 'Ready to Wear',
+      seedCart: {
+        rajathee: {
+          items: [{ kind:'saree', productHandle:'x', productTitle:'X', price:1190, quantity:1 }],
+          pendingSareeVariantId: 'V1',
+        },
+      },
+    }],
+    checks: (msgs) => ([
+      ['RTW line in cart summary',     msgs.some(m => /•\s*Ready to Wear/i.test(m.content || ''))],
+      ['no separate Fall & Pico line', !msgs.some(m => /•\s*Fall\s*&\s*Pico|•\s*Pico\s*Fall/i.test(m.content || ''))],
+    ]),
+  },
+  {
+    name: '17. Long input at coupon step is rejected, not persisted',
+    inputs: [{
+      text: 'POORVAKONDEDESHMUKHSHIVTEJCOLONYDAGADOBA',
+      seedCart: {
+        rajathee: {
+          items: [{ kind:'saree', productHandle:'x', productTitle:'X', price:1190, quantity:1 }],
+          awaitingCoupon: true,
+        },
+      },
+    }],
+    checks: (msgs) => ([
+      ['rejection message shown',         msgs.some(m => /coupon codes are usually short|doesn't look like a coupon/i.test(m.content || ''))],
+      ['no "Coupon noted" persisted',     !msgs.some(m => /Coupon.*noted/i.test(m.content || ''))],
+    ]),
+  },
 ];
 
 async function main() {

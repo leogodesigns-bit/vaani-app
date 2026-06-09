@@ -364,19 +364,22 @@ async function handle(ctx) {
     return;
   }
 
-  // ── Coupon entry: capture free-text coupon code if customer was prompted ──
-  if (ctx.cart?.rajathee?.awaitingCoupon && trimmed && trimmed.length > 0
-      && !buttonReplyId && !listReplyId) {
-    await handleCouponMessage(ctx, trimmed);
-    return;
-  }
-
   // ── Checkout state machine: capture free-text inputs during address collection ──
+  //    Must run BEFORE the coupon-capture block: if a stuck awaitingCoupon flag
+  //    coincides with active address collection, address inputs (name, address,
+  //    city...) would otherwise be silently consumed by the coupon handler.
   const checkoutState = ctx.cart?.rajathee?.checkout;
   const collectingSteps = [CHECKOUT_STEP.NAME, CHECKOUT_STEP.ADDRESS1, CHECKOUT_STEP.CITY, CHECKOUT_STEP.STATE, CHECKOUT_STEP.PIN];
   const inCollection = checkoutState && (collectingSteps.includes(checkoutState.step) || checkoutState.editingField);
   if (inCollection && !listReplyId && !buttonReplyId) {
     await handleCheckoutMessage(ctx);
+    return;
+  }
+
+  // ── Coupon entry: capture free-text coupon code if customer was prompted ──
+  if (ctx.cart?.rajathee?.awaitingCoupon && trimmed && trimmed.length > 0
+      && !buttonReplyId && !listReplyId) {
+    await handleCouponMessage(ctx, trimmed);
     return;
   }
 
@@ -1525,11 +1528,10 @@ async function handleAddon(ctx, choice) {
   const items = Array.isArray(r.items) ? [...r.items] : [];
   const linkedSareeId = r.pendingSareeVariantId || null;
 
-  // Founder review: PDF says RTW auto-adds F&P. Currently customer must tap both
-  // separately (or 'Add both'). To restore PDF behaviour, change choice='rtw' branch
-  // to also push fall_pico item.
-  // PDF v1.1 Section 06: RTW auto-adds Pico Fall.
-  if (choice === 'fp' || choice === 'rtw' || choice === 'both') {
+  // Ready to Wear (₹1,100) bundles Pico Fall — the stitching includes hemming.
+  // So 'rtw' must NOT also push a fall_pico line item (that would double-charge
+  // the ₹180 Pico Fall on top of the ₹1,100 RTW price).
+  if (choice === 'fp' || choice === 'both') {
     items.push({
       kind: 'fall_pico',
       variantId: ADDON_VARIANT.FALL_PICO,
@@ -1645,6 +1647,13 @@ async function handleCheckout(ctx) {
   // Begin name collection.
   await sendMessage(from, CHECKOUT_PROMPT[CHECKOUT_STEP.NAME], waToken, phoneNumberId);
 
+  // Defensively clear awaitingCoupon — if the customer tapped "Apply coupon"
+  // earlier and never typed a code, the stuck flag would otherwise intercept
+  // their address inputs in the coupon handler. (Dispatcher priority swap
+  // already prevents this; clearing here is belt-and-braces.)
+  const nextRajathee = { ...(cart.rajathee || {}) };
+  delete nextRajathee.awaitingCoupon;
+
   await upsertConversation(tenant.id, from, [
     ...history,
     { role: 'user', content: text },
@@ -1652,7 +1661,7 @@ async function handleCheckout(ctx) {
   ], {
     ...cart,
     rajathee: {
-      ...(cart.rajathee || {}),
+      ...nextRajathee,
       checkout: {
         step: CHECKOUT_STEP.NAME,
         name: null, address1: null, city: null, state: null, pin: null,
@@ -3060,13 +3069,25 @@ async function handleCouponMessage(ctx, code) {
     return;
   }
 
-  // For now: store the code in cart and acknowledge. Validation against Shopify
-  // happens at draft-order creation time in handleCheckout.
-  const cleanCode = trimmedCode.toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 40);
-  if (!cleanCode) {
-    await sendMessage(from, "That doesn't look like a valid code. Try again or tap *Continue to checkout*.", waToken, phoneNumberId);
+  // Shape validation — reject loudly instead of silently sanitising. Without
+  // this, an address pasted by mistake (e.g. "Poorva Konde Deshmukh, ...")
+  // would be stripped to "POORVAKONDEDESHMUKH..." and stored as a "valid"
+  // discount code. The reported live-order bug.
+  if (trimmedCode.length > 20) {
+    await sendMessage(from,
+      "Coupon codes are usually short — please type just the code, or tap *Continue to checkout* to skip.",
+      waToken, phoneNumberId);
     return;
   }
+  if (!/^[A-Za-z0-9_-]+$/.test(trimmedCode)) {
+    await sendMessage(from,
+      "That doesn't look like a coupon code (no spaces or punctuation). Try again or tap *Continue to checkout*.",
+      waToken, phoneNumberId);
+    return;
+  }
+
+  // Already shape-validated — uppercase is now safe.
+  const cleanCode = trimmedCode.toUpperCase();
 
   const updatedCart = {
     ...cart,
