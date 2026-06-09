@@ -12,7 +12,13 @@ function isNonTextMessage(message) {
   return !!message && NON_TEXT_TYPES.includes(message.type);
 }
 
-const STYLIST_KEYWORD_RE = /^(stylist|talk to (a )?stylist|need help|help me choose|styling help)\s*[!.?]*\s*$/i;
+// Matches anywhere in the message — was previously anchored to start-of-end,
+// which missed natural phrasings like "I want to talk to a stylist" or
+// "need help from a stylist". Bare "need help" was dropped from the original
+// pattern set because it false-positives on customer-service questions
+// ("do you need help packing?"); "stylist" / "styling help" / "help me choose"
+// are specific enough to be safe substring triggers.
+const STYLIST_KEYWORD_RE = /\b(stylist|styling help|help me choose)\b/i;
 
 function isStylistKeyword(text) {
   return STYLIST_KEYWORD_RE.test((text || '').trim());

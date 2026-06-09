@@ -549,6 +549,14 @@ async function handle(ctx) {
     return;
   }
 
+  // ── Bestseller free-text trigger — "show me bestsellers", "popular sarees", "top sarees" ──
+  if (/\b(best ?sellers?|most.?loved|popular sarees?|top sarees?|trending)\b/i.test(trimmed)) {
+    console.log(`[rajathee] Bestseller keyword detected in "${trimmed}"`);
+    await sendCuratedCollection(ctx, 'best-sellers', 'Bestsellers',
+      'Our most-loved pieces — the ones that keep coming back into stock');
+    return;
+  }
+
   // ── Saree search FIRST — match free text to a specific product/collection ──
   // (Runs before FAQ so single-word fabric queries like "Silk" show sarees, not care info.)
   if (trimmed && trimmed.length > 0) {
