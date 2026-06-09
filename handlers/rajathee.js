@@ -43,12 +43,13 @@ const WELCOME_BODY =
 const GREETING_RE = edge.GREETING_RE;
 
 const WELCOME_ROW = {
-  BROWSE_FABRIC:     'welcome_browse_fabric',
-  BROWSE_COLOUR:     'welcome_browse_colour',
-  MORE:              'welcome_more',
+  BROWSE_FABRIC:      'welcome_browse_fabric',
+  BROWSE_COLOUR:      'welcome_browse_colour',
+  MORE:               'welcome_more',
   // sub-rows under "More options"
-  BROWSE_COLLECTION: 'welcome_browse_collection',
-  STYLING:           'welcome_styling_help',
+  BROWSE_BESTSELLERS: 'welcome_browse_bestsellers',
+  BROWSE_COLLECTION:  'welcome_browse_collection',  // retained so older list-replies still route; see dispatcher
+  STYLING:            'welcome_styling_help',
 };
 
 // Button labels for the 3-button welcome.
@@ -56,36 +57,6 @@ const WELCOME_BTN = {
   FABRIC: 'Browse by fabric',
   COLOUR: 'Browse by colour',
   MORE:   'More options',
-};
-
-// Curated collections shown under "Browse by collection".
-// Add new collections here; handle must match the Shopify collection handle.
-const COLLECTION_ROW = {
-  WEEKEND_VIBES: 'collection_weekend_vibes',
-  CHANDANI:      'collection_chandani',
-  MANIKA:        'collection_manika',
-  QUEENS_GRID:   'collection_queens_grid',
-};
-
-const COLLECTION_HANDLES = {
-  [COLLECTION_ROW.WEEKEND_VIBES]: 'weekend-whispers',
-  [COLLECTION_ROW.CHANDANI]:      'chandani-saree-collection',
-  [COLLECTION_ROW.MANIKA]:        'manika-saree-collection',
-  [COLLECTION_ROW.QUEENS_GRID]:   'queens-grid-collection',
-};
-
-const COLLECTION_LABEL = {
-  [COLLECTION_ROW.WEEKEND_VIBES]: 'Weekend Vibes',
-  [COLLECTION_ROW.CHANDANI]:      'Chandani',
-  [COLLECTION_ROW.MANIKA]:        'Manika',
-  [COLLECTION_ROW.QUEENS_GRID]:   "Queen's Grid",
-};
-
-const COLLECTION_VOICE = {
-  [COLLECTION_ROW.WEEKEND_VIBES]: 'Casual, easy, weekend-ready — for the days you slip into a saree without overthinking it',
-  [COLLECTION_ROW.CHANDANI]:      'Soft, luminous, moonlit — pieces that catch the light without trying',
-  [COLLECTION_ROW.MANIKA]:        'Considered, refined, our quietly statement edit',
-  [COLLECTION_ROW.QUEENS_GRID]:   'Bold geometry, modern lines — for when you want presence',
 };
 
 // ─── PDF Section 2 — Browse by fabric ─────────────────────────────────────
@@ -413,9 +384,9 @@ async function handle(ctx) {
   if (trimmed === WELCOME_BTN.FABRIC || listReplyId === WELCOME_ROW.BROWSE_FABRIC) { await sendFabricPicker(ctx); return; }
   if (trimmed === WELCOME_BTN.COLOUR || listReplyId === WELCOME_ROW.BROWSE_COLOUR) { await sendColourPicker(ctx); return; }
   if (trimmed === WELCOME_BTN.MORE   || listReplyId === WELCOME_ROW.MORE)          { await sendMoreOptions(ctx); return; }
-  if (listReplyId === WELCOME_ROW.BROWSE_COLLECTION) { await sendCollectionPicker(ctx); return; }
-  if (listReplyId && COLLECTION_HANDLES[listReplyId]) {
-    await sendCuratedCollection(ctx, COLLECTION_HANDLES[listReplyId], COLLECTION_LABEL[listReplyId], COLLECTION_VOICE[listReplyId]);
+  if (listReplyId === WELCOME_ROW.BROWSE_BESTSELLERS || listReplyId === WELCOME_ROW.BROWSE_COLLECTION) {
+    await sendCuratedCollection(ctx, 'best-sellers', 'Bestsellers',
+      'Our most-loved pieces — the ones that keep coming back into stock');
     return;
   }
   if (listReplyId === WELCOME_ROW.STYLING)       { await handleStylistRequest(ctx); return; }
@@ -720,8 +691,8 @@ async function sendMoreOptions(ctx) {
   await sendList(from, 'What else can I help with?', [{
     title: 'More options',
     rows: [
-      { id: WELCOME_ROW.BROWSE_COLLECTION, title: 'Browse by collection', description: 'Our curated edits' },
-      { id: WELCOME_ROW.STYLING,           title: "I'd like styling help", description: 'Talk to us' },
+      { id: WELCOME_ROW.BROWSE_BESTSELLERS, title: 'Browse by bestseller', description: 'Our most-loved sarees' },
+      { id: WELCOME_ROW.STYLING,            title: "I'd like styling help", description: 'Talk to us' },
     ],
   }], waToken, phoneNumberId);
 
@@ -729,31 +700,6 @@ async function sendMoreOptions(ctx) {
     ...history,
     { role: 'user', content: text },
     { role: 'assistant', content: '[rajathee more options shown]' },
-  ], cart);
-}
-
-// ─── BROWSE BY COLLECTION (curated edits) ────────────────────────────────
-
-async function sendCollectionPicker(ctx) {
-  const { tenant, from, text, phoneNumberId, waToken, history, cart } = ctx;
-
-  const rows = Object.keys(COLLECTION_ROW).map(k => {
-    const id = COLLECTION_ROW[k];
-    return {
-      id,
-      title: COLLECTION_LABEL[id],
-      description: COLLECTION_VOICE[id].slice(0, 72),
-    };
-  });
-
-  await sendList(from, 'Which edit would you like to explore?',
-    [{ title: 'Our collections', rows }],
-    waToken, phoneNumberId);
-
-  await upsertConversation(tenant.id, from, [
-    ...history,
-    { role: 'user', content: text },
-    { role: 'assistant', content: '[rajathee collection picker shown]' },
   ], cart);
 }
 
@@ -2876,7 +2822,6 @@ module.exports = {
   GREETING_RE,
   FABRIC_ROW, FABRIC_HANDLES, FABRIC_LABEL, FABRIC_VOICE, FABRIC_BTN,
   COLOUR_ROW, COLOUR_LABEL, COLOUR_KEYWORDS, COLOUR_VOICE, COLOUR_BTN,
-  COLLECTION_ROW, COLLECTION_HANDLES, COLLECTION_LABEL, COLLECTION_VOICE,
   PRODUCT_BTN, PRODUCT_LIST_ROW,
   ADDON_VARIANT, ADDON_PRICE, ADDON_ROW, CART_BTN,
   CHECKOUT_STEP, CHECKOUT_BTN, CHECKOUT_PROMPT,
