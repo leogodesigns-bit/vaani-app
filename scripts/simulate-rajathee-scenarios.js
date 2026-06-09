@@ -40,8 +40,15 @@ async function reset() {
   await pool.query('DELETE FROM conversations WHERE tenant_id=$1 AND customer_phone=$2', [TENANT_ID, TEST_PHONE]);
 }
 
-async function runOne(tenant, text, { keepState = false } = {}) {
+async function runOne(tenant, text, { keepState = false, seedCart = null } = {}) {
   if (!keepState) await reset();
+  if (seedCart) {
+    await pool.query(
+      'INSERT INTO conversations (tenant_id, customer_phone, messages, cart) VALUES ($1,$2,$3,$4) ' +
+      'ON CONFLICT (tenant_id, customer_phone) DO UPDATE SET cart = EXCLUDED.cart',
+      [TENANT_ID, TEST_PHONE, JSON.stringify([]), JSON.stringify(seedCart)]
+    );
+  }
   const conv = await getConversation(TENANT_ID, TEST_PHONE);
   const ctx = {
     tenant,
@@ -164,6 +171,23 @@ const scenarios = [
       ['draped link surfaces', hasText(msgs, '/#draped')],
     ]),
   },
+  {
+    name: '11. "Checkout" with address on file — straight to payment menu',
+    inputs: [{
+      text: 'Checkout',
+      seedCart: {
+        rajathee: {
+          items: [{ kind: 'saree', productHandle: 'meera-bloom', productTitle: 'Meera Bloom', price: 1190, quantity: 1 }],
+          checkout: { name: 'Test User', address1: '12 Test St', city: 'Mumbai', state: 'MH', pin: '400001', phone: TEST_PHONE },
+        },
+      },
+    }],
+    checks: (msgs) => ([
+      ['payment menu shown',           hasText(msgs, 'How would you like to pay')],
+      ['order total appears',          hasText(msgs, '₹1,190')],
+      ['no address re-collection',     !hasText(msgs, 'Full Name')],
+    ]),
+  },
 ];
 
 async function main() {
@@ -177,7 +201,7 @@ async function main() {
     console.log('───', sc.name, '───');
     let allMsgs = [];
     for (const inp of sc.inputs) {
-      const r = await runOne(tenant, inp.text, { keepState: !!inp.keepState });
+      const r = await runOne(tenant, inp.text, { keepState: !!inp.keepState, seedCart: inp.seedCart || null });
       if (r.error) {
         console.log('  ERROR:', r.error);
         break;
