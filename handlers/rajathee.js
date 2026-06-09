@@ -521,6 +521,16 @@ async function handle(ctx) {
     return;
   }
 
+  // ── Payment intent detection — "checkout" (case-insensitive), "pay", "payment",
+  //    "how to pay", "place order". Bare "Checkout" already matches via CART_BTN
+  //    above; this catches the natural-language phrasings that previously fell
+  //    through to off-topic or false-positive saree-search.
+  if (/\b(checkout|payment|how (do i |to )pay|place\s+(my\s+)?order|pay)\b/i.test(trimmed)) {
+    console.log(`[rajathee] Payment intent detected in "${trimmed}"`);
+    await handlePaymentIntent(ctx);
+    return;
+  }
+
   // ── Budget detection — "under 1500", "1000 se kam", "silk under 2k" ──
   const budget = budgetParser.detectBudget(trimmed);
   if (budget) {
@@ -1539,6 +1549,32 @@ async function handleViewCart(ctx) {
 
 async function handleBrowseMore(ctx) {
   await sendBackToBrowse(ctx);
+}
+
+// Free-text payment-intent router. Empty cart → browse nudge. Items in cart
+// without complete address → quick ack then drop into handleCheckout. Items
+// in cart WITH complete address → skip address re-collection and jump
+// straight to handlePaymentMenu.
+async function handlePaymentIntent(ctx) {
+  const { from, phoneNumberId, waToken, cart } = ctx;
+  const r = cart?.rajathee || {};
+  const items = r.items || [];
+  const co = r.checkout || {};
+
+  if (!items.length) {
+    await sendMessage(from, 'Your cart is empty — let me find you a saree first 🌸', waToken, phoneNumberId);
+    await sendWelcome(ctx);
+    return;
+  }
+
+  const addressComplete = co.name && co.address1 && co.city && co.state && co.pin;
+  if (addressComplete) {
+    await handlePaymentMenu(ctx);
+    return;
+  }
+
+  await sendMessage(from, 'Got it — just need your delivery details first ✨', waToken, phoneNumberId);
+  await handleCheckout(ctx);
 }
 
 async function handleCheckout(ctx) {
