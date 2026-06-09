@@ -616,6 +616,10 @@ async function handle(ctx) {
 
         await sendAddToCartPrompt(ctx);
 
+        await sendMessage(ctx.from,
+          'Still deciding? See real women wearing these → https://rajathee.com/#draped',
+          ctx.waToken, ctx.phoneNumberId);
+
         if (remaining.length > 0) {
           await sendButtons(ctx.from, `Want to see more? (${remaining.length} left)`,
             ['Show more', 'Browse menu'],
@@ -2544,6 +2548,10 @@ async function sendHandoffFollowups(ctx) {
 
   await sendMessage(from,
     "We'll reach out shortly. Typically 20-30 mins during working hours 🕐",
+    waToken, phoneNumberId);
+
+  await sendMessage(from,
+    'While you wait — see how real customers are draping them: https://rajathee.com/#draped',
     waToken, phoneNumberId);
 
   const bestRaw = await getCollectionProducts(tenant, 'best-sellers').catch(e => {
