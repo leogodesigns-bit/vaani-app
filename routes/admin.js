@@ -550,6 +550,122 @@ router.get('/lead/:id', async (req, res) => {
     const lead = lr.rows[0];
     if (!lead) return res.status(404).send('Lead not found');
 
+    const odr = await pool.query('SELECT * FROM onboarding_details WHERE lead_id = $1', [lid]);
+    const details = odr.rows[0] || null;
+
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const host = req.headers.host || 'www.vaani.website';
+    const onboardingUrl = `${protocol}://${host}/onboarding?lead=${lid}`;
+
+    const VLAB     = { yes: 'Yes', no: 'No', not_sure: 'Not sure' };
+    const LANG     = { english: 'English', hindi: 'Hindi', marathi: 'Marathi', other: 'Other' };
+    const TONE     = { fun: 'Fun & Casual', professional: 'Professional', mix: 'Mix of both' };
+    const DOM      = { yes: 'Yes', no: 'No, not yet' };
+    const LOGO     = { yes: 'Yes', no: 'Not yet' };
+    const VSVC     = { whatsapp: 'WhatsApp Bot', instagram: 'Instagram Bot' };
+    const CREATION = { full_service: 'Full service (we shoot & edit)', editing_only: 'Editing only (raw videos sent in)' };
+
+    const kvRow = (label, value) => {
+      if (value === null || value === undefined || value === '') return '';
+      return `<tr><td style="color:#8a7866;width:200px;vertical-align:top">${escapeHtml(label)}</td><td>${value}</td></tr>`;
+    };
+    const detailsCard = (title, rowsHtml) =>
+      `<div class="card"><div class="card-head"><div class="card-title">${escapeHtml(title)}</div></div><table class="tbl"><tbody>${rowsHtml || '<tr><td colspan="2" style="color:#8a7866;font-size:13px;padding:18px 24px">— No details submitted —</td></tr>'}</tbody></table></div>`;
+
+    let onboardingSection = '';
+
+    if (!details) {
+      onboardingSection = `
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">Onboarding</div>
+      <span class="pill gray">Not yet submitted</span>
+    </div>
+    <div style="padding:18px 24px">
+      <p style="color:#5a4a35;font-size:13.5px;line-height:1.55;margin-bottom:14px">Send this link to ${escapeHtml(lead.name.split(' ')[0])} to collect their setup details.</p>
+      <div style="display:flex;gap:8px;align-items:stretch;flex-wrap:wrap">
+        <input type="text" readonly value="${escapeHtml(onboardingUrl)}" id="onbUrl" style="flex:1;min-width:280px;padding:9px 14px;border:1px solid #ebe3d3;border-radius:9px;font-family:'JetBrains Mono',monospace;font-size:12.5px;background:#fbf6ea;color:#1a1410">
+        <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('onbUrl').value).then(()=>{this.textContent='Copied ✓';setTimeout(()=>this.textContent='Copy link',1800)})" class="chip" style="padding:9px 16px;border:1px solid #ebe3d3;cursor:pointer;font-family:inherit;background:#fffdf8">Copy link</button>
+        <a href="${escapeHtml(onboardingUrl)}" target="_blank" rel="noopener" class="chip" style="padding:9px 16px;border:1px solid #ebe3d3;cursor:pointer;font-family:inherit;background:#fffdf8;text-decoration:none;color:#1a1410">Open ↗</a>
+      </div>
+    </div>
+  </div>`;
+    } else {
+      const vd  = details.vaani_details   || null;
+      const sd  = details.social_details  || null;
+      const shd = details.shopify_details || null;
+      const cards = [];
+
+      cards.push(`
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">Onboarding</div>
+      <span class="pill sage">Submitted ${escapeHtml(timeAgo(details.created_at))}</span>
+    </div>
+    <div style="padding:18px 24px;font-size:13.5px;color:#5a4a35;line-height:1.55">
+      Client submitted their onboarding details on ${new Date(details.created_at).toLocaleString('en-IN', { dateStyle:'medium', timeStyle:'short' })}. Full breakdown below.
+    </div>
+  </div>`);
+
+      if (vd) {
+        const vaaniSvcs = Array.isArray(vd.services) ? vd.services : [];
+        const svcHtml = vaaniSvcs.length === 0 ? null
+          : vaaniSvcs.map(s => `<span class="pill gold" style="margin-right:6px">${escapeHtml(VSVC[s] || s)}</span>`).join('');
+        const rows = [
+          kvRow('Vaani services',   svcHtml),
+          kvRow('WhatsApp number',  vd.whatsapp_number ? `<a href="tel:${escapeHtml(String(vd.whatsapp_number).replace(/[^0-9+]/g,''))}" style="color:#1a1410;text-decoration:none">${escapeHtml(vd.whatsapp_number)}</a>` : null),
+          kvRow('Instagram handle (bot)', vd.instagram_handle ? `<a href="https://instagram.com/${escapeHtml(vd.instagram_handle)}" target="_blank" rel="noopener" style="color:#b8904d;text-decoration:none">@${escapeHtml(vd.instagram_handle)} ↗</a>` : null),
+          kvRow('Meta Business Manager access', VLAB[vd.meta_access] || null),
+          kvRow('Shopify store URL', vd.shopify_url ? `<a href="${escapeHtml(websiteLink(vd.shopify_url))}" target="_blank" rel="noopener" style="color:#b8904d;text-decoration:none">${escapeHtml(vd.shopify_url)} ↗</a>` : null),
+          kvRow('Preferred language', LANG[vd.language] || null),
+          kvRow('Bot persona name', vd.persona_name ? `<strong>${escapeHtml(vd.persona_name)}</strong>` : null)
+        ].filter(Boolean).join('');
+        cards.push(detailsCard('Vaani — AI sales bot', rows));
+      }
+
+      if (sd) {
+        const compHtml = (sd.competitors || [])
+          .map(c => `<a href="https://instagram.com/${escapeHtml(c)}" target="_blank" rel="noopener" style="color:#b8904d;text-decoration:none;margin-right:10px">@${escapeHtml(c)} ↗</a>`)
+          .join('');
+        const rows = [
+          kvRow('Instagram handle', sd.instagram_handle ? `<a href="https://instagram.com/${escapeHtml(sd.instagram_handle)}" target="_blank" rel="noopener" style="color:#b8904d;text-decoration:none">@${escapeHtml(sd.instagram_handle)} ↗</a>` : null),
+          kvRow('Content tone', TONE[sd.tone] || null),
+          kvRow('Competitor references', compHtml || null),
+          kvRow('Content creation', CREATION[sd.content_creation] || null),
+          kvRow('City', sd.city ? escapeHtml(sd.city) : null)
+        ].filter(Boolean).join('');
+        cards.push(detailsCard('Social Media Management', rows));
+      }
+
+      if (shd) {
+        const refsHtml = (shd.references || [])
+          .map(r => `<a href="${escapeHtml(websiteLink(r))}" target="_blank" rel="noopener" style="color:#b8904d;text-decoration:none;display:block">${escapeHtml(r)} ↗</a>`)
+          .join('');
+        const rows = [
+          kvRow('Has domain', DOM[shd.has_domain] || null),
+          kvRow('Domain', shd.domain ? `<a href="${escapeHtml(websiteLink(shd.domain))}" target="_blank" rel="noopener" style="color:#b8904d;text-decoration:none">${escapeHtml(shd.domain)} ↗</a>` : null),
+          kvRow('Product categories', shd.categories ? `<div style="white-space:pre-wrap;line-height:1.55">${escapeHtml(shd.categories)}</div>` : null),
+          kvRow('Reference sites', refsHtml || null),
+          kvRow('Has logo', LOGO[shd.has_logo] || null),
+          kvRow('Brand colors', shd.brand_colors ? escapeHtml(shd.brand_colors) : null)
+        ].filter(Boolean).join('');
+        cards.push(detailsCard('Shopify Website', rows));
+      }
+
+      const uf = Array.isArray(details.uploaded_files) ? details.uploaded_files : [];
+      if (uf.length || details.final_notes) {
+        const filesHtml = uf.length === 0 ? null
+          : uf.map(u => `<a href="${escapeHtml(u)}" target="_blank" rel="noopener" style="color:#b8904d;text-decoration:none;display:block">${escapeHtml(u)} ↗</a>`).join('');
+        const rows = [
+          kvRow('Brand files', filesHtml),
+          kvRow('Final notes', details.final_notes ? `<div style="white-space:pre-wrap;line-height:1.55">${escapeHtml(details.final_notes)}</div>` : null)
+        ].filter(Boolean).join('');
+        cards.push(detailsCard('Files & final notes', rows));
+      }
+
+      onboardingSection = cards.join('');
+    }
+
     const services = (lead.services_interested || [])
       .map(s => SERVICE_LABELS[s] || s);
     const igLink = lead.instagram_handle
@@ -597,6 +713,8 @@ router.get('/lead/:id', async (req, res) => {
         services.map(s => `<span class="pill gold" style="margin-right:6px;margin-bottom:6px;display:inline-block">${escapeHtml(s)}</span>`).join('')}
     </div>
   </div>
+
+  ${onboardingSection}
 
   <div class="card">
     <div class="card-head"><div class="card-title">About the business</div></div>
