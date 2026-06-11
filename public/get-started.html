@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Get Started — Leogo Designs</title>
+<link rel="preload" as="image" href="/images/paper-texture.jpg">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--cream:#FAF7F2;--ink:#1A1714;--warm:#C4783A;--warm-light:#F0E0CC;--warm-dark:#9E5E28;--muted:#8A7E74;--border:#E5DDD4;--green:#2D6A4F;--green-light:#D8EDE4;--card-bg:#F4EFE8}
+*{margin:0;padding:0;box-sizing:border-box}html{scroll-behavior:smooth;overflow-x:hidden}img,video{max-width:100%;height:auto;display:block}
+body{background:#faf6f1;color:var(--ink);font-family:'DM Sans',sans-serif;font-weight:300;min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased;position:relative}
+body::before{content:'';position:fixed;inset:0;background:url('/images/paper-texture.jpg') center/cover;opacity:.2;z-index:-1;pointer-events:none}
+
+nav{padding:1.8rem 4rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(250,247,242,.92);backdrop-filter:blur(12px);z-index:100}
+.logo{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;letter-spacing:-.01em;color:var(--ink);text-decoration:none}.logo span{color:var(--warm)}
+.nav-links{display:flex;align-items:center;gap:2.5rem;list-style:none}
+.nav-links a{font-size:.82rem;letter-spacing:.04em;color:var(--muted);text-decoration:none;transition:color .2s;font-weight:400}
+.nav-links a:hover,.nav-links a.active{color:var(--ink)}
+.nav-cta{background:var(--ink)!important;color:var(--cream)!important;padding:.55rem 1.3rem!important;border-radius:100px!important;font-size:.78rem!important;text-transform:uppercase;font-weight:500!important}
+.nav-cta:hover{background:var(--warm)!important}
+.nav-center{position:absolute;left:50%;transform:translateX(-50%)}
+.nav-right{gap:1.5rem}
+.hamburger{display:none;background:none;border:none;cursor:pointer;padding:0;width:28px;height:28px;flex-direction:column;justify-content:center;gap:5px}
+.hamburger span{display:block;width:22px;height:1.5px;background:var(--ink);transition:transform .25s,opacity .25s}
+.hamburger.open span:nth-child(1){transform:translateY(6.5px) rotate(45deg)}
+.hamburger.open span:nth-child(2){opacity:0}
+.hamburger.open span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
+.mobile-menu{display:none;position:absolute;top:100%;left:0;right:0;background:rgba(250,247,242,.98);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:1.5rem 2rem;flex-direction:column;gap:1.2rem}
+.mobile-menu.open{display:flex}
+.mobile-menu a{font-size:.85rem;letter-spacing:.04em;color:var(--muted);text-decoration:none;font-weight:400;padding:.4rem 0}
+.mobile-menu a:hover{color:var(--ink)}
+.mobile-menu a.nav-cta{align-self:flex-start;margin-top:.5rem}
+
+.btn-primary{display:inline-flex;align-items:center;justify-content:center;gap:.55rem;background:var(--warm);color:white;padding:1.05rem 2rem;border-radius:100px;font-size:.84rem;letter-spacing:.08em;text-transform:uppercase;font-weight:500;text-decoration:none;transition:background .2s,transform .2s,opacity .2s;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;width:100%}
+.btn-primary:hover:not(:disabled){background:var(--warm-dark);transform:translateY(-1px)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+.container{max-width:780px;margin:0 auto;padding:0 2rem}
+
+.page-hero{padding:5rem 0 2rem;text-align:center}
+.page-hero .section-label{display:inline-block;font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;color:var(--warm);margin-bottom:1.2rem;font-weight:500}
+.page-hero h1{font-family:'Playfair Display',serif;font-size:clamp(2.4rem,5vw,3.8rem);font-weight:400;letter-spacing:-.02em;line-height:1.1;margin-bottom:1.2rem}
+.page-hero h1 em{font-style:italic;color:var(--warm)}
+.page-hero .lede{font-size:1.02rem;color:var(--muted);line-height:1.7;max-width:540px;margin:0 auto}
+
+.form-section{padding:1rem 0 4rem}
+.form-card{max-width:620px;margin:0 auto;background:rgba(255,255,255,.72);backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);border:1px solid rgba(180,155,130,.3);border-radius:22px;padding:2.6rem 2.4rem;box-shadow:0 4px 24px rgba(150,120,80,.08)}
+
+.form-section-label{display:block;font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:var(--warm);font-weight:600;margin:.4rem 0 1.2rem;padding-top:1.8rem;border-top:1px solid var(--border)}
+.form-section-label:first-of-type{padding-top:0;margin-top:0;border-top:none}
+
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:560px){.field-grid{grid-template-columns:1fr}}
+
+.form-row{margin-bottom:1.1rem}
+.form-label{display:block;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem;font-weight:500}
+.form-label .opt{text-transform:none;letter-spacing:0;color:var(--muted);font-size:.7rem;font-weight:400;margin-left:.3rem;opacity:.75}
+.form-input,.form-select,.form-textarea{width:100%;padding:.92rem 1.1rem;border:1.5px solid var(--border);border-radius:12px;font-size:.95rem;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,.7);color:var(--ink);transition:border-color .2s;font-weight:400}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--warm)}
+.form-input::placeholder,.form-textarea::placeholder{color:var(--muted)}
+.form-textarea{resize:vertical;min-height:96px;line-height:1.55;font-family:'DM Sans',sans-serif}
+.form-select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%238A7E74' d='M6 8L0 0h12z'/></svg>");background-repeat:no-repeat;background-position:right 1.1rem center;padding-right:2.6rem;cursor:pointer}
+
+.phone-prefix{display:flex;align-items:stretch;border:1.5px solid var(--border);border-radius:12px;background:rgba(255,255,255,.7);overflow:hidden;transition:border-color .2s}
+.phone-prefix:focus-within{border-color:var(--warm)}
+.phone-prefix .prefix{padding:.92rem .95rem;background:rgba(196,120,58,.08);color:var(--ink);font-weight:500;font-size:.95rem;border-right:1px solid var(--border);display:flex;align-items:center}
+.phone-prefix input{flex:1;border:none;padding:.92rem 1.1rem;font-size:.95rem;font-family:'DM Sans',sans-serif;background:transparent;color:var(--ink);outline:none;font-weight:400}
+.phone-prefix input::placeholder{color:var(--muted)}
+
+.input-prefix-text{position:relative}
+.input-prefix-text .at{position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.95rem;pointer-events:none}
+.input-prefix-text input{padding-left:2.1rem}
+
+.services-grid{display:grid;grid-template-columns:1fr 1fr;gap:.65rem;margin-top:.2rem}
+@media(max-width:560px){.services-grid{grid-template-columns:1fr}}
+.service-option{position:relative;cursor:pointer}
+.service-option input{position:absolute;opacity:0;pointer-events:none}
+.service-option .chip{display:flex;align-items:center;gap:.7rem;padding:.9rem 1rem;border:1.5px solid var(--border);border-radius:12px;background:rgba(255,255,255,.6);transition:all .18s ease;font-size:.88rem;color:var(--ink);font-weight:400;line-height:1.3}
+.service-option .chip .check{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:white;font-size:.7rem;font-weight:700;background:rgba(255,255,255,.5)}
+.service-option:hover .chip{border-color:var(--warm-light);background:rgba(255,255,255,.8)}
+.service-option input:checked + .chip{border-color:var(--warm);background:rgba(196,120,58,.08)}
+.service-option input:checked + .chip .check{background:var(--warm);border-color:var(--warm)}
+.service-option input:checked + .chip .check::after{content:'✓'}
+.service-option input:focus-visible + .chip{box-shadow:0 0 0 3px rgba(196,120,58,.18)}
+
+.form-error{font-size:.75rem;color:#C44A4A;margin-top:.45rem;min-height:1em;line-height:1.4}
+.form-helper{font-size:.72rem;color:var(--muted);margin-top:.4rem;line-height:1.4}
+
+.global-error{background:rgba(196,74,74,.08);border:1px solid rgba(196,74,74,.3);color:#9E2A2A;border-radius:10px;padding:.7rem .9rem;font-size:.82rem;margin-bottom:1rem;display:none;line-height:1.45}
+.global-error.show{display:block}
+
+.consent{display:flex;align-items:flex-start;gap:.6rem;font-size:.82rem;color:var(--muted);cursor:pointer;margin:1.6rem 0 1.2rem;line-height:1.5}
+.consent input{margin-top:.25rem;accent-color:var(--warm)}
+
+.form-note{font-size:.75rem;color:var(--muted);text-align:center;margin-top:1rem;font-style:italic}
+
+.success-state{text-align:center;padding:1.5rem 0}
+.success-state .check{width:64px;height:64px;border-radius:50%;background:var(--green-light);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 1.4rem}
+.success-state h2{font-family:'Playfair Display',serif;font-size:1.7rem;font-weight:500;color:var(--ink);margin-bottom:.8rem;letter-spacing:-.01em}
+.success-state p{font-size:.95rem;color:var(--muted);line-height:1.65;max-width:420px;margin:0 auto 1.6rem}
+.success-state .wa-link{display:inline-flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--warm);text-decoration:none;font-weight:500;border-bottom:1px solid transparent;transition:border-color .2s}
+.success-state .wa-link:hover{border-color:var(--warm)}
+
+.trust-row{display:flex;justify-content:center;gap:2rem;margin-top:2rem;flex-wrap:wrap}
+.trust-item{font-size:.74rem;color:var(--muted);display:flex;align-items:center;gap:.4rem}
+.trust-item::before{content:'✓';color:var(--green);font-weight:600}
+
+footer{border-top:1px solid var(--border);padding:3rem 4rem;display:flex;align-items:flex-start;justify-content:space-between;gap:2rem;margin-top:2rem}
+.footer-left .logo{font-size:1.2rem}.footer-tagline{font-size:.75rem;color:var(--muted);margin-top:.4rem}
+.footer-links{display:flex;gap:2rem;list-style:none;flex-wrap:wrap}.footer-links a{font-size:.78rem;color:var(--muted);text-decoration:none}.footer-links a:hover{color:var(--ink)}
+.footer-right{font-size:.72rem;color:var(--muted);text-align:right}
+
+@media(max-width:768px){
+  nav{padding:1.2rem 1.5rem}.nav-links{display:none}.hamburger{display:flex}
+  .container{padding:0 1.25rem}
+  .page-hero{padding:3rem 0 1.5rem}
+  .form-card{padding:2rem 1.4rem;border-radius:18px}
+  footer{flex-direction:column;gap:1.6rem;text-align:center;padding:2rem 1.5rem}.footer-right{text-align:center}
+  .trust-row{gap:1.2rem}
+}
+</style>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="logo">vaani<span>.</span></a>
+  <ul class="nav-links nav-center">
+    <li><a href="index.html#how-it-works">How it Works</a></li>
+    <li><a href="features.html">Features</a></li>
+    <li><a href="pricing.html">Pricing</a></li>
+    <li><a href="case-studies.html">Case Studies</a></li>
+    <li><a href="about.html">About</a></li>
+  </ul>
+  <ul class="nav-links nav-right">
+    <li><a href="demo.html">Try Demo</a></li>
+    <li><a href="https://vaani-dashboard-production.up.railway.app">Login</a></li>
+    <li><a href="get-started.html" class="nav-cta active">GET STARTED →</a></li>
+  </ul>
+  <button class="hamburger" aria-label="Toggle menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="mobile-menu">
+    <a href="index.html#how-it-works">How it Works</a>
+    <a href="features.html">Features</a>
+    <a href="pricing.html">Pricing</a>
+    <a href="case-studies.html">Case Studies</a>
+    <a href="about.html">About</a>
+    <a href="demo.html">Try Demo</a>
+    <a href="https://vaani-dashboard-production.up.railway.app">Login</a>
+    <a href="get-started.html" class="nav-cta">GET STARTED →</a>
+  </div>
+</nav>
+
+<main>
+  <section class="page-hero container">
+    <span class="section-label">Get Started</span>
+    <h1>Let's build something <em>beautiful</em> together</h1>
+    <p class="lede">Tell us about your business and what you're looking for. Our team at Leogo Designs will get back within one working day with next steps.</p>
+  </section>
+
+  <section class="form-section container">
+    <div class="form-card" id="formCard">
+      <form id="onboardForm" autocomplete="on" novalidate>
+        <div class="global-error" id="globalError"></div>
+
+        <span class="form-section-label">About you</span>
+
+        <div class="field-grid">
+          <div class="form-row">
+            <label class="form-label" for="name">Your name</label>
+            <input class="form-input" id="name" name="name" placeholder="Priya Sharma" required maxlength="120" autocomplete="name">
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="businessName">Business name</label>
+            <input class="form-input" id="businessName" name="business_name" placeholder="Your brand" required maxlength="160" autocomplete="organization">
+          </div>
+        </div>
+
+        <div class="field-grid">
+          <div class="form-row">
+            <label class="form-label" for="phone">Phone number</label>
+            <div class="phone-prefix">
+              <div class="prefix">+91</div>
+              <input id="phone" type="tel" inputmode="numeric" placeholder="10-digit mobile" required maxlength="10" autocomplete="tel-national">
+            </div>
+            <p class="form-error" id="phoneError"></p>
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="email">Email address</label>
+            <input class="form-input" id="email" type="email" name="email" placeholder="you@yourbrand.com" required maxlength="160" autocomplete="email">
+            <p class="form-error" id="emailError"></p>
+          </div>
+        </div>
+
+        <span class="form-section-label">What you're looking for</span>
+
+        <div class="form-row">
+          <label class="form-label">Services interested in</label>
+          <div class="services-grid" id="servicesGrid">
+            <label class="service-option">
+              <input type="checkbox" name="services" value="vaani_whatsapp">
+              <span class="chip"><span class="check"></span>Vaani WhatsApp Bot</span>
+            </label>
+            <label class="service-option">
+              <input type="checkbox" name="services" value="vaani_instagram">
+              <span class="chip"><span class="check"></span>Vaani Instagram Bot</span>
+            </label>
+            <label class="service-option">
+              <input type="checkbox" name="services" value="social_media">
+              <span class="chip"><span class="check"></span>Social Media Management</span>
+            </label>
+            <label class="service-option">
+              <input type="checkbox" name="services" value="shopify_website">
+              <span class="chip"><span class="check"></span>Shopify Website</span>
+            </label>
+          </div>
+          <p class="form-error" id="servicesError"></p>
+          <p class="form-helper">Pick one or more — we'll tailor the conversation around what you need.</p>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label" for="businessAbout">Tell us about your business</label>
+          <textarea class="form-textarea" id="businessAbout" placeholder="What you sell, who you sell to, where you are today…" maxlength="2000"></textarea>
+        </div>
+
+        <span class="form-section-label">Where to find you online</span>
+
+        <div class="field-grid">
+          <div class="form-row">
+            <label class="form-label" for="instagram">Instagram handle <span class="opt">(optional)</span></label>
+            <div class="input-prefix-text">
+              <span class="at">@</span>
+              <input class="form-input" id="instagram" placeholder="yourbrand" maxlength="80">
+            </div>
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="website">Current website <span class="opt">(optional)</span></label>
+            <input class="form-input" id="website" type="url" placeholder="yourbrand.com" maxlength="200" autocomplete="url">
+          </div>
+        </div>
+
+        <span class="form-section-label">Timing</span>
+
+        <div class="form-row">
+          <label class="form-label" for="timeline">What's your timeline to get started?</label>
+          <select class="form-select" id="timeline">
+            <option value="" disabled selected>Pick a timeline</option>
+            <option value="asap">As soon as possible</option>
+            <option value="1_month">Within a month</option>
+            <option value="1_3_months">1–3 months</option>
+            <option value="3_plus_months">3+ months</option>
+            <option value="exploring">Just exploring</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label" for="notes">Anything else you'd like us to know? <span class="opt">(optional)</span></label>
+          <textarea class="form-textarea" id="notes" placeholder="Budget, references, deadlines, dreams — anything goes." maxlength="2000"></textarea>
+        </div>
+
+        <label class="consent" for="consent">
+          <input type="checkbox" id="consent" required>
+          <span>I agree to be contacted by the Leogo Designs team on the phone number and email I've shared.</span>
+        </label>
+
+        <button type="submit" class="btn-primary" id="submitBtn" disabled>
+          <span id="submitText">Send my details →</span>
+        </button>
+        <p class="form-note">We typically reply within one working day, Mon–Sat.</p>
+      </form>
+
+      <div class="success-state" id="successState" style="display:none">
+        <div class="check">✓</div>
+        <h2>Thanks, we've got it.</h2>
+        <p>Our team at Leogo Designs will reach out within one working day on the phone number and email you shared.</p>
+        <a class="wa-link" href="https://wa.me/919403345612">Want to chat with us right now? →</a>
+      </div>
+    </div>
+
+    <div class="trust-row">
+      <span class="trust-item">No upfront commitment</span>
+      <span class="trust-item">One-day response</span>
+      <span class="trust-item">Made in Pune</span>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="footer-left">
+    <a href="index.html" class="logo">vaani<span>.</span></a>
+    <p class="footer-tagline">A Leogo Designs product</p>
+  </div>
+  <ul class="footer-links">
+    <li><a href="features.html">Features</a></li><li><a href="pricing.html">Pricing</a></li>
+    <li><a href="about.html">About</a></li><li><a href="contact.html">Contact</a></li>
+    <li><a href="privacy.html">Privacy</a></li><li><a href="terms.html">Terms</a></li>
+  </ul>
+  <div class="footer-right">© 2026 Vaani by Leogo Designs<br>Made with ♥ in Pune</div>
+</footer>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+
+  // Mobile menu
+  const hamb = document.querySelector('.hamburger');
+  const mm = document.querySelector('.mobile-menu');
+  if (hamb && mm) {
+    hamb.addEventListener('click', function(){
+      this.classList.toggle('open');
+      mm.classList.toggle('open');
+      this.setAttribute('aria-expanded', this.classList.contains('open') ? 'true' : 'false');
+    });
+  }
+
+  const form = $('onboardForm');
+  const fields = {
+    name: $('name'),
+    businessName: $('businessName'),
+    phone: $('phone'),
+    email: $('email'),
+    instagram: $('instagram'),
+    website: $('website'),
+    timeline: $('timeline'),
+    businessAbout: $('businessAbout'),
+    notes: $('notes'),
+    consent: $('consent')
+  };
+  const submitBtn = $('submitBtn');
+  const submitText = $('submitText');
+  const phoneError = $('phoneError');
+  const emailError = $('emailError');
+  const servicesError = $('servicesError');
+  const globalError = $('globalError');
+
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+  function getServices(){
+    return Array.from(document.querySelectorAll('input[name="services"]:checked')).map(el => el.value);
+  }
+
+  function validatePhone(v){
+    const digits = (v || '').replace(/[^0-9]/g, '');
+    if (digits.length !== 10) return { ok:false, msg: digits ? 'Please enter a 10-digit Indian mobile number' : '' };
+    if (!/^[6-9]/.test(digits)) return { ok:false, msg:'Indian mobile numbers start with 6, 7, 8, or 9' };
+    return { ok:true, digits };
+  }
+
+  function updateState(){
+    const nameOk = fields.name.value.trim().length >= 2;
+    const bizOk = fields.businessName.value.trim().length >= 2;
+    const phoneOk = validatePhone(fields.phone.value).ok;
+    const emailOk = EMAIL_RE.test(fields.email.value.trim());
+    const servicesOk = getServices().length > 0;
+    const consentOk = fields.consent.checked;
+    submitBtn.disabled = !(nameOk && bizOk && phoneOk && emailOk && servicesOk && consentOk);
+  }
+
+  fields.phone.addEventListener('input', function(){
+    this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);
+    const r = validatePhone(this.value);
+    phoneError.textContent = (this.value.length === 10 && !r.ok) ? r.msg : '';
+    updateState();
+  });
+  fields.email.addEventListener('input', function(){
+    const v = this.value.trim();
+    emailError.textContent = (v && !EMAIL_RE.test(v)) ? 'Please enter a valid email address' : '';
+    updateState();
+  });
+  ['name','businessName','instagram','website','timeline','businessAbout','notes'].forEach(k => {
+    fields[k].addEventListener('input', updateState);
+  });
+  fields.consent.addEventListener('change', updateState);
+  document.querySelectorAll('input[name="services"]').forEach(el => {
+    el.addEventListener('change', () => {
+      servicesError.textContent = getServices().length === 0 ? '' : '';
+      updateState();
+    });
+  });
+
+  form.addEventListener('submit', async function(e){
+    e.preventDefault();
+    globalError.classList.remove('show');
+    globalError.textContent = '';
+
+    const phoneCheck = validatePhone(fields.phone.value);
+    if (!phoneCheck.ok) { phoneError.textContent = phoneCheck.msg || 'Invalid number'; return; }
+
+    const services = getServices();
+    if (!services.length) { servicesError.textContent = 'Please pick at least one service'; return; }
+
+    submitBtn.disabled = true;
+    submitText.textContent = 'Sending…';
+
+    const payload = {
+      name: fields.name.value.trim(),
+      business_name: fields.businessName.value.trim(),
+      phone: '91' + phoneCheck.digits,
+      email: fields.email.value.trim(),
+      services_interested: services,
+      business_description: fields.businessAbout.value.trim(),
+      instagram_handle: fields.instagram.value.trim().replace(/^@/, ''),
+      current_website: fields.website.value.trim(),
+      timeline: fields.timeline.value || '',
+      additional_notes: fields.notes.value.trim(),
+      source: 'get-started'
+    };
+
+    try {
+      const res = await fetch('/api/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.error || 'submission_failed');
+
+      form.style.display = 'none';
+      $('successState').style.display = 'block';
+      $('successState').scrollIntoView({ behavior:'smooth', block:'center' });
+    } catch (err) {
+      const msg = (err.message === 'rate_limited')
+        ? 'You\'ve submitted a few times recently — please try again in a bit, or WhatsApp us directly.'
+        : 'Couldn\'t submit right now. Please try again, or WhatsApp us directly.';
+      globalError.textContent = msg;
+      globalError.classList.add('show');
+      submitText.textContent = 'Send my details →';
+      updateState();
+    }
+  });
+
+  updateState();
+})();
+</script>
+</body>
+</html>

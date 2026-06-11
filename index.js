@@ -632,6 +632,7 @@ app.use('/embedded-bridge', require('./routes/embedded-bridge'));
 app.use('/admin', require('./routes/admin'));
 app.use('/team-timeline', require('./routes/team-timeline'));
 app.use('/api/demo-leads', require('./routes/demo-leads'));
+app.use('/api/onboarding', require('./routes/onboarding'));
 
 // ── TEMP: schema probe to find Instagram DM / comment storage.
 // Remove after schema is confirmed. Read-only, no writes.
@@ -1252,6 +1253,10 @@ app.get('/terms', (req, res) => {
 
 app.get('/privacy', (req, res) => {
   res.sendFile(__dirname + '/public/privacy.html');
+});
+
+app.get('/get-started', (req, res) => {
+  res.sendFile(__dirname + '/public/get-started.html');
 });
 
 app.get('/pricing', (req, res) => {

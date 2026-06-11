@@ -98,17 +98,34 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#faf7f2;color:#1a14
 </style>
 `;
 
-const HEADER = (subtitle='') => `
+const SUBNAV_STYLES = `
+<style>
+.subnav{background:#fffdf8;border-bottom:1px solid #ebe3d3;padding:0 32px;display:flex;gap:6px;align-items:center;overflow-x:auto}
+.subnav a{display:inline-flex;align-items:center;gap:6px;padding:14px 16px;font-size:13px;font-weight:500;color:#8a7866;text-decoration:none;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;white-space:nowrap}
+.subnav a:hover{color:#1a1410}
+.subnav a.active{color:#1a1410;border-bottom-color:#b8904d}
+.subnav a .count{background:#f0e8d6;color:#5a4a35;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.subnav a.active .count{background:#fef0d8;color:#8a6a35}
+@media(max-width:900px){.subnav{padding:0 16px}.subnav a{padding:12px 12px}}
+</style>
+`;
+
+const HEADER = (subtitle='', active='tenants', adminKey='') => `
 <!DOCTYPE html><html><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vaani Admin${subtitle ? ' · '+escapeHtml(subtitle) : ''}</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 ${STYLES}
+${SUBNAV_STYLES}
 </head><body>
 <header class="top-bar">
   <div class="brand"><div class="brand-mark">L</div>Leogo · Vaani Admin</div>
   <div class="admin-chip">GOD MODE</div>
 </header>
+<nav class="subnav">
+  <a href="/admin?key=${escapeHtml(adminKey)}" class="${active==='tenants'?'active':''}">Tenants</a>
+  <a href="/admin/leads?key=${escapeHtml(adminKey)}" class="${active==='leads'?'active':''}">Leads</a>
+</nav>
 `;
 
 // ============ LIST ALL TENANTS ============
@@ -133,7 +150,7 @@ router.get('/', async (req, res) => {
     `);
     const t = totalsRes.rows[0];
 
-    res.send(`${HEADER('All Tenants')}
+    res.send(`${HEADER('All Tenants', 'tenants', req.query.key)}
 <main class="page">
   <div>
     <div class="h-title">All Tenants</div>
@@ -262,7 +279,7 @@ router.get('/tenant/:id', async (req, res) => {
     `, [tid]);
     const convs = convsRes.rows;
 
-    res.send(`${HEADER(tenant.store_name || tenant.shop_domain)}
+    res.send(`${HEADER(tenant.store_name || tenant.shop_domain, 'tenants', req.query.key)}
 <main class="page">
   <div>
     <a class="back-link" href="/admin?key=${escapeHtml(req.query.key)}">← All tenants</a>
@@ -318,7 +335,7 @@ router.get('/conv/:id', async (req, res) => {
 
     const msgs = Array.isArray(conv.messages) ? conv.messages : [];
 
-    res.send(`${HEADER('Chat')}
+    res.send(`${HEADER('Chat', 'tenants', req.query.key)}
 <main class="page">
   <div>
     <a class="back-link" href="/admin/tenant/${conv.tenant_id}?key=${escapeHtml(req.query.key)}">← Back to ${escapeHtml(conv.store_name)}</a>
@@ -349,6 +366,285 @@ router.get('/conv/:id', async (req, res) => {
 </body></html>`);
   } catch (err) {
     console.error('Admin conv err:', err);
+    res.status(500).send('<h2>Error: ' + escapeHtml(err.message) + '</h2>');
+  }
+});
+
+// ============ LEADS — onboarding form submissions ============
+
+const SERVICE_LABELS = {
+  vaani_whatsapp:  'Vaani WhatsApp',
+  vaani_instagram: 'Vaani Instagram',
+  social_media:    'Social Media',
+  shopify_website: 'Shopify Website'
+};
+
+const TIMELINE_LABELS = {
+  asap:           'ASAP',
+  '1_month':      'Within a month',
+  '1_3_months':   '1–3 months',
+  '3_plus_months':'3+ months',
+  exploring:      'Exploring'
+};
+
+const LEAD_STATUSES = new Set(['new', 'contacted', 'archived']);
+
+function statusPill(status) {
+  const map = {
+    new:       { cls: 'gold', text: 'New' },
+    contacted: { cls: 'sage', text: 'Contacted' },
+    archived:  { cls: 'gray', text: 'Archived' }
+  };
+  const s = map[status] || map.new;
+  return `<span class="pill ${s.cls}">${s.text}</span>`;
+}
+
+function formatPhone(p) {
+  if (!p) return '—';
+  const s = String(p);
+  if (s.length === 12 && s.startsWith('91')) {
+    return '+91 ' + s.slice(2, 7) + ' ' + s.slice(7);
+  }
+  return '+' + s;
+}
+
+function websiteLink(url) {
+  if (!url) return '';
+  const u = url.startsWith('http') ? url : 'https://' + url;
+  return u;
+}
+
+// ----- list view -----
+router.get('/leads', async (req, res) => {
+  try {
+    const leadsRes = await pool.query(`
+      SELECT id, name, business_name, phone, email, services_interested,
+             timeline, status, created_at
+      FROM onboarding_submissions
+      ORDER BY created_at DESC
+      LIMIT 500
+    `);
+    const leads = leadsRes.rows;
+
+    const statsRes = await pool.query(`
+      SELECT
+        COUNT(*)                                                    AS total,
+        COUNT(*) FILTER (WHERE status = 'new')                      AS new_count,
+        COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') AS week_count,
+        COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours') AS day_count
+      FROM onboarding_submissions
+    `);
+    const s = statsRes.rows[0];
+
+    res.send(`${HEADER('Leads', 'leads', req.query.key)}
+<main class="page">
+  <div>
+    <div class="h-title">Leads</div>
+    <div class="h-sub">Submissions from vaani.website/get-started — newest first</div>
+  </div>
+
+  <section class="stats">
+    <div class="stat-card"><div class="stat-num">${s.total}</div><div class="stat-label">Total leads</div><div class="stat-meta">All time</div></div>
+    <div class="stat-card"><div class="stat-num">${s.new_count}</div><div class="stat-label">New</div><div class="stat-meta">Awaiting reply</div></div>
+    <div class="stat-card"><div class="stat-num">${s.week_count}</div><div class="stat-label">Last 7 days</div><div class="stat-meta">Recent</div></div>
+    <div class="stat-card"><div class="stat-num">${s.day_count}</div><div class="stat-label">Last 24h</div><div class="stat-meta">Today</div></div>
+  </section>
+
+  <div class="toolbar">
+    <input id="lsearch" type="text" placeholder="Search name, business, email, phone..." oninput="filterLeads()">
+    <div class="chip active" data-filter="all" onclick="setFilter(event,'all')">All</div>
+    <div class="chip" data-filter="new" onclick="setFilter(event,'new')">New</div>
+    <div class="chip" data-filter="contacted" onclick="setFilter(event,'contacted')">Contacted</div>
+    <div class="chip" data-filter="archived" onclick="setFilter(event,'archived')">Archived</div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-title">Onboarding submissions</div><span id="row-count" style="font-size:12px;color:#8a7866"></span></div>
+    ${leads.length === 0 ? '<div class="empty">No leads yet.<br><span style="font-size:12px">Submissions to /get-started will land here.</span></div>' : `
+    <table class="tbl" id="leads-table">
+      <thead><tr>
+        <th class="sortable" data-sort="0">Name</th>
+        <th class="sortable" data-sort="1">Business</th>
+        <th>Services</th>
+        <th class="sortable" data-sort="3">Timeline</th>
+        <th class="sortable" data-sort="4">Status</th>
+        <th class="sortable" data-sort="5">Submitted</th>
+      </tr></thead>
+      <tbody>
+        ${leads.map(l => `
+          <tr class="clickable" data-status="${escapeHtml(l.status || 'new')}" onclick="location.href='/admin/lead/${l.id}?key=${escapeHtml(req.query.key)}'">
+            <td><strong>${escapeHtml(l.name)}</strong><br><span style="font-size:11.5px;color:#8a7866">${escapeHtml(l.email)}</span></td>
+            <td>${escapeHtml(l.business_name)}<br><span style="font-size:11.5px;color:#8a7866">${formatPhone(l.phone)}</span></td>
+            <td>${(l.services_interested || []).map(svc => `<span class="pill gray" style="margin-right:4px">${escapeHtml(SERVICE_LABELS[svc] || svc)}</span>`).join('')}</td>
+            <td style="color:#5a4a35">${escapeHtml(TIMELINE_LABELS[l.timeline] || '—')}</td>
+            <td>${statusPill(l.status || 'new')}</td>
+            <td style="color:#8a7866">${timeAgo(l.created_at)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    `}
+  </div>
+</main>
+
+<script>
+  function updateRowCount() {
+    const rows = document.querySelectorAll('#leads-table tbody tr');
+    const visible = Array.from(rows).filter(r => !r.classList.contains('hidden')).length;
+    const total = rows.length;
+    const el = document.getElementById('row-count');
+    if (el) el.textContent = visible === total ? total + ' lead' + (total===1?'':'s') : visible + ' of ' + total;
+  }
+
+  function filterLeads() {
+    const q = (document.getElementById('lsearch')?.value || '').toLowerCase().trim();
+    const activeFilter = document.querySelector('.chip.active')?.dataset.filter || 'all';
+    document.querySelectorAll('#leads-table tbody tr').forEach(r => {
+      const text = r.textContent.toLowerCase();
+      const matchSearch = !q || text.includes(q);
+      const matchFilter = activeFilter === 'all' || r.dataset.status === activeFilter;
+      r.classList.toggle('hidden', !(matchSearch && matchFilter));
+    });
+    updateRowCount();
+  }
+
+  function setFilter(e, filter) {
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    e.target.classList.add('active');
+    filterLeads();
+  }
+
+  document.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const idx = +th.dataset.sort;
+      const tbody = th.closest('table').querySelector('tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      const asc = !th.classList.contains('asc');
+      document.querySelectorAll('th.sortable').forEach(h => h.classList.remove('asc','desc'));
+      th.classList.add(asc ? 'asc' : 'desc');
+      rows.sort((a, b) => {
+        const av = a.cells[idx]?.textContent.trim() || '';
+        const bv = b.cells[idx]?.textContent.trim() || '';
+        return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+      });
+      rows.forEach(r => tbody.appendChild(r));
+    });
+  });
+
+  updateRowCount();
+</script>
+
+</body></html>`);
+  } catch (err) {
+    console.error('Admin leads err:', err);
+    res.status(500).send('<h2>Error: ' + escapeHtml(err.message) + '</h2>');
+  }
+});
+
+// ----- detail view -----
+router.get('/lead/:id', async (req, res) => {
+  try {
+    const lid = parseInt(req.params.id);
+    if (!Number.isFinite(lid)) return res.status(400).send('Invalid lead id');
+    const lr = await pool.query('SELECT * FROM onboarding_submissions WHERE id = $1', [lid]);
+    const lead = lr.rows[0];
+    if (!lead) return res.status(404).send('Lead not found');
+
+    const services = (lead.services_interested || [])
+      .map(s => SERVICE_LABELS[s] || s);
+    const igLink = lead.instagram_handle
+      ? `<a href="https://instagram.com/${escapeHtml(lead.instagram_handle)}" target="_blank" rel="noopener" style="color:#b8904d;text-decoration:none">@${escapeHtml(lead.instagram_handle)} ↗</a>`
+      : '—';
+    const webHref = lead.current_website ? websiteLink(lead.current_website) : '';
+    const webLink = lead.current_website
+      ? `<a href="${escapeHtml(webHref)}" target="_blank" rel="noopener" style="color:#b8904d;text-decoration:none">${escapeHtml(lead.current_website)} ↗</a>`
+      : '—';
+
+    res.send(`${HEADER(lead.name || ('Lead #' + lid), 'leads', req.query.key)}
+<main class="page">
+  <div>
+    <a class="back-link" href="/admin/leads?key=${escapeHtml(req.query.key)}">← All leads</a>
+    <div class="h-title">${escapeHtml(lead.name)} · ${escapeHtml(lead.business_name)}</div>
+    <div class="h-sub">
+      Submitted ${timeAgo(lead.created_at)} ·
+      Status: ${statusPill(lead.status || 'new')}
+      ${lead.contacted_at ? ' · Contacted ' + timeAgo(lead.contacted_at) : ''}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">Contact</div>
+      <form method="POST" action="/admin/lead/${lid}/status?key=${escapeHtml(req.query.key)}" style="display:flex;gap:8px">
+        ${lead.status !== 'contacted' ? `<button type="submit" name="status" value="contacted" class="chip" style="border:1px solid #c5d4b3;background:#e8ede0;color:#4a5c33;cursor:pointer;font-family:inherit">Mark contacted</button>` : ''}
+        ${lead.status !== 'new'       ? `<button type="submit" name="status" value="new"       class="chip" style="border:1px solid #ebe3d3;cursor:pointer;font-family:inherit">Mark new</button>` : ''}
+        ${lead.status !== 'archived'  ? `<button type="submit" name="status" value="archived"  class="chip" style="border:1px solid #ebe3d3;cursor:pointer;font-family:inherit">Archive</button>` : ''}
+      </form>
+    </div>
+    <div style="padding:18px 24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px 28px">
+      <div><div style="font-size:11px;color:#8a7866;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:4px">Phone</div><div style="font-size:14px"><a href="tel:+${escapeHtml(lead.phone)}" style="color:#1a1410;text-decoration:none">${formatPhone(lead.phone)}</a></div></div>
+      <div><div style="font-size:11px;color:#8a7866;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:4px">Email</div><div style="font-size:14px"><a href="mailto:${escapeHtml(lead.email)}" style="color:#1a1410;text-decoration:none">${escapeHtml(lead.email)}</a></div></div>
+      <div><div style="font-size:11px;color:#8a7866;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:4px">Instagram</div><div style="font-size:14px">${igLink}</div></div>
+      <div><div style="font-size:11px;color:#8a7866;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:4px">Website</div><div style="font-size:14px">${webLink}</div></div>
+      <div><div style="font-size:11px;color:#8a7866;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:4px">Timeline</div><div style="font-size:14px">${escapeHtml(TIMELINE_LABELS[lead.timeline] || '—')}</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-title">Services interested in</div></div>
+    <div style="padding:18px 24px">
+      ${services.length === 0 ? '<span style="color:#8a7866;font-size:13px">None specified.</span>' :
+        services.map(s => `<span class="pill gold" style="margin-right:6px;margin-bottom:6px;display:inline-block">${escapeHtml(s)}</span>`).join('')}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-title">About the business</div></div>
+    <div style="padding:18px 24px;font-size:14px;color:#1a1410;line-height:1.6;white-space:pre-wrap">${escapeHtml(lead.business_description || '— No description provided —')}</div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-title">Anything else</div></div>
+    <div style="padding:18px 24px;font-size:14px;color:#1a1410;line-height:1.6;white-space:pre-wrap">${escapeHtml(lead.additional_notes || '— Nothing extra —')}</div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-title">Submission metadata</div></div>
+    <table class="tbl">
+      <tbody>
+        <tr><td style="color:#8a7866;width:180px">Submitted</td><td>${new Date(lead.created_at).toLocaleString('en-IN', { dateStyle:'medium', timeStyle:'short' })}</td></tr>
+        <tr><td style="color:#8a7866">Source</td><td>${escapeHtml(lead.source || '—')}</td></tr>
+        <tr><td style="color:#8a7866">Client IP</td><td style="font-family:'JetBrains Mono',monospace;font-size:12px">${escapeHtml(lead.client_ip || '—')}</td></tr>
+        <tr><td style="color:#8a7866">User agent</td><td style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#5a4a35;word-break:break-all">${escapeHtml(lead.user_agent || '—')}</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+</body></html>`);
+  } catch (err) {
+    console.error('Admin lead detail err:', err);
+    res.status(500).send('<h2>Error: ' + escapeHtml(err.message) + '</h2>');
+  }
+});
+
+// ----- status update -----
+router.post('/lead/:id/status', async (req, res) => {
+  try {
+    const lid = parseInt(req.params.id);
+    if (!Number.isFinite(lid)) return res.status(400).send('Invalid lead id');
+    const next = String(req.body?.status || '').trim();
+    if (!LEAD_STATUSES.has(next)) return res.status(400).send('Invalid status');
+
+    await pool.query(
+      `UPDATE onboarding_submissions
+         SET status = $1,
+             contacted_at = CASE WHEN $1 = 'contacted' THEN NOW() ELSE contacted_at END
+       WHERE id = $2`,
+      [next, lid]
+    );
+    res.redirect(`/admin/lead/${lid}?key=${encodeURIComponent(req.query.key)}`);
+  } catch (err) {
+    console.error('Admin lead status err:', err);
     res.status(500).send('<h2>Error: ' + escapeHtml(err.message) + '</h2>');
   }
 });
