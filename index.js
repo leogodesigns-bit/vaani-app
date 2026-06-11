@@ -634,6 +634,7 @@ app.use('/team-timeline', require('./routes/team-timeline'));
 app.use('/api/demo-leads', require('./routes/demo-leads'));
 app.use('/api/onboarding', require('./routes/onboarding'));
 app.use('/onboarding', require('./routes/onboarding-form'));
+app.use('/api/meta-leads-webhook', require('./routes/meta-leads-webhook'));
 
 // ── TEMP: schema probe to find Instagram DM / comment storage.
 // Remove after schema is confirmed. Read-only, no writes.
