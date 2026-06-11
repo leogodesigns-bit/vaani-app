@@ -21,7 +21,7 @@
 //   C.11 — Section 13 Edge cases
 
 const { sendMessage, sendButtons, sendList, sendImage } = require('../whatsapp');
-const { getConversation, upsertConversation, saveOrder, getOrder, markOrderPaid, saveShopifyDraftRef } = require('../db');
+const { getConversation, upsertConversation, saveOrder, getOrder, markOrderPaid, saveShopifyDraftRef, scheduleNudge, cancelNudges } = require('../db');
 const Anthropic = require('@anthropic-ai/sdk');
 const edge = require('./rajathee-edge');
 const qa = require('./rajathee-qa');
@@ -1163,6 +1163,7 @@ async function sendProductDetail(ctx, productHandle) {
     desc + ellipsis;
 
   await sendMessage(from, detailText, waToken, phoneNumberId);
+  scheduleBrowseNudges(tenant.id, from, product.title).catch(e => console.error('[rajathee] scheduleBrowseNudges failed (non-fatal):', e.message));
 
   // Identify real colour variants (excludes Shopify default-title dummy).
   // `realVariants` = all colour variants regardless of stock — used to decide
@@ -3253,4 +3254,16 @@ async function handleOrderInquiry(ctx, orderNumber) {
     sosType: 'ORDER INQUIRY',
     summary: `Order inquiry #${orderNumber} from +${from}`,
   });
+}
+
+// ─── C.12 BROWSE NUDGES — schedule 15m + 30m follow-ups on product view ───
+// Called every time sendProductDetail renders a product. Idempotent — db
+// cancels the prior pending nudge of the same kind before inserting a new one.
+async function scheduleBrowseNudges(tenantId, customerPhone, productTitle) {
+  const now = new Date();
+  const at15 = new Date(now.getTime() + 15 * 60 * 1000);
+  const at30 = new Date(now.getTime() + 30 * 60 * 1000);
+  const payload = { productTitle };
+  await scheduleNudge(tenantId, customerPhone, 'rajathee_browse_15m', at15, payload);
+  await scheduleNudge(tenantId, customerPhone, 'rajathee_browse_30m', at30, payload);
 }

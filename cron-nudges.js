@@ -134,6 +134,39 @@ async function sendUnpaidCheckoutTemplate(tenant, creds, phone, payload) {
   return { skipped: true, reason: r?.error || 'unknown_failure' };
 }
 
+
+// ─── Rajathee browse nudge senders ───────────────────────────────────────
+async function sendRajatheeBrowse15m(creds, phone, payload) {
+  const productTitle = payload?.productTitle || 'the saree you were looking at';
+  const text =
+    `Just checking in 🌸 You were browsing *${productTitle}* a little while ago.
+
+` +
+    `If you have any questions about the fabric, sizing, or how to style it — I'm here!
+` +
+    `And just so you know: we have an easy 7-day exchange policy, so you can order with confidence. 🙏
+
+` +
+    `— Tara`;
+  await sendMessage(phone, text, creds.waToken, creds.phoneNumberId);
+  return text;
+}
+
+async function sendRajatheeBrowse30m(creds, phone, payload) {
+  const productTitle = payload?.productTitle || 'a saree';
+  const text =
+    `Still thinking about *${productTitle}*? 🌸
+
+` +
+    `No pressure at all — but I wanted you to know that our exchange policy is simple and hassle-free. If it doesn't feel right when it arrives, we'll sort it out.
+` +
+    `Reply anytime if you'd like help deciding. 🙏
+
+` +
+    `— Tara`;
+  await sendMessage(phone, text, creds.waToken, creds.phoneNumberId);
+  return text;
+}
 // ─── Dispatch one nudge ───────────────────────────────────────────────────
 async function dispatchOne(nudge) {
   const tenant = await getTenantById(nudge.tenant_id);
@@ -177,6 +210,14 @@ async function dispatchOne(nudge) {
         const logText = await sendSizingRemind(creds, phone, payload);
         return { sent: true, logText };
       }
+    case 'rajathee_browse_15m': {
+      const logText = await sendRajatheeBrowse15m(creds, phone, payload);
+      return { sent: true, logText };
+    }
+    case 'rajathee_browse_30m': {
+      const logText = await sendRajatheeBrowse30m(creds, phone, payload);
+      return { sent: true, logText };
+    }
     default:
       throw new Error(`unknown nudge kind: ${nudge.kind}`);
   }
