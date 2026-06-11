@@ -65,6 +65,10 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#faf7f2;color:#1a14
 .pill.sage{background:#e8ede0;color:#4a5c33;border:1px solid #c5d4b3}
 .pill.rose{background:#f5e3e0;color:#8a3e35;border:1px solid #e0b8b2}
 .pill.gray{background:#f0e8d6;color:#5a4a35;border:1px solid #d4c4a0}
+.pill.blue{background:#dde6ee;color:#33526b;border:1px solid #b8ccd9}
+.pill.orange{background:#fbd8b9;color:#8a4a23;border:1px solid #ecb88a}
+.pill.purple{background:#e6dceb;color:#5a3a6e;border:1px solid #ccbad4}
+.pill.teal{background:#cee2dd;color:#1f4d47;border:1px solid #a8cdc4}
 .back-link{display:inline-flex;align-items:center;gap:6px;color:#8a7866;font-size:13px;text-decoration:none;margin-bottom:14px}
 .back-link:hover{color:#1a1410}
 .chat-thread{padding:24px;max-height:600px;overflow-y:auto;background:linear-gradient(to bottom,#fffdf8,#fbf6ea)}
@@ -107,6 +111,36 @@ const SUBNAV_STYLES = `
 .subnav a .count{background:#f0e8d6;color:#5a4a35;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600}
 .subnav a.active .count{background:#fef0d8;color:#8a6a35}
 @media(max-width:900px){.subnav{padding:0 16px}.subnav a{padding:12px 12px}}
+
+/* New Lead button + modal (leads page) */
+.btn-newlead{margin-left:auto;background:#1a1410;color:#faf7f2;border:none;padding:9px 16px;border-radius:9px;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s}
+.btn-newlead:hover{background:#3a2e22}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(26,20,16,.55);z-index:200;align-items:flex-start;justify-content:center;padding:60px 20px 20px;overflow-y:auto;backdrop-filter:blur(2px)}
+.modal-overlay.open{display:flex}
+.modal{background:#fffdf8;border:1px solid #ebe3d3;border-radius:14px;max-width:560px;width:100%;box-shadow:0 30px 80px rgba(26,20,16,.35);max-height:calc(100vh - 80px);overflow-y:auto}
+.modal-header{padding:18px 24px;border-bottom:1px solid #f0e8d6;display:flex;justify-content:space-between;align-items:center}
+.modal-header h2{font-size:16px;font-weight:600;color:#1a1410;margin:0}
+.modal-close{background:none;border:none;font-size:20px;color:#8a7866;cursor:pointer;line-height:1;padding:4px 8px;border-radius:6px}
+.modal-close:hover{background:#fbf6ea;color:#1a1410}
+.modal-body{padding:20px 24px 24px}
+.modal-row{margin-bottom:14px}
+.modal-label{display:block;font-size:11px;color:#8a7866;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:6px}
+.modal-input,.modal-select{width:100%;padding:9px 12px;border:1px solid #ebe3d3;border-radius:8px;font-family:inherit;font-size:13.5px;background:#faf7f2;color:#1a1410;transition:border-color .15s}
+.modal-input:focus,.modal-select:focus{outline:none;border-color:#b8904d;background:#fffdf8}
+.modal-services{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.modal-svc-opt{display:flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid #ebe3d3;border-radius:8px;background:#faf7f2;cursor:pointer;font-size:13px;color:#1a1410;transition:all .15s}
+.modal-svc-opt:hover{background:#fef0d8;border-color:#d4c4a0}
+.modal-svc-opt input{accent-color:#b8904d;cursor:pointer}
+.modal-svc-opt input:checked + span{font-weight:500}
+.modal-svc-opt:has(input:checked){background:#fef0d8;border-color:#b8904d}
+.modal-error{background:rgba(196,74,74,.08);border:1px solid rgba(196,74,74,.3);color:#9E2A2A;border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:12px;display:none}
+.modal-error.show{display:block}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;padding-top:8px;border-top:1px solid #f0e8d6;margin-top:18px;padding-top:16px}
+.modal-actions .btn-cancel{background:transparent;border:1px solid #ebe3d3;color:#5a4a35;padding:9px 18px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer}
+.modal-actions .btn-cancel:hover{background:#fbf6ea}
+.modal-actions .btn-submit{background:#b8904d;color:white;border:none;padding:9px 18px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer}
+.modal-actions .btn-submit:hover{background:#8a6a35}
+@media(max-width:560px){.modal-services{grid-template-columns:1fr}}
 </style>
 `;
 
@@ -387,15 +421,28 @@ const TIMELINE_LABELS = {
   exploring:      'Exploring'
 };
 
-const LEAD_STATUSES = new Set(['new', 'contacted', 'archived']);
+const LEAD_STATUSES = new Set([
+  'new', 'contacted', 'negotiating',
+  'onboarding_sent', 'onboarding_submitted',
+  'active', 'lost', 'archived'
+]);
+
+// Defines the visual + label for every status. Keep this map as the
+// single source of truth — pill colors, filter chip labels, and
+// action-button labels all derive from it.
+const STATUS_META = {
+  new:                  { cls: 'gold',   text: 'New' },                     // yellow
+  contacted:            { cls: 'blue',   text: 'Contacted' },               // blue
+  negotiating:          { cls: 'orange', text: 'Negotiating' },             // orange
+  onboarding_sent:      { cls: 'purple', text: 'Onboarding sent' },         // purple
+  onboarding_submitted: { cls: 'teal',   text: 'Onboarding submitted' },    // teal
+  active:               { cls: 'sage',   text: 'Active' },                  // green
+  lost:                 { cls: 'rose',   text: 'Lost' },                    // red
+  archived:             { cls: 'gray',   text: 'Archived' }                 // grey
+};
 
 function statusPill(status) {
-  const map = {
-    new:       { cls: 'gold', text: 'New' },
-    contacted: { cls: 'sage', text: 'Contacted' },
-    archived:  { cls: 'gray', text: 'Archived' }
-  };
-  const s = map[status] || map.new;
+  const s = STATUS_META[status] || STATUS_META.new;
   return `<span class="pill ${s.cls}">${s.text}</span>`;
 }
 
@@ -455,7 +502,13 @@ router.get('/leads', async (req, res) => {
     <div class="chip active" data-filter="all" onclick="setFilter(event,'all')">All</div>
     <div class="chip" data-filter="new" onclick="setFilter(event,'new')">New</div>
     <div class="chip" data-filter="contacted" onclick="setFilter(event,'contacted')">Contacted</div>
+    <div class="chip" data-filter="negotiating" onclick="setFilter(event,'negotiating')">Negotiating</div>
+    <div class="chip" data-filter="onboarding_sent" onclick="setFilter(event,'onboarding_sent')">Onboarding sent</div>
+    <div class="chip" data-filter="onboarding_submitted" onclick="setFilter(event,'onboarding_submitted')">Onboarding submitted</div>
+    <div class="chip" data-filter="active" onclick="setFilter(event,'active')">Active</div>
+    <div class="chip" data-filter="lost" onclick="setFilter(event,'lost')">Lost</div>
     <div class="chip" data-filter="archived" onclick="setFilter(event,'archived')">Archived</div>
+    <button type="button" class="btn-newlead" onclick="document.getElementById('newleadModal').classList.add('open')">+ New Lead</button>
   </div>
 
   <div class="card">
@@ -487,7 +540,88 @@ router.get('/leads', async (req, res) => {
   </div>
 </main>
 
+<!-- New Lead modal -->
+<div class="modal-overlay" id="newleadModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Add a new lead</h2>
+      <button type="button" class="modal-close" onclick="document.getElementById('newleadModal').classList.remove('open')" aria-label="Close">×</button>
+    </div>
+    <form class="modal-body" method="POST" action="/admin/leads/create?key=${escapeHtml(req.query.key)}" autocomplete="off">
+      <div class="modal-error" id="modalError"></div>
+
+      <div class="modal-row">
+        <label class="modal-label" for="nl_name">Name</label>
+        <input class="modal-input" id="nl_name" name="name" required maxlength="120" placeholder="Priya Sharma">
+      </div>
+      <div class="modal-row">
+        <label class="modal-label" for="nl_business">Business name</label>
+        <input class="modal-input" id="nl_business" name="business_name" required maxlength="160" placeholder="Their brand">
+      </div>
+      <div class="modal-row">
+        <label class="modal-label" for="nl_phone">Phone</label>
+        <input class="modal-input" id="nl_phone" name="phone" required maxlength="20" placeholder="919876543210" inputmode="tel">
+      </div>
+      <div class="modal-row">
+        <label class="modal-label" for="nl_email">Email</label>
+        <input class="modal-input" id="nl_email" name="email" type="email" required maxlength="160" placeholder="priya@brand.com">
+      </div>
+
+      <div class="modal-row">
+        <label class="modal-label">Services interested in</label>
+        <div class="modal-services">
+          <label class="modal-svc-opt"><input type="checkbox" name="services" value="vaani_whatsapp"><span>Vaani WhatsApp Bot</span></label>
+          <label class="modal-svc-opt"><input type="checkbox" name="services" value="vaani_instagram"><span>Vaani Instagram Bot</span></label>
+          <label class="modal-svc-opt"><input type="checkbox" name="services" value="social_media"><span>Social Media Management</span></label>
+          <label class="modal-svc-opt"><input type="checkbox" name="services" value="shopify_website"><span>Shopify Website</span></label>
+        </div>
+      </div>
+
+      <div class="modal-row">
+        <label class="modal-label" for="nl_timeline">Timeline</label>
+        <select class="modal-select" id="nl_timeline" name="timeline">
+          <option value="">— Not specified —</option>
+          <option value="asap">As soon as possible</option>
+          <option value="1_month">Within a month</option>
+          <option value="1_3_months">1–3 months</option>
+          <option value="3_plus_months">3+ months</option>
+          <option value="exploring">Just exploring</option>
+        </select>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="document.getElementById('newleadModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="btn-submit">Create lead</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
+  // Surface a server-side validation error stashed in ?err=…
+  (function(){
+    const errMap = {
+      missing_field: 'Please fill in all required fields (name, business, phone, email).',
+      invalid_email: 'That email address looks invalid.',
+      invalid_phone: 'Phone must be 8–15 digits.',
+      service_required: 'Pick at least one service.',
+      invalid_timeline: 'Invalid timeline value.',
+      server_error: 'Something went wrong creating the lead. Try again.'
+    };
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get('err');
+    if (err && errMap[err]) {
+      const box = document.getElementById('modalError');
+      box.textContent = errMap[err];
+      box.classList.add('show');
+      document.getElementById('newleadModal').classList.add('open');
+    }
+    // Esc to close
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') document.getElementById('newleadModal').classList.remove('open');
+    });
+  })();
+
   function updateRowCount() {
     const rows = document.querySelectorAll('#leads-table tbody tr');
     const visible = Array.from(rows).filter(r => !r.classList.contains('hidden')).length;
@@ -575,18 +709,30 @@ router.get('/lead/:id', async (req, res) => {
     let onboardingSection = '';
 
     if (!details) {
+      const alreadySent = lead.status === 'onboarding_sent';
+      const headPill = alreadySent
+        ? '<span class="pill purple">Onboarding sent</span>'
+        : '<span class="pill gray">Not yet sent</span>';
+      const intro = alreadySent
+        ? `Link below was already marked as sent. Copy it again if you need to re-send.`
+        : `Send this link to ${escapeHtml(lead.name.split(' ')[0])} to collect their setup details. Click <strong>Start Onboarding</strong> once you've shared it — that marks the lead as sent.`;
+      const startBtn = alreadySent ? '' : `
+        <form method="POST" action="/admin/lead/${lid}/start-onboarding?key=${escapeHtml(req.query.key)}" style="margin:0">
+          <button type="submit" class="chip" style="padding:9px 18px;border:none;background:#b8904d;color:white;cursor:pointer;font-family:inherit;border-radius:9px;font-weight:500">Start Onboarding →</button>
+        </form>`;
       onboardingSection = `
   <div class="card">
     <div class="card-head">
       <div class="card-title">Onboarding</div>
-      <span class="pill gray">Not yet submitted</span>
+      ${headPill}
     </div>
     <div style="padding:18px 24px">
-      <p style="color:#5a4a35;font-size:13.5px;line-height:1.55;margin-bottom:14px">Send this link to ${escapeHtml(lead.name.split(' ')[0])} to collect their setup details.</p>
+      <p style="color:#5a4a35;font-size:13.5px;line-height:1.55;margin-bottom:14px">${intro}</p>
       <div style="display:flex;gap:8px;align-items:stretch;flex-wrap:wrap">
         <input type="text" readonly value="${escapeHtml(onboardingUrl)}" id="onbUrl" style="flex:1;min-width:280px;padding:9px 14px;border:1px solid #ebe3d3;border-radius:9px;font-family:'JetBrains Mono',monospace;font-size:12.5px;background:#fbf6ea;color:#1a1410">
         <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('onbUrl').value).then(()=>{this.textContent='Copied ✓';setTimeout(()=>this.textContent='Copy link',1800)})" class="chip" style="padding:9px 16px;border:1px solid #ebe3d3;cursor:pointer;font-family:inherit;background:#fffdf8">Copy link</button>
         <a href="${escapeHtml(onboardingUrl)}" target="_blank" rel="noopener" class="chip" style="padding:9px 16px;border:1px solid #ebe3d3;cursor:pointer;font-family:inherit;background:#fffdf8;text-decoration:none;color:#1a1410">Open ↗</a>
+        ${startBtn}
       </div>
     </div>
   </div>`;
@@ -692,9 +838,11 @@ router.get('/lead/:id', async (req, res) => {
     <div class="card-head">
       <div class="card-title">Contact</div>
       <form method="POST" action="/admin/lead/${lid}/status?key=${escapeHtml(req.query.key)}" style="display:flex;gap:8px">
-        ${lead.status !== 'contacted' ? `<button type="submit" name="status" value="contacted" class="chip" style="border:1px solid #c5d4b3;background:#e8ede0;color:#4a5c33;cursor:pointer;font-family:inherit">Mark contacted</button>` : ''}
-        ${lead.status !== 'new'       ? `<button type="submit" name="status" value="new"       class="chip" style="border:1px solid #ebe3d3;cursor:pointer;font-family:inherit">Mark new</button>` : ''}
-        ${lead.status !== 'archived'  ? `<button type="submit" name="status" value="archived"  class="chip" style="border:1px solid #ebe3d3;cursor:pointer;font-family:inherit">Archive</button>` : ''}
+        ${lead.status !== 'contacted'   ? `<button type="submit" name="status" value="contacted"   class="chip" style="border:1px solid #b8ccd9;background:#dde6ee;color:#33526b;cursor:pointer;font-family:inherit">Contacted</button>` : ''}
+        ${lead.status !== 'negotiating' ? `<button type="submit" name="status" value="negotiating" class="chip" style="border:1px solid #ecb88a;background:#fbd8b9;color:#8a4a23;cursor:pointer;font-family:inherit">Negotiating</button>` : ''}
+        ${lead.status !== 'active'      ? `<button type="submit" name="status" value="active"      class="chip" style="border:1px solid #c5d4b3;background:#e8ede0;color:#4a5c33;cursor:pointer;font-family:inherit">Mark Active</button>` : ''}
+        ${lead.status !== 'lost'        ? `<button type="submit" name="status" value="lost"        class="chip" style="border:1px solid #e0b8b2;background:#f5e3e0;color:#8a3e35;cursor:pointer;font-family:inherit">Mark Lost</button>` : ''}
+        ${lead.status !== 'archived'    ? `<button type="submit" name="status" value="archived"    class="chip" style="border:1px solid #d4c4a0;background:#f0e8d6;color:#5a4a35;cursor:pointer;font-family:inherit">Archive</button>` : ''}
       </form>
     </div>
     <div style="padding:18px 24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px 28px">
@@ -764,6 +912,71 @@ router.post('/lead/:id/status', async (req, res) => {
   } catch (err) {
     console.error('Admin lead status err:', err);
     res.status(500).send('<h2>Error: ' + escapeHtml(err.message) + '</h2>');
+  }
+});
+
+// ----- Start onboarding (admin marks lead as 'onboarding_sent') -----
+router.post('/lead/:id/start-onboarding', async (req, res) => {
+  try {
+    const lid = parseInt(req.params.id);
+    if (!Number.isFinite(lid)) return res.status(400).send('Invalid lead id');
+    await pool.query(
+      `UPDATE onboarding_submissions
+          SET status = 'onboarding_sent',
+              contacted_at = COALESCE(contacted_at, NOW())
+        WHERE id = $1`,
+      [lid]
+    );
+    res.redirect(`/admin/lead/${lid}?key=${encodeURIComponent(req.query.key)}`);
+  } catch (err) {
+    console.error('Admin start-onboarding err:', err);
+    res.status(500).send('<h2>Error: ' + escapeHtml(err.message) + '</h2>');
+  }
+});
+
+// ----- Create a new lead from the admin modal -----
+const ALLOWED_LEAD_SERVICES = new Set(['vaani_whatsapp','vaani_instagram','social_media','shopify_website']);
+const ALLOWED_LEAD_TIMELINES = new Set(['asap','1_month','1_3_months','3_plus_months','exploring']);
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+router.post('/leads/create', async (req, res) => {
+  const key = encodeURIComponent(req.query.key || '');
+  const back = (err) => res.redirect(`/admin/leads?key=${key}&err=${err}`);
+
+  try {
+    const b = req.body || {};
+    const name         = String(b.name || '').trim().slice(0, 120);
+    const businessName = String(b.business_name || '').trim().slice(0, 160);
+    const email        = String(b.email || '').trim().slice(0, 160).toLowerCase();
+    const phoneDigits  = String(b.phone || '').replace(/[^0-9]/g, '');
+    const timelineRaw  = String(b.timeline || '').trim();
+
+    if (!name || !businessName || !phoneDigits || !email) return back('missing_field');
+    if (!EMAIL_RE.test(email)) return back('invalid_email');
+    if (phoneDigits.length < 8 || phoneDigits.length > 15) return back('invalid_phone');
+    if (timelineRaw && !ALLOWED_LEAD_TIMELINES.has(timelineRaw)) return back('invalid_timeline');
+
+    // services_interested can arrive as a string (one box) or array (many).
+    const rawSvcs = Array.isArray(b.services) ? b.services : (b.services ? [b.services] : []);
+    const services = [...new Set(rawSvcs.filter(s => ALLOWED_LEAD_SERVICES.has(s)))];
+    if (services.length === 0) return back('service_required');
+
+    const ip = (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim();
+    const ua = (req.headers['user-agent'] || '').toString().slice(0, 500);
+
+    const ins = await pool.query(
+      `INSERT INTO onboarding_submissions
+         (name, business_name, phone, email, services_interested,
+          timeline, source, client_ip, user_agent)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       RETURNING id`,
+      [name, businessName, phoneDigits, email, services,
+       timelineRaw || null, 'admin-created', ip || null, ua || null]
+    );
+    res.redirect(`/admin/lead/${ins.rows[0].id}?key=${key}`);
+  } catch (err) {
+    console.error('Admin lead-create err:', err && err.message);
+    return back('server_error');
   }
 });
 

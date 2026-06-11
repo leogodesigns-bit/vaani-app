@@ -165,6 +165,22 @@ router.post('/submit', async (req, res) => {
          ip || null,
          ua || null]
       );
+
+      // Auto-progress the parent lead's status to 'onboarding_submitted'.
+      // Best-effort: a failure here must not fail the client's submission.
+      // COALESCE so we don't overwrite an existing contacted_at timestamp.
+      try {
+        await pool.query(
+          `UPDATE onboarding_submissions
+              SET status = 'onboarding_submitted',
+                  contacted_at = COALESCE(contacted_at, NOW())
+            WHERE id = $1`,
+          [leadId]
+        );
+      } catch (updErr) {
+        console.error('[onboarding-form] lead status update failed:', updErr && updErr.message);
+      }
+
       return res.json({ ok: true, id: ins.rows[0].id });
     } catch (insErr) {
       // 23505 = unique_violation on lead_id
