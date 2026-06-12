@@ -1163,7 +1163,7 @@ async function sendProductDetail(ctx, productHandle) {
     desc + ellipsis;
 
   await sendMessage(from, detailText, waToken, phoneNumberId);
-  scheduleBrowseNudges(tenant.id, from, product.title).catch(e => console.error('[rajathee] scheduleBrowseNudges failed (non-fatal):', e.message));
+  scheduleBrowseNudges(tenant.id, from, product.title).catch(e => console.error('[rajathee] scheduleBrowseNudges ERROR:', e.message, e.stack));
 
   // Identify real colour variants (excludes Shopify default-title dummy).
   // `realVariants` = all colour variants regardless of stock — used to decide
