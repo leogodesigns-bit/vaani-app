@@ -137,32 +137,20 @@ async function sendUnpaidCheckoutTemplate(tenant, creds, phone, payload) {
 
 // ─── Rajathee browse nudge senders ───────────────────────────────────────
 async function sendRajatheeBrowse15m(creds, phone, payload) {
-  const productTitle = payload?.productTitle || 'the saree you were looking at';
   const text =
-    `Just checking in 🌸 You were browsing *${productTitle}* a little while ago.
-
-` +
-    `If you have any questions about the fabric, sizing, or how to style it — I'm here!
-` +
-    `And just so you know: we have an easy 7-day exchange policy, so you can order with confidence. 🙏
-
-` +
+    `Hi! 🌸 Just noticed you were browsing our sarees a little while ago.\n\n` +
+    `If anything caught your eye or you have questions about fabric or sizing — I'm here! ` +
+    `And just so you know, we have a simple 7-day exchange policy, so you can order with complete peace of mind.\n\n` +
     `— Tara`;
   await sendMessage(phone, text, creds.waToken, creds.phoneNumberId);
   return text;
 }
 
 async function sendRajatheeBrowse30m(creds, phone, payload) {
-  const productTitle = payload?.productTitle || 'a saree';
   const text =
-    `Still thinking about *${productTitle}*? 🌸
-
-` +
-    `No pressure at all — but I wanted you to know that our exchange policy is simple and hassle-free. If it doesn't feel right when it arrives, we'll sort it out.
-` +
-    `Reply anytime if you'd like help deciding. 🙏
-
-` +
+    `Still thinking? 🌸\n\n` +
+    `No rush at all — if you'd like help picking the right fabric or drape, just say the word.\n\n` +
+    `We're here whenever you're ready. 🙏\n\n` +
     `— Tara`;
   await sendMessage(phone, text, creds.waToken, creds.phoneNumberId);
   return text;
