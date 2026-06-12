@@ -3267,3 +3267,4 @@ async function scheduleBrowseNudges(tenantId, customerPhone, productTitle) {
   await scheduleNudge(tenantId, customerPhone, 'rajathee_browse_15m', at15, payload);
   await scheduleNudge(tenantId, customerPhone, 'rajathee_browse_30m', at30, payload);
 }
+// browse nudge deploy Fri Jun 12 10:15:09 IST 2026
