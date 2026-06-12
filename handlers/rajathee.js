@@ -309,6 +309,10 @@ async function handle(ctx) {
 
   console.log(`[rajathee] ${tenant.shop_domain} — from ${from}: ${text}`);
 
+  // Cancel any pending browse nudges when customer replies
+  cancelNudges(tenant.id, from, 'rajathee_browse_15m', 'customer_replied').catch(() => {});
+  cancelNudges(tenant.id, from, 'rajathee_browse_30m', 'customer_replied').catch(() => {});
+
   // ── Owner confirmation command (PDF Section 9) ──
   // Format: "confirmed RAJ-XXXXXX-XXX" sent from OWNER_ALERT_PHONE.
   // Marks the order as paid and sends thank-you to the customer.
