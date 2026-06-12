@@ -795,6 +795,7 @@ async function sendFabricPicker(ctx) {
       productHandles: [],
     },
   });
+  scheduleBrowseNudges(tenant.id, from, null).catch(e => console.error('[rajathee] scheduleBrowseNudges ERROR:', e.message, e.stack));
 }
 
 async function sendFabricResults(ctx, fabricRowId, page) {
@@ -902,6 +903,7 @@ async function sendColourPicker(ctx) {
       productHandles: [],
     },
   });
+  scheduleBrowseNudges(tenant.id, from, null).catch(e => console.error('[rajathee] scheduleBrowseNudges ERROR:', e.message, e.stack));
 }
 
 function variantMatchesColour(variantTitle, colourId) {
